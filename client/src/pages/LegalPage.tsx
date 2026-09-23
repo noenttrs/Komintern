@@ -26,7 +26,7 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
         <p>
           Le trafic transite par <strong>Cloudflare, Inc.</strong> (101 Townsend St, San Francisco, CA 94107, États-Unis — cloudflare.com),
           qui assure le chiffrement HTTPS et la protection du site. Les emails sont envoyés via <strong>Resend</strong> (resend.com)
-          et la boîte de contact est hébergée par <strong>Zoho Mail</strong> (zoho.com).
+          et les emails reçus sont redirigés par <strong>Cloudflare Email Routing</strong> vers la boîte de l'éditeur.
         </p>
 
         <h2>Données personnelles</h2>
