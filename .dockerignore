@@ -1,0 +1,15 @@
+# Contexte de build du serveur (racine du projet)
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/*.tsbuildinfo
+client/
+.agents/
+**/*.md
+skills-lock.json
+.env
+.env.*
+docker-compose.yml
+**/Dockerfile
+.dockerignore
