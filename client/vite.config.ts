@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Enregistrement fait dans main.tsx : la page se recharge d'elle-même quand une
+      // nouvelle version est déployée, au lieu de garder l'ancienne en cache.
+      injectRegister: false,
       includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
       manifest: {
         name: "Nazi Communiste",
@@ -32,6 +35,9 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/agents\.html$/, /^\/llms\.txt$/, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
         runtimeCaching: [],
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
