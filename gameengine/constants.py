@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .types import InfoMode, Ruleset
 
-# Formats de 3 à 11 joueurs (voir docs/regles.md) :
+# Formats de 3 à 11 joueurs (voir docs/REGLES.md) :
 # - un camp gagne à (joueurs // 2) + 1 missions, donc 2 × seuil - 1 missions au plus ;
 # - on commence par de petites équipes puis on alterne pour faire monter la tension ;
 # - une équipe ne dépasse jamais le nombre de communistes (une équipe sans nazi reste possible).

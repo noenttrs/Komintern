@@ -1,16 +1,18 @@
 # Prompt — Agent Backend Rebuild
 
+> **Document historique** : brief de conception rédigé avant l'audit (nom de travail, stack et périmètre de l'époque). Il n'est plus tenu à jour ; les règles en vigueur sont dans `docs/REGLES.md`, l'état technique dans `docs/audit.md` et le `README.md`.
+
 ## Contexte
 
 Tu es en charge du rebuild de la couche serveur de **Cinquième Colonne**, un jeu de déduction sociale multijoueur en temps réel.
 
 Stack : **Node.js + Socket.io + Express**. Le serveur communique avec le game engine Python via bridge local. L'état des rooms est stocké dans **Redis**. Les comptes utilisateurs sont dans **PostgreSQL** — hors scope pour cette itération.
 
-Le document de référence absolu pour la logique du jeu est `docs/regles.md`. Le serveur ne réimplémente pas la logique métier — il orchestre le flux, filtre l'information, et relaie vers le game engine Python.
+Le document de référence absolu pour la logique du jeu est `docs/REGLES.md`. Le serveur ne réimplémente pas la logique métier — il orchestre le flux, filtre l'information, et relaie vers le game engine Python.
 
 ## Mode opératoire attendu
 
-- Lis d'abord `docs/regles.md`, `docs/briefs/frontend.md`, puis le code serveur existant avant de modifier quoi que ce soit.
+- Lis d'abord `docs/REGLES.md`, `docs/briefs/frontend.md`, puis le code serveur existant avant de modifier quoi que ce soit.
 - Considère ce document comme le contrat fonctionnel à respecter; si le code actuel diverge, aligne le code sur ce contrat.
 - Ne déplace pas la logique de jeu dans Node.js: toute décision métier reste côté game engine Python.
 - Ajoute ou actualise les tests unitaires sur la logique de session, de synchronisation groupe, de bridge et de reprise après déconnexion.
@@ -181,6 +183,6 @@ Toute action invalide (vote hors phase, proposition invalide, action non autoris
 
 ---
 
-> Référence règles : `docs/regles.md` — version 0.1
+> Référence règles : `docs/REGLES.md` — brief écrit pour la version 0.1 ; la version en vigueur est indiquée en tête du document.
 > Référence game engine : `prompt_agent_gameengine.md`
 > Référence frontend : `docs/briefs/frontend.md`

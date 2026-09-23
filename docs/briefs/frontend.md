@@ -1,5 +1,7 @@
 # Prompt — Agent Frontend Rebuild
 
+> **Document historique** : brief de conception rédigé avant l'audit (nom de travail, stack et périmètre de l'époque). Il n'est plus tenu à jour ; les règles en vigueur sont dans `docs/REGLES.md`, l'état technique dans `docs/audit.md` et le `README.md`.
+
 ## Contexte
 
 Tu es en charge du rebuild du frontend de **Cinquième Colonne**, un jeu de déduction sociale multijoueur en temps réel. Chaque joueur utilise son propre téléphone. La partie se joue en présentiel.
@@ -190,5 +192,5 @@ Le frontend écoute et émet les événements suivants. Ne pas modifier les noms
 
 ---
 
-> Référence règles : `docs/regles.md` — version 0.1
+> Référence règles : `docs/REGLES.md` — brief écrit pour la version 0.1 ; la version en vigueur est indiquée en tête du document.
 > Référence architecture : `prompt_agent_gameengine.md`

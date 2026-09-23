@@ -1,7 +1,7 @@
 import { PageShell } from "../components/PageShell";
 import { useI18n } from "../i18n";
 
-// Formats officiels (docs/regles.md) : [joueurs, nazis, communistes, victoires, tailles d'équipe].
+// Formats officiels (docs/REGLES.md) : [joueurs, nazis, communistes, victoires, tailles d'équipe].
 const FORMATS: Array<[number, number, number, number, string]> = [
   [3, 1, 2, 2, "2 · 2 · 2"],
   [4, 1, 3, 3, "2 · 3 · 2 · 3 · 3"],

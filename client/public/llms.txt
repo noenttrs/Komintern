@@ -18,6 +18,8 @@ Le nom et le thème sont satiriques : le jeu met en scène la lutte contre le fa
 3. Mission : chaque membre de l'équipe vote en secret. Un seul vote nazi fait échouer la mission. Les communistes ne peuvent voter que communiste. Les votes sont révélés sans être attribués.
 
 Le rôle de chef tourne d'un joueur à chaque nouvelle manche, et la rotation continue d'une partie à l'autre.
+Un joueur déconnecté a 60 secondes pour revenir (jusqu'à 5 minutes si les autres choisissent de l'attendre) ; au-delà, son camp perd la partie.
+Règles complètes : https://github.com/noenttrs/Komintern/blob/main/docs/REGLES.md
 
 ## Comment jouer
 

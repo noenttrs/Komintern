@@ -189,3 +189,17 @@ Tests ajoutés : 15 unitaires côté serveur (comptes, filtre, logs, anonymisati
 | Changement d'email | Mot de passe actuel exigé, code envoyé à la nouvelle adresse, ancienne adresse prévenue. |
 | Mesure d'audience | Sans cookie ni tiers : HyperLogLog d'empreintes salées (sel quotidien en mémoire uniquement), chemins normalisés sans identifiants, robots ignorés, Do Not Track et opposition respectés. |
 | Bugs corrigés trouvés par les tests de bout en bout | Stats perdues quand tout le monde quittait depuis l'écran de fin (enregistrement dès que le vainqueur est connu, parties abandonnées tracées comme annulées) ; lien d'invitation parfois ignoré pour un joueur connecté (demande d'entrée renvoyée à la connexion au lieu du tampon Socket.IO) ; salle d'attente et carte débordant de l'écran sur petits téléphones. |
+
+---
+
+# v4 — notifications, absences, nouveaux formats (2026-09-23)
+
+| Sujet | Mesure |
+|---|---|
+| Notifications Web Push | Clés VAPID, abonnement gardé en mémoire le temps de la room seulement, envoi limité aux services de push des navigateurs (Apple, Google, Mozilla, Microsoft) pour éviter toute requête du serveur vers une adresse arbitraire, texte neutre qui ne révèle jamais de rôle. Envoyées uniquement aux joueurs dont l'écran est caché ou déconnectés. |
+| Absences en partie | Compte à rebours de 60 s, attente de 5 min au choix des autres joueurs, avertissement 20 s avant l'abandon. Retour par la notification dans un onglet neuf : le dernier siège est retrouvé (secret gardé 6 h dans le navigateur). |
+| Bugs corrigés | Un joueur absent avant la distribution des rôles restait dans l'ordre des chefs et pouvait bloquer la partie : elle est désormais annulée (retour au salon). Un joueur revenant après la fin d'une partie recevait une erreur : la room l'accueille de nouveau. |
+| Formats | Retour du format à 3 joueurs ; duel à 2 joueurs (règles : `docs/REGLES.md` v0.4 puis v0.5), implémenté dans le moteur Python comme les missions. |
+| Client | Traduction anglaise, bannière de soutien Ko-fi (stockage local uniquement, aucun traceur ni script tiers). |
+
+Tests : moteur 48, serveur 84, client 70, Playwright 11 (dont absence avec attente et retour, et duel avec revanche).

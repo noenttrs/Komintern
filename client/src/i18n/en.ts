@@ -591,7 +591,7 @@ export const en: Dictionary = {
     tipsTitle: "Tips",
     tip1: "Role card: press and hold it to check your role discreetly.",
     tip2: "Swipe it to show the history of votes and missions.",
-    tip3: "Reloading the page or losing your connection doesn't lose your seat, but being away for more than 60 s makes your side lose.",
+    tip3: "Reloading the page or losing your connection doesn't lose your seat. An absent player has 60 s to come back (up to 5 min if the others choose to wait); after that, their side loses.",
   },
   legal: {
     title: "Legal notice",

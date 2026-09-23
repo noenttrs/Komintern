@@ -41,7 +41,7 @@ def draw_duel_roles(player_ids: list[str], rng: random.Random) -> dict[str, Fact
 
 
 def resolve_duel(roles: dict[str, Faction], votes: dict[str, DuelVote]) -> DuelOutcome:
-    """Table des résultats (docs/regles.md, « Duel à 2 joueurs »)."""
+    """Table des résultats (docs/REGLES.md, « Duel à 2 joueurs »)."""
     if set(votes) != set(roles) or len(roles) != 2:
         raise ValueError("each duel player must vote exactly once")
     first, second = list(roles)

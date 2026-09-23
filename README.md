@@ -5,7 +5,7 @@
 **Jeu de déduction sociale en temps réel : une minorité de nazis infiltrés contre une majorité de communistes.**
 Chacun joue sur son téléphone, autour d'une table ou à distance.
 
-[**Jouer →**](https://fascismwontget.me) · [Règles](docs/regles.md) · [Audit technique](docs/audit.md)
+[**Jouer →**](https://fascismwontget.me) · [Règles](docs/REGLES.md) · [Audit technique](docs/audit.md)
 
 [![CI](https://github.com/noenttrs/Komintern/actions/workflows/ci.yml/badge.svg)](https://github.com/noenttrs/Komintern/actions/workflows/ci.yml)
 
@@ -27,7 +27,7 @@ Chacun joue sur son téléphone, autour d'une table ou à distance.
 2. **Vote de confiance** : tout le monde vote publiquement. Il faut une majorité stricte, sinon le même chef repropose.
 3. **Mission** : l'équipe vote en secret. Un seul vote nazi fait échouer la mission.
 
-Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`docs/regles.md`](docs/regles.md).
+Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`docs/REGLES.md`](docs/REGLES.md).
 
 ## Fonctionnalités
 

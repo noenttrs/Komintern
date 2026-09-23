@@ -590,7 +590,7 @@ export const fr = {
     tipsTitle: "Astuces",
     tip1: "Carte de rôle : maintenez-la appuyée pour revoir votre rôle en toute discrétion.",
     tip2: "Faites-la glisser pour afficher l'historique des votes et des missions.",
-    tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place, mais une absence de plus de 60 s fait perdre son camp.",
+    tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place. Un joueur absent a 60 s pour revenir (jusqu'à 5 min si les autres choisissent de l'attendre) ; au-delà, son camp perd.",
   },
   legal: {
     title: "Mentions légales",
