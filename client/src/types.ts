@@ -20,15 +20,14 @@ export type UIPhase =
   | "end_game"
   | "replay_waiting";
 
-export type RulesetPreset =
-  | "PRESET_3J"
-  | "PRESET_5J"
-  | "PRESET_6J"
-  | "PRESET_7J"
-  | "PRESET_8J"
-  | "PRESET_9J"
-  | "PRESET_10J"
-  | "PRESET_11J";
+// Seuls les presets dont les tailles de mission sont définies sont jouables.
+export const PLAYABLE_PRESETS = ["PRESET_3J", "PRESET_4J", "PRESET_5J", "PRESET_6J"] as const;
+
+export type RulesetPreset = (typeof PLAYABLE_PRESETS)[number];
+
+export type RoomStatus = "waiting" | "table_order" | "playing" | "finished";
+
+export type ConnectionStatus = "idle" | "connecting" | "connected" | "disconnected";
 
 export type RulesetInfoMode = "full" | "partial" | "blind";
 
@@ -48,36 +47,12 @@ export interface StartGameVariantConfig {
   ruleset?: CustomRuleset;
 }
 
-export type RoundPhase = "proposing" | "voting" | "mission";
-
-export interface PlayerView {
-  playerId: string;
-  roleMap: Record<string, Faction>;
-}
-
-export interface RoundInfo {
-  missionNumber: number;
-  chefId: string;
-  requiredTeamSize: number;
-}
-
-export interface ConfidenceResult {
-  votes: Record<string, ConfidenceVote>;
-  approved: boolean;
-}
-
-export interface MissionResult {
-  team?: string[];
-  votes: MissionVote[];
-  winner: Faction;
-}
-
 export interface RoomPlayer {
   id: string;
   pseudo?: string;
   isHost?: boolean;
   isAfk?: boolean;
-  ready?: boolean;
+  isConnected?: boolean;
 }
 
 export interface ProposalState {
@@ -95,6 +70,7 @@ export interface ConfidenceState {
 export interface MissionState {
   team: string[];
   naziVoteCount: number | null;
+  result: Faction | null;
   votesSubmitted: number;
   votesRequired: number;
   submittedPlayerIds: string[];
@@ -121,6 +97,7 @@ export interface ReplayChoice {
 
 export interface ConfidenceHistoryEntry {
   missionIndex: number;
+  chef: string | null;
   team: string[];
   votes: Record<string, ConfidenceVote>;
   approved: boolean;
@@ -130,6 +107,20 @@ export interface MissionHistoryEntry {
   missionIndex: number;
   team: string[];
   naziVoteCount: number;
+  result: Faction;
+}
+
+/** Ce que ce joueur a déjà fait dans la phase courante (restauré au resync). */
+export interface MyProgress {
+  votedConfidence: boolean;
+  votedMission: boolean;
+  confirmed: boolean;
+}
+
+export interface GameOverState {
+  winner: Faction;
+  reason: "missions" | "forfeit";
+  forfeitedBy: string | null;
 }
 
 export interface TableOrderState {

@@ -6,6 +6,8 @@ WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Lint, types et tests bloquent la construction de l'image.
+RUN npm run lint && npm test
 # Vide = même origine (nginx relaie /socket.io/ vers le serveur)
 ARG VITE_SERVER_URL=""
 RUN if [ -z "$VITE_SERVER_URL" ]; then unset VITE_SERVER_URL; fi && npm run build

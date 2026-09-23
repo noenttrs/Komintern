@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { useGameSocket } from "./hooks/useGameSocket";
 
-import { ConfidenceVote, MissionVote, type Faction } from "./types";
+import { PLAYABLE_PRESETS, type ConfidenceVote, type MissionVote, type RulesetPreset, type UIPhase } from "./types";
 
 function FactionIcon({ faction }: { faction: "nazi" | "communist" | null }): JSX.Element {
   if (faction === "communist") {
@@ -190,8 +190,55 @@ function VoteButtons({
   );
 }
 
-function missionWinner(naziVoteCount: number): Faction {
-  return naziVoteCount > 0 ? "nazi" : "communist";
+function StatusBanners({
+  error,
+  onDismiss,
+  connection,
+  inRoom,
+}: {
+  error: { message: string; id: number } | null;
+  onDismiss: () => void;
+  connection: string;
+  inRoom: boolean;
+}): JSX.Element | null {
+  useEffect(() => {
+    if (error === null) {
+      return;
+    }
+    const timer = window.setTimeout(onDismiss, 5000);
+    return () => window.clearTimeout(timer);
+  }, [error, onDismiss]);
+
+  const connectionMessage =
+    !inRoom ? null : connection === "disconnected" ? "Connexion perdue, reconnexion en cours..." : connection === "connecting" ? "Connexion..." : null;
+
+  if (error === null && connectionMessage === null) {
+    return null;
+  }
+  return (
+    <div className="status-banners" role="status" aria-live="polite">
+      {connectionMessage !== null ? <p className="status-banner status-banner--connection">{connectionMessage}</p> : null}
+      {error !== null ? (
+        <button type="button" className="status-banner status-banner--error" onClick={onDismiss}>
+          {error.message}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Étape de validation correspondant à un écran, pour restaurer « déjà validé » au resync. */
+function stepForPhase(phase: UIPhase): string | null {
+  const steps: Partial<Record<UIPhase, string>> = {
+    table_order: "table_order",
+    role_reveal: "role_reveal",
+    confidence_vote: "confidence_vote",
+    confidence_result: "confidence_result",
+    mission_execution: "mission_vote",
+    mission_result: "mission_result",
+    end_game: "end_game",
+  };
+  return steps[phase] ?? null;
 }
 
 function formatMissionVotes(naziVoteCount: number, teamSize: number): string {
@@ -224,6 +271,9 @@ export default function App(): JSX.Element {
     players,
     phase,
     error,
+    connection,
+    myProgress,
+    gameOver,
     tableOrder,
     role,
     proposal,
@@ -237,10 +287,8 @@ export default function App(): JSX.Element {
     revealedRoles,
     setPseudo,
     confirmPseudo,
-    openPseudoEntry,
-    openCreateRoom,
-    openJoinRoom,
-    backToLanding,
+    navigate,
+    dismissError,
     createRoom,
     startGame,
     joinRoom,
@@ -262,9 +310,7 @@ export default function App(): JSX.Element {
   const [joinCodeDraft, setJoinCodeDraft] = useState("");
   const [roomNameDraft, setRoomNameDraft] = useState("");
   const [rulesMode, setRulesMode] = useState<"default" | "preset" | "custom">("default");
-  const [presetDraft, setPresetDraft] = useState(
-    "PRESET_5J" as "PRESET_3J" | "PRESET_5J" | "PRESET_6J" | "PRESET_7J" | "PRESET_8J" | "PRESET_9J" | "PRESET_10J" | "PRESET_11J",
-  );
+  const [presetDraft, setPresetDraft] = useState<RulesetPreset>("PRESET_5J");
   const [customPlayerCount, setCustomPlayerCount] = useState(5);
   const [customNaziCount, setCustomNaziCount] = useState(2);
   const [customCommunistCount, setCustomCommunistCount] = useState(3);
@@ -358,12 +404,27 @@ export default function App(): JSX.Element {
     setWaitingValidationStep(null);
     setSelectedConfidenceVote(null);
     setSelectedMissionVote(null);
+    setSelectedTeam([]);
     setShowFullHistory(false);
     setShowOrderAdjustInput(false);
     if (phase !== "role_reveal") {
       setHasRevealedRoleOnce(false);
     }
-  }, [phase]);
+  }, [phase, proposal.chefId, proposal.missionIndex]);
+
+  // Après un rechargement, le serveur indique ce que ce joueur a déjà validé.
+  useEffect(() => {
+    if (myProgress.confirmed || myProgress.votedConfidence || myProgress.votedMission) {
+      setWaitingValidationStep(stepForPhase(phase));
+    }
+  }, [myProgress, phase]);
+
+  // Action refusée : on ne laisse pas le joueur bloqué sur « en attente ».
+  useEffect(() => {
+    if (error !== null) {
+      setWaitingValidationStep(null);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (phase !== "replay_waiting" || queuedReplayChoice !== "replay" || waitingValidationStep === "replay_choice") {
@@ -385,7 +446,7 @@ export default function App(): JSX.Element {
     : [];
   const missionSummaryEntries = missionHistory.map((entry) => ({
     missionIndex: entry.missionIndex,
-    winner: missionWinner(entry.naziVoteCount),
+    winner: entry.result,
     votesLabel: formatMissionVotes(entry.naziVoteCount, entry.team.length),
   }));
 
@@ -404,6 +465,12 @@ export default function App(): JSX.Element {
         ))}
       </>
     );
+  };
+
+  const confirmLeaveGame = (): void => {
+    if (window.confirm("Quitter maintenant fait perdre votre camp. Quitter la partie ?")) {
+      leaveRoom();
+    }
   };
 
   const defaultBackContent = (
@@ -465,7 +532,7 @@ export default function App(): JSX.Element {
         <button type="button" className="secondary" onClick={() => setShowFullHistory(true)}>
           Voir plus
         </button>
-        <button type="button" className="secondary" onClick={leaveRoom}>
+        <button type="button" className="secondary" onClick={confirmLeaveGame}>
           Quitter la partie
         </button>
       </div>
@@ -530,23 +597,12 @@ export default function App(): JSX.Element {
         <button type="button" className="secondary" onClick={() => setShowFullHistory(false)}>
           Voir moins
         </button>
-        <button type="button" className="secondary" onClick={leaveRoom}>
+        <button type="button" className="secondary" onClick={confirmLeaveGame}>
           Quitter la partie
         </button>
       </div>
     </div>
   );
-
-  if (isLandscapeBlocked) {
-    return (
-      <main className="screen">
-        <section className="panel">
-          <h1>Format vertical requis</h1>
-          <p>Tournez votre telephone en mode portrait pour continuer.</p>
-        </section>
-      </main>
-    );
-  }
 
   const frontMeta = (
     <div>
@@ -622,16 +678,28 @@ export default function App(): JSX.Element {
     waitingValidationStep,
   ]);
 
+  // Tous les hooks sont appelés avant ce point : un rendu conditionnel ne change jamais leur nombre.
+  if (isLandscapeBlocked) {
+    return (
+      <main className="screen">
+        <section className="panel">
+          <h1>Format vertical requis</h1>
+          <p>Tournez votre telephone en mode portrait pour continuer.</p>
+        </section>
+      </main>
+    );
+  }
+
+  const screen = ((): JSX.Element => {
   if (phase === "pseudo_entry") {
     return (
       <main className="screen">
         <section className="panel">
           <h1>Pseudo</h1>
-          <input value={pseudo} onChange={(event) => setPseudo(event.target.value)} placeholder="Votre pseudo" />
+          <input value={pseudo} maxLength={20} onChange={(event) => setPseudo(event.target.value)} placeholder="Votre pseudo" />
           <button type="button" onClick={confirmPseudo}>
             Valider
           </button>
-          {error ? <p className="error-text">{error}</p> : null}
         </section>
       </main>
     );
@@ -643,12 +711,11 @@ export default function App(): JSX.Element {
         <section className="panel">
           <p className="mono">{pseudo || "Sans pseudo"}</p>
           <h1>Nazi Communiste</h1>
-          <button type="button" onClick={openCreateRoom}>
+          <button type="button" onClick={() => navigate("create_room")}>
             Creer une room
           </button>
-          <button type="button" onClick={openJoinRoom}>Rejoindre une room</button>
-          <button type="button" className="secondary" onClick={openPseudoEntry}>Modifier pseudo</button>
-          {error ? <p className="error-text">{error}</p> : null}
+          <button type="button" onClick={() => navigate("join_room")}>Rejoindre une room</button>
+          <button type="button" className="secondary" onClick={() => navigate("pseudo_entry")}>Modifier pseudo</button>
         </section>
       </main>
     );
@@ -662,7 +729,8 @@ export default function App(): JSX.Element {
           <input
             value={roomNameDraft}
             onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
-            placeholder="Nom de room"
+            maxLength={24}
+            placeholder="Nom de room (optionnel)"
           />
 
           <label className="field-label">Regles</label>
@@ -673,22 +741,12 @@ export default function App(): JSX.Element {
           </select>
 
           {rulesMode === "preset" ? (
-            <select
-              value={presetDraft}
-              onChange={(event) =>
-                setPresetDraft(
-                  event.target.value as "PRESET_3J" | "PRESET_5J" | "PRESET_6J" | "PRESET_7J" | "PRESET_8J" | "PRESET_9J" | "PRESET_10J" | "PRESET_11J",
-                )
-              }
-            >
-              <option value="PRESET_3J">PRESET_3J</option>
-              <option value="PRESET_5J">PRESET_5J</option>
-              <option value="PRESET_6J">PRESET_6J</option>
-              <option value="PRESET_7J">PRESET_7J</option>
-              <option value="PRESET_8J">PRESET_8J</option>
-              <option value="PRESET_9J">PRESET_9J</option>
-              <option value="PRESET_10J">PRESET_10J</option>
-              <option value="PRESET_11J">PRESET_11J</option>
+            <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
+              {PLAYABLE_PRESETS.map((preset) => (
+                <option key={preset} value={preset}>
+                  {preset.replace("PRESET_", "").replace("J", " joueurs")}
+                </option>
+              ))}
             </select>
           ) : null}
 
@@ -780,8 +838,7 @@ export default function App(): JSX.Element {
           >
             Creer
           </button>
-          <button type="button" className="secondary" onClick={backToLanding}>Retour</button>
-          {error ? <p className="error-text">{error}</p> : null}
+          <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
         </section>
       </main>
     );
@@ -795,11 +852,11 @@ export default function App(): JSX.Element {
           <input
             value={joinCodeDraft}
             onChange={(event) => setJoinCodeDraft(event.target.value.toUpperCase())}
+            maxLength={24}
             placeholder="Code room"
           />
           <button type="button" onClick={() => joinRoom(joinCodeDraft)}>Rejoindre</button>
-          <button type="button" className="secondary" onClick={backToLanding}>Retour</button>
-          {error ? <p className="error-text">{error}</p> : null}
+          <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
         </section>
       </main>
     );
@@ -809,12 +866,21 @@ export default function App(): JSX.Element {
     return (
       <main className="screen">
         <section className="panel">
-          <p className="mono">Room {roomCode}</p>
+          <button
+            type="button"
+            className="mono room-code"
+            title="Copier le code"
+            onClick={() => {
+              void navigator.clipboard?.writeText(roomCode).catch(() => undefined);
+            }}
+          >
+            Room {roomCode}
+          </button>
           <h1>Salle d attente</h1>
           <ul className="plain-list">
             {players.map((player) => (
               <li key={player.id}>
-                  {player.pseudo ?? player.id} {player.isHost ? "(host)" : ""} {player.isAfk ? "(AFK)" : ""}
+                  {player.pseudo ?? player.id} {player.isHost ? "(hôte)" : ""} {player.isConnected === false ? "(déconnecté)" : ""}
               </li>
             ))}
           </ul>
@@ -826,7 +892,6 @@ export default function App(): JSX.Element {
           <button type="button" className="secondary" onClick={leaveRoom}>
             Quitter
           </button>
-          {error ? <p className="error-text">{error}</p> : null}
         </section>
       </main>
     );
@@ -1015,8 +1080,11 @@ export default function App(): JSX.Element {
               <button
                 type="button"
                 className="inline-action"
-                disabled={selectedTeam.length !== proposal.teamSize}
-                onClick={() => proposeTeam(selectedTeam)}
+                disabled={selectedTeam.length !== proposal.teamSize || waitingValidationStep === "proposal"}
+                onClick={() => {
+                  setWaitingValidationStep("proposal");
+                  proposeTeam(selectedTeam);
+                }}
               >
                 Proposer equipe
               </button>
@@ -1155,7 +1223,7 @@ export default function App(): JSX.Element {
     const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
     const naziVotes = mission.naziVoteCount ?? 0;
     const communistVotes = Math.max(0, mission.team.length - naziVotes);
-    const roundWinner = missionWinner(naziVotes);
+    const roundWinner = mission.result;
 
     return (
       <main className="game-screen">
@@ -1230,6 +1298,9 @@ export default function App(): JSX.Element {
             ) : (
               <div className="result-panel">
                 <h2>Victoire {winner === "nazi" ? "Nazi" : "Communiste"}</h2>
+                {gameOver?.reason === "forfeit" && gameOver.forfeitedBy !== null ? (
+                  <p>Abandon de {nameById(gameOver.forfeitedBy)}</p>
+                ) : null}
                 <p>Rejouer ?</p>
               </div>
             )
@@ -1263,7 +1334,6 @@ export default function App(): JSX.Element {
             </div>
           }
         />
-        {error ? <p className="error-text">{error}</p> : null}
       </main>
     );
   }
@@ -1272,8 +1342,15 @@ export default function App(): JSX.Element {
     <main className="screen">
       <section className="panel">
         <h1>Etat de jeu inconnu</h1>
-        {error ? <p className="error-text">{error}</p> : null}
       </section>
     </main>
+  );
+  })();
+
+  return (
+    <>
+      <StatusBanners error={error} onDismiss={dismissError} connection={connection} inRoom={roomCode !== ""} />
+      {screen}
+    </>
   );
 }

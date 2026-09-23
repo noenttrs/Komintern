@@ -19,8 +19,11 @@ export const CLIENT_EVENTS = {
 } as const;
 
 export const SERVER_EVENTS = {
+  ROOM_JOINED: "room_joined",
   ROOM_UPDATED: "room_updated",
+  PLAYER_LEFT: "player_left",
   GAME_STARTED: "game_started",
+  GAME_ABORTED: "game_aborted",
   TABLE_ORDER_UPDATED: "table_order_updated",
   ROLE_ASSIGNED: "role_assigned",
   PROPOSAL_PHASE: "proposal_phase",

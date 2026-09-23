@@ -593,3 +593,45 @@ p {
   background: #000;
   color: #fff;
 }
+
+/* Bandeaux d'état (erreur, connexion) : visibles sur tous les écrans, par-dessus la carte. */
+.status-banners {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.status-banner {
+  pointer-events: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0.6rem var(--screen-gap);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.status-banner--error {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.status-banner--connection {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.room-code {
+  width: auto;
+  min-height: 0;
+  padding: 0.3rem 0.6rem;
+  align-self: flex-start;
+}
