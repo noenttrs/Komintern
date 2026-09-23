@@ -6,6 +6,7 @@ import { formatMissionVotes, isGamePhaseUi, stepForPhase } from "./components/ga
 import { StatusBanners } from "./components/game/StatusBanners";
 import { AbsencePrompt } from "./components/AbsencePrompt";
 import { Menu } from "./components/Menu";
+import { ModerationPage } from "./pages/ModerationPage";
 import { WarningNotice } from "./components/WarningNotice";
 import { useAccount } from "./hooks/useAccount";
 import { useFriends } from "./hooks/useFriends";
@@ -702,7 +703,9 @@ export default function App(): JSX.Element {
     ) : route.page === "rules" ? (
       <RulesPage playerCount={isGamePhaseUi(phase) ? players.length : null} />
     ) : route.page === "admin" ? (
-      <AdminPage isStaff={account.user?.isAdmin === true || account.user?.isModerator === true} />
+      <AdminPage isAdmin={account.user?.isAdmin === true} />
+    ) : route.page === "moderation" ? (
+      <ModerationPage isStaff={account.user?.isAdmin === true || account.user?.isModerator === true} />
     ) : null;
 
   return (
@@ -737,6 +740,7 @@ export default function App(): JSX.Element {
         <ChatPanel
           messages={chat}
           myId={myId}
+          mutedUntil={account.user?.chatMutedUntil ?? null}
           onSend={sendChat}
           onReport={(message) => {
             const reason = window.prompt(t("chat.reportPrompt", { name: message.pseudo }), "");

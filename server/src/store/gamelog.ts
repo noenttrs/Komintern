@@ -46,6 +46,22 @@ export type ModerationCase = {
 /** Correspondance pseudonyme ↔ personne, stockée à part et lue seulement en cas de recours. */
 export type ModerationIdentity = { pseudonym: string; playerId: string; userId: string | null; pseudo: string };
 
+/**
+ * Demande de ban définitif faite par un modérateur sur un pseudonyme d'un dossier. Le serveur
+ * retrouve la personne ; seul l'admin tranche, avec accès au dossier.
+ */
+export type BanRequest = {
+  id: string;
+  caseId: string;
+  pseudonym: string;
+  reason: string;
+  requestedBy: string;
+  createdAt: Date;
+  status: "pending" | "accepted" | "rejected";
+  decidedAt: Date | null;
+  decidedBy: string | null;
+};
+
 /** Journal des actions de modération ; `actor` : qui l'a faite (pseudo et rôle). */
 export type AuditEntry = { caseId: string; action: string; at: Date; detail?: string; actor?: string };
 
@@ -164,6 +180,10 @@ export interface GameLogStore {
   resolveCase(id: string, resolution: string): Promise<boolean>;
   openCaseGameIds(): Promise<string[]>;
   audit(entry: AuditEntry): Promise<void>;
+  createBanRequest(request: BanRequest): Promise<void>;
+  listBanRequests(status?: BanRequest["status"]): Promise<BanRequest[]>;
+  getBanRequest(id: string): Promise<BanRequest | null>;
+  decideBanRequest(id: string, status: "accepted" | "rejected", decidedBy: string): Promise<boolean>;
   auditTrail(caseId: string): Promise<AuditEntry[]>;
   stats(now?: Date): Promise<GameLogStats>;
   /** Parties terminées d'un compte, les plus récentes d'abord. */
@@ -211,12 +231,14 @@ export class MongoGameLogStore implements GameLogStore {
   private readonly games: Collection<WithMongoId<GameLog>>;
   private readonly cases: Collection<WithMongoId<ModerationCase>>;
   private readonly identities: Collection<{ _id: string; entries: ModerationIdentity[] }>;
+  private readonly banRequests: Collection<WithMongoId<BanRequest>>;
   private readonly audits: Collection<AuditEntry>;
 
   public constructor(db: Db) {
     this.games = db.collection("games");
     this.cases = db.collection("moderation_cases");
     this.identities = db.collection("moderation_identities");
+    this.banRequests = db.collection("ban_requests");
     this.audits = db.collection("moderation_audit");
   }
 
@@ -272,6 +294,24 @@ export class MongoGameLogStore implements GameLogStore {
 
   public async openCaseGameIds(): Promise<string[]> {
     return (await this.cases.distinct("gameId", { status: "open", gameId: { $ne: null } })) as string[];
+  }
+
+  public async createBanRequest(request: BanRequest): Promise<void> {
+    await this.banRequests.insertOne(toDoc(request));
+  }
+
+  public async listBanRequests(status?: BanRequest["status"]): Promise<BanRequest[]> {
+    return (await this.banRequests.find(status === undefined ? {} : { status }).sort({ createdAt: -1 }).limit(200).toArray()).map((doc) => fromDoc<BanRequest>(doc));
+  }
+
+  public async getBanRequest(id: string): Promise<BanRequest | null> {
+    const doc = await this.banRequests.findOne({ _id: id });
+    return doc === null ? null : fromDoc<BanRequest>(doc);
+  }
+
+  public async decideBanRequest(id: string, status: "accepted" | "rejected", decidedBy: string): Promise<boolean> {
+    const result = await this.banRequests.updateOne({ _id: id, status: "pending" }, { $set: { status, decidedAt: new Date(), decidedBy } });
+    return result.modifiedCount === 1;
   }
 
   public async audit(entry: AuditEntry): Promise<void> {
@@ -380,6 +420,28 @@ export class MemoryGameLogStore implements GameLogStore {
 
   public async openCaseGameIds(): Promise<string[]> {
     return [...this.cases.values()].filter((c) => c.status === "open" && c.gameId !== null).map((c) => c.gameId as string);
+  }
+
+  public readonly banRequests = new Map<string, BanRequest>();
+
+  public async createBanRequest(request: BanRequest): Promise<void> {
+    this.banRequests.set(request.id, { ...request });
+  }
+
+  public async listBanRequests(status?: BanRequest["status"]): Promise<BanRequest[]> {
+    return [...this.banRequests.values()].filter((request) => status === undefined || request.status === status).map((request) => ({ ...request }));
+  }
+
+  public async getBanRequest(id: string): Promise<BanRequest | null> {
+    const request = this.banRequests.get(id);
+    return request === undefined ? null : { ...request };
+  }
+
+  public async decideBanRequest(id: string, status: "accepted" | "rejected", decidedBy: string): Promise<boolean> {
+    const request = this.banRequests.get(id);
+    if (request === undefined || request.status !== "pending") return false;
+    Object.assign(request, { status, decidedAt: new Date(), decidedBy });
+    return true;
   }
 
   public async audit(entry: AuditEntry): Promise<void> {

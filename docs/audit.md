@@ -236,3 +236,15 @@ Limites assumées : un invité exclu peut revenir avec une nouvelle identité (b
 | Liberté d'expression | Plus aucun masquage dans le chat : un terme signalé ouvre seulement un dossier pseudonymisé, vérifié à la main. |
 | Liste des termes | Rangée par catégorie (racisme, antisémitisme, homophobie, validisme, menaces, incitation au suicide, harcèlement sexuel) ; coordonnées personnelles (téléphone, email) détectées à part. Le vocabulaire du jeu et les insultes courantes entre amis ne sont pas signalés, pour ne pas noyer les modérateurs. |
 | Rôle modérateur | Nommé par l'admin depuis le panel. Double authentification obligatoire. Accès limité aux signalements, comptes et parties anonymes ; bannissements de 30 jours au plus ; ne peut sanctionner ni l'admin ni un autre modérateur. Chaque action (consultation, levée d'anonymat, avertissement, bannissement, nomination) est tracée avec son auteur. |
+
+---
+
+# v7 — panel de modération séparé (2026-09-23)
+
+| Sujet | Choix |
+|---|---|
+| Séparation | Panel de modération (`/moderation`, modérateurs et admin) distinct du panel admin (admin seul). |
+| Anonymat | Le modérateur ne voit que « Joueur A, B… », le type de participant (compte ou invité), le nombre de sanctions déjà reçues et une éventuelle restriction en cours. Il ne peut plus lever l'anonymat. |
+| Application | Le modérateur choisit une conséquence par pseudonyme ; le serveur retrouve la personne et l'applique (avertissement, mute 1 h / 24 h, ban du chat 7 / 30 j), et prévient le joueur. Les invités ne peuvent pas recevoir de sanction durable. |
+| Ban définitif | Seulement sur demande d'un modérateur, décidée par l'admin avec accès au dossier et à la personne ; sessions fermées tout de suite. L'admin peut abroger un ban définitif et lever toutes les sanctions d'un compte. |
+| Traçabilité | Chaque action est inscrite au journal du dossier ou du compte, avec son auteur. |

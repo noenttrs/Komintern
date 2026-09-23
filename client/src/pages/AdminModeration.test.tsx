@@ -36,7 +36,7 @@ describe("admin moderation tabs", () => {
   it("shows sanctioned accounts and sends a warning with its reason", async () => {
     const calls = mockFetch({
       "/api/admin/users": {
-        users: [{ id: "u1", displayName: "Karl", email: "k@example.org", createdAt: "2026-01-01T00:00:00Z", bannedUntil: null, banReason: null, warnings: [{ id: "w1", at: "2026-01-02T00:00:00Z", reason: "Insultes", seen: false }], gamesPlayed: 3 }],
+        users: [{ id: "u1", displayName: "Karl", email: "k@example.org", createdAt: "2026-01-01T00:00:00Z", bannedUntil: null, banReason: null, warnings: [{ id: "w1", at: "2026-01-02T00:00:00Z", reason: "Insultes", seen: false }], gamesPlayed: 3, role: null, permanentBan: false, chatMutedUntil: null, sanctions: [] }],
       },
     });
     vi.spyOn(window, "prompt").mockReturnValue("Récidive");

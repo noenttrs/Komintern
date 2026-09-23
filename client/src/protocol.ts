@@ -213,6 +213,7 @@ ERROR_TRANSLATIONS.push(
   [/message must be 1-/, "errors.messageLength"],
   [/too many messages/, "errors.tooManyMessages"],
   [/banned from the chat/, "errors.chatBanned"],
+  [/chat is muted/, "errors.chatMuted"],
   [/too many reports/, "errors.tooManyReports"],
   [/only invite your friends/, "errors.inviteFriendsOnly"],
   [/only possible from the lobby/, "errors.inviteFromLobby"],

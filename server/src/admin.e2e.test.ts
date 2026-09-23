@@ -133,48 +133,77 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
   );
 });
 
-test("moderators: named by the admin, need 2FA, and only see moderation with limited bans", async () => {
+test("moderation panel: anonymous cases, sanctions applied by the server, permanent bans decided by the admin", async () => {
   const login = async (email: string, password: string) => (await api("/auth/login", { body: { email, password } })).cookie as string;
   const make = async (email: string, name: string) =>
     stores.users.create({ email, emailVerified: true, passwordHash: await hashPassword("some password 123"), googleSub: null, displayName: name });
   const mod = await make("mod@example.org", "Modo");
-  const target = await make("t@example.org", "Target");
+  const offender = await make("t@example.org", "Target");
 
-  // L'admin (code suivant : un code ne sert qu'une fois) nomme le modérateur
+  // L'admin nomme le modérateur (code suivant : un code ne sert qu'une fois)
   const adminCookie = await login("admin@example.org", "admin password 123");
   assert.equal((await api("/admin/session", { body: { code: totpCode(secret, currentCounter() + 1) }, cookie: adminCookie })).status, 200);
   assert.equal((await api(`/admin/users/${mod.id}/role`, { body: { role: "moderator" }, cookie: adminCookie })).status, 204);
 
-  // Sans double authentification, pas d'accès au panel
+  // Sans double authentification, pas d'accès au panel de modération ; le panel admin n'existe pas pour lui
   let modCookie = await login("mod@example.org", "some password 123");
   assert.equal((await api("/me", { cookie: modCookie })).body.user.isModerator, true);
-  assert.deepEqual((await api("/admin/session", { cookie: modCookie })).body, { elevated: false, role: "moderator", totpEnabled: false });
-  assert.equal((await api("/admin/session", { body: { code: "123456" }, cookie: modCookie })).body.error.code, "totp_setup_required");
+  assert.deepEqual((await api("/moderation/session", { cookie: modCookie })).body, { elevated: false, role: "moderator", totpEnabled: false });
+  assert.equal((await api("/moderation/session", { body: { code: "123456" }, cookie: modCookie })).body.error.code, "totp_setup_required");
+  assert.equal((await api("/admin/session", { cookie: modCookie })).status, 404);
 
-  // Avec la 2FA : signalements, comptes et parties, mais ni statistiques, ni audience, ni contact, ni rôles
   const modSecret = generateTotpSecret();
   await stores.users.update(mod.id, { totpSecret: modSecret });
-  modCookie = await login("mod@example.org", "some password 123");
   const challenge = (await api("/auth/login", { body: { email: "mod@example.org", password: "some password 123" } })).body;
-  if (challenge.totpRequired === true) {
-    modCookie = (await api("/auth/login/totp", { body: { token: challenge.token, code: totpCode(modSecret, currentCounter()) } })).cookie as string;
-  }
-  assert.equal((await api("/admin/session", { body: { code: totpCode(modSecret, currentCounter() + 1) }, cookie: modCookie })).status, 200);
-  for (const path of ["/admin/reports", "/admin/games", "/admin/users?sanctioned=1"]) {
-    assert.equal((await api(path, { cookie: modCookie })).status, 200, path);
-  }
-  for (const path of ["/admin/stats", "/admin/audience", "/admin/contact"]) {
+  modCookie = (await api("/auth/login/totp", { body: { token: challenge.token, code: totpCode(modSecret, currentCounter()) } })).cookie as string;
+  assert.equal((await api("/moderation/session", { body: { code: totpCode(modSecret, currentCounter() + 1) }, cookie: modCookie })).status, 200);
+  for (const path of ["/admin/stats", "/admin/reports", "/admin/users?sanctioned=1", "/admin/ban-requests"]) {
     assert.equal((await api(path, { cookie: modCookie })).status, 404, path);
   }
-  assert.equal((await api(`/admin/users/${target.id}/role`, { body: { role: "moderator" }, cookie: modCookie })).status, 404);
 
-  // Bannissements limités à 30 jours ; personne de l'équipe ne peut être sanctionné par un modérateur
-  assert.equal((await api(`/admin/users/${target.id}/ban`, { body: { days: 60, reason: "x" }, cookie: modCookie })).body.error.code, "ban_too_long_for_moderator");
-  assert.equal((await api(`/admin/users/${target.id}/ban`, { body: { days: 7, reason: "Menaces" }, cookie: modCookie })).status, 200);
-  const adminUser = await stores.users.findByEmail("admin@example.org");
-  assert.equal((await api(`/admin/users/${adminUser!.id}/warn`, { body: { reason: "x" }, cookie: modCookie })).status, 400);
+  // Un dossier : un joueur avec compte, un invité
+  const caseId = await app.services.moderation.openCase({
+    trigger: { type: "flagged_word", words: ["je sais ou tu habites"] },
+    roomCode: "ROOM",
+    gameId: null,
+    messages: [{ playerId: "p1", userId: offender.id, pseudo: "Target", text: "je sais où tu habites", at: Date.now(), flagged: true }],
+    involved: [{ playerId: "p1", userId: offender.id, pseudo: "Target" }, { playerId: "p2", userId: null, pseudo: "Invité" }],
+  });
+  const detail = (await api(`/moderation/cases/${caseId}`, { cookie: modCookie })).body;
+  assert.deepEqual(detail.participants.map((p: { pseudonym: string; kind: string }) => [p.pseudonym, p.kind]), [["Joueur A", "account"], ["Joueur B", "guest"]]);
+  const text = JSON.stringify(detail);
+  for (const secretValue of ["Target", "t@example.org", offender.id, "Invité"]) assert.equal(text.includes(secretValue), false, secretValue);
 
-  // L'admin retire le rôle : la zone disparaît pour l'ancien modérateur
+  // Le modérateur choisit une conséquence ; le serveur l'applique sans révéler la personne
+  const sanction = (body: Record<string, unknown>) => api(`/moderation/cases/${caseId}/sanction`, { body, cookie: modCookie });
+  assert.equal((await sanction({ pseudonym: "Joueur A", type: "mute", duration: 48, reason: "x" })).body.error.code, "invalid_input");
+  assert.equal((await sanction({ pseudonym: "Joueur A", type: "mute", duration: 24, reason: "" })).body.error.code, "reason_required");
+  assert.deepEqual((await sanction({ pseudonym: "Joueur A", type: "mute", duration: 24, reason: "Menaces" })).body, { applied: "mute" });
+  assert.equal((await sanction({ pseudonym: "Joueur B", type: "warn", reason: "x" })).body.error.code, "guest_not_sanctionable");
+  const offenderAfter = await stores.users.findById(offender.id);
+  assert.ok(offenderAfter!.chatMutedUntil! > new Date(Date.now() + 23 * 3600 * 1000));
+  assert.match(offenderAfter!.warnings.at(-1)!.reason, /Chat coupé 24 h : Menaces/);
+  assert.equal((await api(`/moderation/cases/${caseId}`, { cookie: modCookie })).body.participants[0].restriction, "muted");
+
+  // Demande de ban définitif → l'admin la voit avec le dossier et la personne, puis tranche
+  assert.deepEqual((await sanction({ pseudonym: "Joueur A", type: "ban_request", reason: "Menaces répétées" })).body, { applied: "ban_request" });
+  assert.equal((await sanction({ pseudonym: "Joueur A", type: "ban_request", reason: "encore" })).body.error.code, "ban_request_pending");
+  const requests = (await api("/admin/ban-requests", { cookie: adminCookie })).body.requests;
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].target.displayName, "Target");
+  assert.equal(requests[0].case.id, caseId);
+  assert.equal((await api(`/admin/ban-requests/${requests[0].id}/accept`, { body: {}, cookie: adminCookie })).status, 204);
+  assert.equal((await api("/auth/login", { body: { email: "t@example.org", password: "some password 123" } })).body.error.code, "banned");
+  const banned = (await api("/admin/users?q=target", { cookie: adminCookie })).body.users[0];
+  assert.equal(banned.permanentBan, true);
+
+  // L'admin lève toutes les sanctions : ban définitif abrogé, chat rétabli, avertissements retirés
+  assert.equal((await api(`/admin/users/${offender.id}/clear-sanctions`, { body: {}, cookie: adminCookie })).status, 204);
+  const cleared = (await api("/admin/users?q=target", { cookie: adminCookie })).body.users[0];
+  assert.deepEqual([cleared.bannedUntil, cleared.chatMutedUntil, cleared.warnings.length, cleared.sanctions.every((s: { revoked: boolean }) => s.revoked)], [null, null, 0, true]);
+  await login("t@example.org", "some password 123");
+
+  // Rôle retiré : plus de panel de modération
   assert.equal((await api(`/admin/users/${mod.id}/role`, { body: { role: null }, cookie: adminCookie })).status, 204);
-  assert.equal((await api("/admin/reports", { cookie: modCookie })).status, 404);
+  assert.equal((await api("/moderation/cases", { cookie: modCookie })).status, 404);
 });

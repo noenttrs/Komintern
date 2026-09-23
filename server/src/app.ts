@@ -16,6 +16,7 @@ import { GameSession } from "./GameSession";
 import { clientIp, createApi, sessionIdFrom } from "./http/api";
 import { log } from "./logger";
 import { scanMessage } from "./moderation/filter";
+import { ModerationPanel } from "./moderation/panel";
 import { EngineError } from "./PythonBridge";
 import { RoomManager } from "./RoomManager";
 import type { AnySession, RoomManagerOptions } from "./RoomManager";
@@ -56,7 +57,7 @@ export type KominternApp = {
 
 type SocketContext = { roomId: string; playerId: string };
 
-type SocketUser = { userId: string; displayName: string | null; bannedUntil: Date | null };
+type SocketUser = { userId: string; displayName: string | null; bannedUntil: Date | null; chatMutedUntil: Date | null };
 
 const CHAT_MAX_LENGTH = 200;
 const MAX_SOCKETS_PER_IP = 30;
@@ -136,8 +137,20 @@ export function createKominternApp(options: AppOptions): KominternApp {
   const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats(), async (userId) => {
     await services.sessions.destroyAll(userId);
     io.in(`user:${userId}`).disconnectSockets(true);
-  }, (userId) => notify(userId, SERVER_EVENTS.ACCOUNT_WARNING, {}));
-  expressApp.use("/api", createApi(services, admin, () => roomManager.listPublicRooms()));
+  }, (userId) => refreshAccount(userId));
+
+  /** Sanction ou avertissement : connexions du compte mises à jour (chat) et joueur prévenu. */
+  function refreshAccount(userId: string): void {
+    void services.users.findById(userId).then((user) => {
+      if (user === null) return;
+      for (const [socketId, entry] of userBySocket) {
+        if (entry.userId === userId) userBySocket.set(socketId, { ...entry, bannedUntil: user.bannedUntil, chatMutedUntil: user.chatMutedUntil });
+      }
+      notify(userId, SERVER_EVENTS.ACCOUNT_WARNING, {});
+    });
+  }
+  const moderationPanel = new ModerationPanel(services.users, services.gameLogs, (userId) => refreshAccount(userId));
+  expressApp.use("/api", createApi(services, admin, () => roomManager.listPublicRooms(), moderationPanel));
   const userBySocket = new Map<string, SocketUser>();
 
   // La session (cookie httpOnly) est lue au handshake : un socket est invité ou connecté.
@@ -148,7 +161,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
         if (userId !== null) {
           const user = await services.users.findById(userId);
           if (user !== null) {
-            userBySocket.set(socket.id, { userId: user.id, displayName: user.displayName, bannedUntil: user.bannedUntil });
+            userBySocket.set(socket.id, { userId: user.id, displayName: user.displayName, bannedUntil: user.bannedUntil, chatMutedUntil: user.chatMutedUntil });
           }
         }
       })
@@ -310,6 +323,9 @@ export function createKominternApp(options: AppOptions): KominternApp {
       const user = userBySocket.get(socket.id);
       if (user?.bannedUntil != null && user.bannedUntil > new Date()) {
         throw new Error("you are banned from the chat");
+      }
+      if (user?.chatMutedUntil != null && user.chatMutedUntil > new Date()) {
+        throw new Error("your chat is muted for now");
       }
       const text = parseChatText(payload.text);
       const now = Date.now();

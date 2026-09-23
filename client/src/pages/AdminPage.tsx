@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api, ApiRequestError } from "../api";
-import { PageShell } from "../components/PageShell";
 import { translate, useI18n } from "../i18n";
-import { navigate } from "../router";
-import { GamesTab, UsersTab } from "./AdminModeration";
+import { StaffGate } from "../components/StaffGate";
+import { BanRequestsTab, GamesTab, UsersTab } from "./AdminModeration";
 
 type Stats = {
   users: { total: number; verified: number };
@@ -38,14 +37,18 @@ type Identity = { pseudonym: string; playerId: string; userId: string | null; ps
 
 type ContactMessage = { id: string; createdAt: string; email: string; subject: string; message: string; userId: string | null; read: boolean };
 
-type Tab = "stats" | "audience" | "games" | "reports" | "users" | "contact";
+type Tab = "stats" | "audience" | "games" | "reports" | "banRequests" | "users" | "contact";
 
-const TABS: Tab[] = ["stats", "audience", "games", "reports", "users", "contact"];
-/** Le modérateur ne voit que la modération : signalements, comptes et parties anonymes. */
-const MODERATOR_TABS: Tab[] = ["reports", "users", "games"];
-
-export type StaffRole = "admin" | "moderator";
-const TAB_LABELS = { stats: "admin.tabStats", audience: "admin.tabAudience", games: "admin.tabGames", reports: "admin.tabReports", users: "admin.tabUsers", contact: "admin.tabContact" } as const;
+const TABS: Tab[] = ["stats", "audience", "games", "reports", "banRequests", "users", "contact"];
+const TAB_LABELS = {
+  stats: "admin.tabStats",
+  audience: "admin.tabAudience",
+  games: "admin.tabGames",
+  reports: "admin.tabReports",
+  banRequests: "admin.tabBanRequests",
+  users: "admin.tabUsers",
+  contact: "admin.tabContact",
+} as const;
 
 const CATEGORY_KEYS = {
   racisme: "admin.catRacism",
@@ -58,7 +61,7 @@ const CATEGORY_KEYS = {
   "donnees-personnelles": "admin.catPersonalData",
 } as const;
 
-function categoryLabel(category: string): string {
+export function categoryLabel(category: string): string {
   const key = CATEGORY_KEYS[category as keyof typeof CATEGORY_KEYS];
   return key === undefined ? category : translate(key);
 }
@@ -66,84 +69,24 @@ function categoryLabel(category: string): string {
 const fmt = (date: string, locale: string): string => new Date(date).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 
 /** Administration : rôle admin (attribué côté serveur) + double authentification TOTP. */
-export function AdminPage({ isStaff }: { isStaff: boolean }): JSX.Element {
+export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
   const { t } = useI18n();
-  const [elevated, setElevated] = useState<boolean | null>(null);
-  const [role, setRole] = useState<StaffRole | null>(null);
-  const [totpEnabled, setTotpEnabled] = useState(true);
-  const [code, setCode] = useState("");
-  const [tab, setTab] = useState<Tab | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isStaff) return;
-    api<{ elevated: boolean; role: StaffRole; totpEnabled: boolean }>("/admin/session")
-      .then((result) => {
-        setElevated(result.elevated);
-        setRole(result.role);
-        setTotpEnabled(result.totpEnabled);
-      })
-      .catch(() => setElevated(false));
-  }, [isStaff]);
-
-  if (!isStaff) {
-    return <PageShell title={t("admin.notFoundTitle")}><p>{t("admin.notFound")}</p></PageShell>;
-  }
-
-  const title = role === "moderator" ? t("admin.moderationTitle") : t("admin.title");
-  if (!totpEnabled) {
-    return (
-      <PageShell title={title}>
-        <div className="panel page-panel">
-          <p>{t("admin.totpSetupRequired")}</p>
-          <button type="button" onClick={() => navigate("/profil")}>{t("admin.openSecurity")}</button>
-        </div>
-      </PageShell>
-    );
-  }
-
-  if (elevated !== true) {
-    return (
-      <PageShell title={title}>
-        <div className="panel page-panel">
-          <p>{t("admin.codePrompt")}</p>
-          {error !== null ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
-          <form
-            className="form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setError(null);
-              api("/admin/session", { body: { code } })
-                .then(() => setElevated(true))
-                .catch((submitError: unknown) => setError(submitError instanceof Error ? submitError.message : t("common.error")))
-                .finally(() => setCode(""));
-            }}
-          >
-            <label className="field">
-              <span className="field-label">{t("auth.totpLabel")}</span>
-              <input className="code-input" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} />
-            </label>
-            <button type="submit" disabled={elevated === null}>{t("common.validate")}</button>
-          </form>
-        </div>
-      </PageShell>
-    );
-  }
-
-  const tabs = role === "admin" ? TABS : MODERATOR_TABS;
-  const current: Tab = tab !== null && tabs.includes(tab) ? tab : (tabs[0] as Tab);
-
+  const [tab, setTab] = useState<Tab>("stats");
   return (
-    <PageShell title={title} wide>
-      <div className="admin-tabs" role="tablist">
-        {tabs.map((entry) => (
-          <button key={entry} type="button" role="tab" aria-selected={current === entry} className={current === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
-            {t(TAB_LABELS[entry])}
-          </button>
-        ))}
-      </div>
-      {current === "stats" ? <StatsTab /> : current === "audience" ? <AudienceTab /> : current === "games" ? <GamesTab /> : current === "reports" ? <ReportsTab isAdmin={role === "admin"} /> : current === "users" ? <UsersTab isAdmin={role === "admin"} /> : <ContactTab />}
-    </PageShell>
+    <StaffGate base="/admin" title={t("admin.title")} allowed={isAdmin}>
+      {() => (
+        <>
+          <div className="admin-tabs" role="tablist">
+            {TABS.map((entry) => (
+              <button key={entry} type="button" role="tab" aria-selected={tab === entry} className={tab === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
+                {t(TAB_LABELS[entry])}
+              </button>
+            ))}
+          </div>
+          {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab isAdmin /> : tab === "banRequests" ? <BanRequestsTab /> : tab === "users" ? <UsersTab isAdmin /> : <ContactTab />}
+        </>
+      )}
+    </StaffGate>
   );
 }
 

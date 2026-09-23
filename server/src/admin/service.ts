@@ -7,13 +7,16 @@ import type { GameLogStore } from "../store/gamelog";
 import type { Kv } from "../store/kv";
 import crypto from "crypto";
 
-import type { AccountWarning, StaffRole, User, UserStore } from "../store/users";
+import { newSanctionId } from "../moderation/panel";
+import type { AccountWarning, Sanction, StaffRole, User, UserStore } from "../store/users";
 
 /** Membre de l'équipe qui agit : tracé dans le journal de modération. */
 export type Staff = { id: string; name: string; role: StaffRole };
 
 /** Durée maximale d'un bannissement décidé par un modérateur (au-delà : admin). */
 const MODERATOR_MAX_BAN_DAYS = 30;
+/** Ban définitif : date de fin symbolique, reconnue à l'affichage. */
+export const PERMANENT_BAN_UNTIL = new Date("9999-12-31T00:00:00Z");
 
 export type LiveStats = { rooms: number; players: number; connectedPlayers: number; gamesInProgress: number };
 
@@ -30,6 +33,9 @@ export type AdminUserView = {
   warnings: Array<{ id: string; at: string; reason: string; seen: boolean }>;
   gamesPlayed: number;
   role: StaffRole | null;
+  permanentBan: boolean;
+  chatMutedUntil: string | null;
+  sanctions: Array<{ id: string; type: Sanction["type"]; at: string; until: string | null; reason: string; by: string; revoked: boolean }>;
 };
 
 function adminUserView(user: User): AdminUserView {
@@ -43,6 +49,17 @@ function adminUserView(user: User): AdminUserView {
     warnings: user.warnings.map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason, seen: warning.seenAt !== null })),
     gamesPlayed: user.stats.wins + user.stats.losses,
     role: user.role,
+    permanentBan: user.bannedUntil !== null && user.bannedUntil.getTime() >= PERMANENT_BAN_UNTIL.getTime(),
+    chatMutedUntil: user.chatMutedUntil !== null && user.chatMutedUntil > new Date() ? user.chatMutedUntil.toISOString() : null,
+    sanctions: user.sanctions.map((sanction) => ({
+      id: sanction.id,
+      type: sanction.type,
+      at: sanction.at.toISOString(),
+      until: sanction.until === null ? null : sanction.until.toISOString(),
+      reason: sanction.reason,
+      by: sanction.by,
+      revoked: sanction.revokedAt !== null,
+    })),
   };
 }
 
@@ -159,7 +176,13 @@ export class AdminService {
     const target = await this.requireTarget(userId, actor);
     const until = days === 0 ? null : new Date(Date.now() + days * 24 * 3600 * 1000);
     const reason = until === null ? null : parseReason(rawReason, "bannissement");
-    await this.users.update(userId, { bannedUntil: until, banReason: reason });
+    const now = new Date();
+    // Lever un bannissement abroge aussi un ban définitif.
+    const sanctions: Sanction[] =
+      until === null
+        ? target.sanctions.map((sanction) => ((sanction.type === "ban" || sanction.type === "permanent_ban") && sanction.revokedAt === null ? { ...sanction, revokedAt: now } : sanction))
+        : [...target.sanctions, { id: newSanctionId(), type: "ban", at: now, until, reason: reason as string, by: actorLabel(actor), caseId: null, revokedAt: null }];
+    await this.users.update(userId, { bannedUntil: until, banReason: reason, sanctions: sanctions.slice(-100) });
     await this.gameLogs.audit({ caseId: `user:${target.id}`, action: until === null ? "unban" : "ban", at: new Date(), detail: until === null ? undefined : `${days} j · ${reason}`, actor: actorLabel(actor) });
     if (until !== null) await this.onBan(userId);
     return until;
@@ -205,6 +228,61 @@ export class AdminService {
   public async recentGames(rawBefore: unknown): Promise<unknown[]> {
     const before = typeof rawBefore === "string" && !Number.isNaN(Date.parse(rawBefore)) ? new Date(rawBefore) : undefined;
     return this.gameLogs.recentGames(50, before);
+  }
+
+  /** Lever toutes les sanctions d'un compte : mute, ban (définitif compris) et avertissements. */
+  public async clearSanctions(userId: string, actor: Staff): Promise<void> {
+    if (actor.role !== "admin") throw new ApiError(403, "forbidden");
+    const target = await this.requireTarget(userId, actor);
+    const now = new Date();
+    await this.users.update(userId, {
+      bannedUntil: null,
+      banReason: null,
+      chatMutedUntil: null,
+      warnings: [],
+      sanctions: target.sanctions.map((sanction) => (sanction.revokedAt === null ? { ...sanction, revokedAt: now } : sanction)),
+    });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "clear_sanctions", at: now, actor: actorLabel(actor) });
+    this.onWarn(userId);
+  }
+
+  /** Demandes de ban définitif des modérateurs, avec le dossier et la personne visée (admin seulement). */
+  public async banRequests(rawStatus: unknown) {
+    const status = rawStatus === "accepted" || rawStatus === "rejected" ? rawStatus : "pending";
+    const requests = await this.gameLogs.listBanRequests(status);
+    return Promise.all(
+      requests.map(async (request) => {
+        const identity = (await this.gameLogs.getIdentities(request.caseId)).find((entry) => entry.pseudonym === request.pseudonym) ?? null;
+        const account = identity?.userId == null ? null : await this.users.findById(identity.userId);
+        return {
+          ...request,
+          case: await this.gameLogs.getCase(request.caseId),
+          target: identity === null ? null : { pseudo: identity.pseudo, userId: identity.userId, displayName: account?.displayName ?? null, email: account?.email ?? null },
+        };
+      }),
+    );
+  }
+
+  public async decideBanRequest(id: string, accept: boolean, actor: Staff): Promise<void> {
+    if (actor.role !== "admin") throw new ApiError(403, "forbidden");
+    const request = await this.gameLogs.getBanRequest(id);
+    if (request === null || request.status !== "pending") throw new ApiError(404, "not_found");
+    if (accept) {
+      const identity = (await this.gameLogs.getIdentities(request.caseId)).find((entry) => entry.pseudonym === request.pseudonym);
+      if (identity?.userId == null) throw new ApiError(400, "guest_not_sanctionable");
+      const target = await this.requireTarget(identity.userId, actor);
+      const now = new Date();
+      await this.users.update(target.id, {
+        bannedUntil: PERMANENT_BAN_UNTIL,
+        banReason: request.reason,
+        sanctions: [...target.sanctions, { id: newSanctionId(), type: "permanent_ban", at: now, until: null, reason: request.reason, by: actorLabel(actor), caseId: request.caseId, revokedAt: null } satisfies Sanction].slice(-100),
+      });
+      await this.gameLogs.audit({ caseId: request.caseId, action: "permanent_ban", at: now, detail: request.pseudonym, actor: actorLabel(actor) });
+      await this.onBan(target.id);
+    } else {
+      await this.gameLogs.audit({ caseId: request.caseId, action: "ban_request_rejected", at: new Date(), detail: request.pseudonym, actor: actorLabel(actor) });
+    }
+    await this.gameLogs.decideBanRequest(id, accept ? "accepted" : "rejected", actorLabel(actor));
   }
 
   /** Personne ne sanctionne l'admin ; un modérateur ne sanctionne pas un autre membre de l'équipe. */

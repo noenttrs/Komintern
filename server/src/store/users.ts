@@ -28,6 +28,10 @@ export type User = {
   banReason: string | null;
   /** Avertissements de modération ; le joueur les voit à sa prochaine visite (seenAt). */
   warnings: AccountWarning[];
+  /** Mute ou ban du chat : le joueur peut jouer mais pas écrire jusqu'à cette date. */
+  chatMutedUntil: Date | null;
+  /** Historique des sanctions (mute, ban du chat, bannissement), levées comprises. */
+  sanctions: Sanction[];
   /** Rôle attribué uniquement en ligne de commande côté serveur, jamais depuis le site. */
   role: StaffRole | null;
   /** Secret TOTP (base32) de la double authentification, obligatoire pour les admins. */
@@ -37,11 +41,25 @@ export type User = {
 /** Admin : tout le panel. Modérateur : signalements, comptes (sanctions limitées) et parties anonymes. */
 export type StaffRole = "admin" | "moderator";
 
+export type SanctionType = "mute" | "chat_ban" | "ban" | "permanent_ban";
+
+export type Sanction = {
+  id: string;
+  type: SanctionType;
+  at: Date;
+  until: Date | null;
+  reason: string;
+  /** Auteur (pseudo et rôle) ; dossier d'origine s'il y en a un. */
+  by: string;
+  caseId: string | null;
+  revokedAt: Date | null;
+};
+
 export type AccountWarning = { id: string; at: Date; reason: string; seenAt: Date | null };
 
 export type NewUser = Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName">;
 export type UserPatch = Partial<
-  Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil" | "banReason" | "warnings" | "role" | "totpSecret">
+  Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil" | "banReason" | "warnings" | "chatMutedUntil" | "sanctions" | "role" | "totpSecret">
 >;
 
 /** Violation d'unicité (email, pseudo ou compte Google déjà utilisé). */
@@ -105,6 +123,8 @@ function fromDoc(doc: UserDoc): User {
     bannedUntil: doc.bannedUntil ?? null,
     banReason: doc.banReason ?? null,
     warnings: (doc.warnings ?? []).map((warning) => ({ ...warning })),
+    chatMutedUntil: doc.chatMutedUntil ?? null,
+    sanctions: (doc.sanctions ?? []).map((sanction) => ({ ...sanction })),
     role: doc.role ?? null,
     totpSecret: doc.totpSecret ?? null,
   };
@@ -137,6 +157,8 @@ export class MongoUserStore implements UserStore {
       bannedUntil: null,
       banReason: null,
       warnings: [],
+      chatMutedUntil: null,
+      sanctions: [],
       role: null,
       totpSecret: null,
     };
@@ -220,7 +242,9 @@ export class MongoUserStore implements UserStore {
   }
 
   public async listSanctioned(now: Date, limit: number): Promise<User[]> {
-    return (await this.users.find({ $or: [{ bannedUntil: { $gt: now } }, { "warnings.0": { $exists: true } }] }).limit(limit).toArray()).map(fromDoc);
+    return (
+      await this.users.find({ $or: [{ bannedUntil: { $gt: now } }, { chatMutedUntil: { $gt: now } }, { "warnings.0": { $exists: true } }] }).limit(limit).toArray()
+    ).map(fromDoc);
   }
 }
 
@@ -251,7 +275,7 @@ export class MemoryUserStore implements UserStore {
 
   public async create(input: NewUser): Promise<User> {
     this.checkUnique(input);
-    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null, banReason: null, warnings: [], role: null, totpSecret: null };
+    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null, banReason: null, warnings: [], chatMutedUntil: null, sanctions: [], role: null, totpSecret: null };
     this.users.set(user.id, user);
     return { ...user };
   }
@@ -312,7 +336,7 @@ export class MemoryUserStore implements UserStore {
 
   public async listSanctioned(now: Date, limit: number): Promise<User[]> {
     return [...this.users.values()]
-      .filter((user) => (user.bannedUntil !== null && user.bannedUntil > now) || user.warnings.length > 0)
+      .filter((user) => (user.bannedUntil !== null && user.bannedUntil > now) || (user.chatMutedUntil !== null && user.chatMutedUntil > now) || user.warnings.length > 0)
       .slice(0, limit)
       .map((user) => ({ ...user }));
   }

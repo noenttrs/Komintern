@@ -98,9 +98,8 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
         ) : (
           <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>{t("menu.login")}</button>
         )}
-        {isAdmin || isModerator ? (
-          <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{isAdmin ? t("menu.admin") : t("menu.moderation")}</button>
-        ) : null}
+        {isAdmin || isModerator ? <button type="button" onClick={() => go("/moderation")} tabIndex={open ? 0 : -1}>{t("menu.moderation")}</button> : null}
+        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{t("menu.admin")}</button> : null}
         <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>{t("menu.support")}</button>
         {!install.installed && (install.canPrompt || install.isIos) ? (
           <button

@@ -5,6 +5,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import type { AdminService, Staff } from "../admin/service";
+import { ModerationPanel } from "../moderation/panel";
 import { ApiError, PENDING_REGISTRATION_SECONDS, accountView } from "../auth/accounts";
 import { allow } from "../auth/rateLimit";
 import type { User } from "../store/users";
@@ -42,7 +43,7 @@ export function sessionIdFrom(request: IncomingMessage): string | undefined {
   return header === undefined ? undefined : parseCookie(header)[SESSION_COOKIE];
 }
 
-export function createApi(services: Services, admin: AdminService, publicRooms: () => unknown[] = () => []): express.Router {
+export function createApi(services: Services, admin: AdminService, publicRooms: () => unknown[] = () => [], moderationPanel: ModerationPanel = new ModerationPanel(services.users, services.gameLogs)): express.Router {
   const { accounts, sessions, config } = services;
   const router = express.Router();
   router.use((_request, response, next) => {
@@ -338,8 +339,8 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
 
   // ---------------------------------------------------------------- administration
-  // Équipe (admin ou modérateur) + session élevée par TOTP ; tout autre visiteur reçoit 404.
-  // Admin : tout. Modérateur : signalements, comptes (sanctions limitées) et parties anonymes.
+  // Panel admin : admin uniquement. Panel de modération : modérateurs et admin. Dans les deux
+  // cas, session élevée par un code TOTP ; tout autre visiteur reçoit 404.
   const requireStaff = async (request: AuthedRequest) => {
     const member = await admin.staff(request.userId);
     if (member === null) throw new ApiError(404, "not_found");
@@ -355,6 +356,7 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
 
   router.get("/admin/session", route(async (request, response) => {
     const member = await requireStaff(request);
+    if (member.role !== "admin") throw new ApiError(404, "not_found");
     response.json({ elevated: await admin.isElevated(request.userId, request.sessionId), role: member.role, totpEnabled: member.totpEnabled });
   }));
   router.post("/admin/session", route(async (request, response) => {
@@ -371,32 +373,32 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.json(await services.audience.summary(30));
   }));
   router.get("/admin/reports", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json({ reports: await admin.listReports(request.query.status) });
   }));
   router.get("/admin/reports/:id", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     response.json(await admin.report(String(request.params.id), actor));
   }));
   router.post("/admin/reports/:id/reveal", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     response.json({ identities: await admin.revealReport(String(request.params.id), actor) });
   }));
   router.post("/admin/reports/:id/resolve", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     await admin.resolveReport(String(request.params.id), request.body?.note, actor);
     response.status(204).end();
   }));
   router.post("/admin/users/:id/ban", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days, request.body?.reason, actor) });
   }));
   router.post("/admin/users/:id/warn", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     response.json({ warning: await admin.warn(String(request.params.id), request.body?.reason, actor) });
   }));
   router.delete("/admin/users/:id/warnings/:warningId", route(async (request, response) => {
-    const actor = await requireElevated(request);
+    const actor = await requireElevated(request, true);
     await admin.removeWarning(String(request.params.id), String(request.params.warningId), actor);
     response.status(204).end();
   }));
@@ -406,11 +408,11 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.status(204).end();
   }));
   router.get("/admin/users", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json({ users: request.query.sanctioned === "1" ? await admin.sanctionedUsers() : await admin.searchUsers(request.query.q) });
   }));
   router.get("/admin/games", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json({ games: await admin.recentGames(request.query.before) });
   }));
   router.get("/admin/contact", route(async (request, response) => {
@@ -420,6 +422,51 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   router.post("/admin/contact/:id/read", route(async (request, response) => {
     await requireElevated(request, true);
     await admin.markContact(String(request.params.id), request.body?.read);
+    response.status(204).end();
+  }));
+
+  router.get("/admin/ban-requests", route(async (request, response) => {
+    await requireElevated(request, true);
+    response.json({ requests: await admin.banRequests(request.query.status) });
+  }));
+  router.post("/admin/ban-requests/:id/:decision", route(async (request, response) => {
+    const actor = await requireElevated(request, true);
+    const decision = String(request.params.decision);
+    if (decision !== "accept" && decision !== "reject") throw new ApiError(404, "not_found");
+    await admin.decideBanRequest(String(request.params.id), decision === "accept", actor);
+    response.status(204).end();
+  }));
+  router.post("/admin/users/:id/clear-sanctions", route(async (request, response) => {
+    const actor = await requireElevated(request, true);
+    await admin.clearSanctions(String(request.params.id), actor);
+    response.status(204).end();
+  }));
+
+  // ---- Panel de modération : dossiers anonymisés, conséquences appliquées par le serveur.
+  router.get("/moderation/session", route(async (request, response) => {
+    const member = await requireStaff(request);
+    response.json({ elevated: await admin.isElevated(request.userId, request.sessionId), role: member.role, totpEnabled: member.totpEnabled });
+  }));
+  router.post("/moderation/session", route(async (request, response) => {
+    await requireStaff(request);
+    await admin.elevate(request.userId as string, request.sessionId as string, request.body?.code);
+    response.json({ elevated: true });
+  }));
+  router.get("/moderation/cases", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ cases: await moderationPanel.listCases(request.query.status) });
+  }));
+  router.get("/moderation/cases/:id", route(async (request, response) => {
+    const actor = await requireElevated(request);
+    response.json(await moderationPanel.caseDetail(String(request.params.id), actor));
+  }));
+  router.post("/moderation/cases/:id/sanction", route(async (request, response) => {
+    const actor = await requireElevated(request);
+    response.json(await moderationPanel.sanction(String(request.params.id), request.body ?? {}, actor));
+  }));
+  router.post("/moderation/cases/:id/resolve", route(async (request, response) => {
+    const actor = await requireElevated(request);
+    await moderationPanel.resolve(String(request.params.id), request.body?.note, actor);
     response.status(204).end();
   }));
 

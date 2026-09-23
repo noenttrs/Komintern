@@ -55,6 +55,8 @@ export type AccountView = {
   totpEnabled?: boolean;
   /** Avertissements de modération pas encore lus (visibles par le joueur lui-même). */
   pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
+  /** Chat coupé jusqu'à cette date (mute ou ban du chat). */
+  chatMutedUntil?: string | null;
 };
 
 const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -104,6 +106,7 @@ export function accountView(user: User, self: boolean): AccountView {
         isAdmin: user.role === "admin",
         isModerator: user.role === "moderator",
         totpEnabled: user.totpSecret !== null,
+        chatMutedUntil: user.chatMutedUntil !== null && user.chatMutedUntil > new Date() ? user.chatMutedUntil.toISOString() : null,
         pendingWarnings: user.warnings.filter((warning) => warning.seenAt === null).map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason })),
       }
     : base;

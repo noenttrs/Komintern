@@ -1830,3 +1830,33 @@ textarea {
 .admin-table .dot {
   flex: none;
 }
+
+.moderation-case {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .moderation-case {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+
+  .moderation-case > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.admin-user__revoked {
+  text-decoration: line-through;
+  color: var(--ink-soft);
+}
+
+.moderation-case .admin-users {
+  grid-template-columns: 1fr;
+}
+
+.admin-log__flagged .mono {
+  color: inherit;
+  opacity: 0.8;
+}

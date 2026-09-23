@@ -16,6 +16,22 @@ type AdminUser = {
   warnings: Array<{ id: string; at: string; reason: string; seen: boolean }>;
   gamesPlayed: number;
   role: "admin" | "moderator" | null;
+  permanentBan: boolean;
+  chatMutedUntil: string | null;
+  sanctions: Array<{ id: string; type: "mute" | "chat_ban" | "ban" | "permanent_ban"; at: string; until: string | null; reason: string; by: string; revoked: boolean }>;
+};
+
+type BanRequest = {
+  id: string;
+  caseId: string;
+  pseudonym: string;
+  reason: string;
+  requestedBy: string;
+  createdAt: string;
+  status: "pending" | "accepted" | "rejected";
+  decidedBy: string | null;
+  case: { messages: Array<{ pseudonym: string; text: string; at: string; flagged: boolean }> } | null;
+  target: { pseudo: string; userId: string | null; displayName: string | null; email: string | null } | null;
 };
 
 type AdminGame = {
@@ -34,6 +50,13 @@ type AdminGame = {
   chatMessages: number;
   moderated: boolean;
 };
+
+const SANCTION_LABELS = {
+  mute: "moderation.sanctionMute",
+  chat_ban: "moderation.sanctionChatBan",
+  ban: "moderation.sanctionBan",
+  permanent_ban: "moderation.sanctionPermanentBan",
+} as const;
 
 const fmt = (date: string, locale: string): string => new Date(date).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 
@@ -89,7 +112,23 @@ export function UsersTab({ isAdmin }: { isAdmin: boolean }): JSX.Element {
               <span className="mono">{t("admin.userMeta", { date: fmt(user.createdAt, locale), games: user.gamesPlayed })}</span>
             </div>
             {user.bannedUntil !== null ? (
-              <p className="admin-user__ban">{t("admin.bannedUntil", { date: fmt(user.bannedUntil, locale), reason: user.banReason ?? "" })}</p>
+              <p className="admin-user__ban">
+                {user.permanentBan ? t("admin.bannedForever", { reason: user.banReason ?? "" }) : t("admin.bannedUntil", { date: fmt(user.bannedUntil, locale), reason: user.banReason ?? "" })}
+              </p>
+            ) : null}
+            {user.chatMutedUntil !== null ? <p className="admin-user__ban">{t("admin.mutedUntil", { date: fmt(user.chatMutedUntil, locale) })}</p> : null}
+            {user.sanctions.length > 0 ? (
+              <details>
+                <summary>{t("admin.sanctionHistory", { count: user.sanctions.length })}</summary>
+                <ul className="admin-user__warnings">
+                  {user.sanctions.map((sanction) => (
+                    <li key={sanction.id} className={sanction.revoked ? "admin-user__revoked" : ""}>
+                      <span className="mono">{fmt(sanction.at, locale)}</span> {t(SANCTION_LABELS[sanction.type])} · {sanction.reason} · {sanction.by}
+                      {sanction.revoked ? ` ${t("admin.revoked")}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ) : null}
             {user.warnings.length > 0 ? (
               <ul className="admin-user__warnings">
@@ -120,10 +159,25 @@ export function UsersTab({ isAdmin }: { isAdmin: boolean }): JSX.Element {
               ) : null}
               <button type="button" className="secondary" onClick={() => warn(user)}>{t("admin.warn")}</button>
               {user.bannedUntil !== null ? (
-                <button type="button" className="secondary" onClick={() => act(api(`/admin/users/${user.id}/ban`, { body: { days: 0 } }), t("admin.unbanned"))}>{t("admin.unban")}</button>
+                <button type="button" className="secondary" onClick={() => act(api(`/admin/users/${user.id}/ban`, { body: { days: 0 } }), t("admin.unbanned"))}>
+                  {user.permanentBan ? t("admin.revokePermanent") : t("admin.unban")}
+                </button>
               ) : (
                 <button type="button" className="secondary" onClick={() => ban(user)}>{t("admin.ban")}</button>
               )}
+              {isAdmin && (user.bannedUntil !== null || user.chatMutedUntil !== null || user.warnings.length > 0) ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    if (window.confirm(t("admin.clearSanctionsConfirm", { name: user.displayName ?? "?" }))) {
+                      act(api(`/admin/users/${user.id}/clear-sanctions`, { body: {} }), t("admin.sanctionsCleared"));
+                    }
+                  }}
+                >
+                  {t("admin.clearSanctions")}
+                </button>
+              ) : null}
             </div>
           </li>
         ))}
@@ -199,6 +253,71 @@ export function GamesTab(): JSX.Element {
       {!done && games.length > 0 ? (
         <button type="button" className="secondary" onClick={() => more(games.at(-1)?.endedAt)}>{t("admin.moreGames")}</button>
       ) : null}
+    </div>
+  );
+}
+
+/** Demandes de ban définitif des modérateurs : l'admin voit le dossier et la personne, puis tranche. */
+export function BanRequestsTab(): JSX.Element {
+  const { t, locale } = useI18n();
+  const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
+  const [requests, setRequests] = useState<BanRequest[] | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api<{ requests: BanRequest[] }>(`/admin/ban-requests?status=${status}`)
+      .then((result) => setRequests(result.requests))
+      .catch((error: unknown) => setMessage(errorText(error)));
+  }, [status]);
+  useEffect(load, [load]);
+
+  const decide = (request: BanRequest, accept: boolean): void => {
+    const name = request.target?.displayName ?? request.target?.pseudo ?? request.pseudonym;
+    if (!window.confirm(accept ? t("admin.acceptBanConfirm", { name }) : t("admin.rejectBanConfirm", { name }))) return;
+    api(`/admin/ban-requests/${request.id}/${accept ? "accept" : "reject"}`, { body: {} })
+      .then(() => { setMessage(accept ? t("admin.banAccepted") : t("admin.banRejected")); load(); })
+      .catch((error: unknown) => setMessage(errorText(error)));
+  };
+
+  return (
+    <div className="panel page-panel">
+      <div className="admin-tabs">
+        {(["pending", "accepted", "rejected"] as const).map((entry) => (
+          <button key={entry} type="button" className={status === entry ? "" : "secondary"} onClick={() => setStatus(entry)}>
+            {t(entry === "pending" ? "admin.requestsPending" : entry === "accepted" ? "admin.requestsAccepted" : "admin.requestsRejected")}
+          </button>
+        ))}
+      </div>
+      {message !== null ? <p className="form-message" role="status">{message}</p> : null}
+      {requests?.length === 0 ? <p>{t("admin.noBanRequests")}</p> : null}
+      <ul className="admin-users">
+        {requests?.map((request) => (
+          <li key={request.id} className="admin-user">
+            <div className="admin-user__head">
+              <strong>{request.target === null ? request.pseudonym : `${request.pseudonym} = ${request.target.displayName ?? request.target.pseudo}`}</strong>
+              <span className="mono">{request.target?.email ?? (request.target?.userId === null ? t("admin.guest") : "")}</span>
+              <span className="mono">{fmt(request.createdAt, locale)}</span>
+            </div>
+            <p>{t("admin.requestedBy", { by: request.requestedBy, reason: request.reason })}</p>
+            {request.case !== null ? (
+              <ol className="admin-log">
+                {request.case.messages.map((entry, index) => (
+                  <li key={index} className={entry.flagged ? "admin-log__flagged" : ""}>
+                    <strong>{entry.pseudonym}</strong> {entry.text}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            {request.status === "pending" ? (
+              <div className="admin-user__actions">
+                <button type="button" onClick={() => decide(request, true)}>{t("admin.acceptBan")}</button>
+                <button type="button" className="secondary" onClick={() => decide(request, false)}>{t("admin.rejectBan")}</button>
+              </div>
+            ) : (
+              <p className="mono">{t("admin.decidedBy", { by: request.decidedBy ?? "?" })}</p>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

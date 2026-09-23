@@ -12,6 +12,7 @@ export type Route =
   | { page: "contact" }
   | { page: "support" }
   | { page: "admin" }
+  | { page: "moderation" }
   | { page: "rules" };
 
 export function parseRoute(pathname: string, search = ""): Route {
@@ -23,6 +24,7 @@ export function parseRoute(pathname: string, search = ""): Route {
   if (path === "/contact") return { page: "contact" };
   if (path === "/soutenir") return { page: "support" };
   if (path === "/admin") return { page: "admin" };
+  if (path === "/moderation") return { page: "moderation" };
   if (path === "/regles") return { page: "rules" };
   if (path === "/profil") return { page: "profile", userId: null, setup: new URLSearchParams(search).has("setup") };
   const friend = /^\/profil\/([A-Za-z0-9_-]{3,64})$/.exec(path);

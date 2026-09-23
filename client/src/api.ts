@@ -88,6 +88,7 @@ export type Account = {
   isModerator?: boolean;
   totpEnabled?: boolean;
   pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
+  chatMutedUntil?: string | null;
 };
 
 export type PublicConfig = {

@@ -8,11 +8,14 @@ type ChatPanelProps = {
   myId: string | null;
   onSend: (text: string) => void;
   onReport: (message: ChatMessage) => void;
+  /** Chat coupé par la modération jusqu'à cette date : on peut lire, pas écrire. */
+  mutedUntil?: string | null;
 };
 
 /** Chat de room repliable, replié par défaut : il ne cache jamais les boutons de jeu. */
-export function ChatPanel({ messages, myId, onSend, onReport }: ChatPanelProps): JSX.Element {
-  const { t } = useI18n();
+export function ChatPanel({ messages, myId, onSend, onReport, mutedUntil = null }: ChatPanelProps): JSX.Element {
+  const { t, locale } = useI18n();
+  const muted = mutedUntil !== null && new Date(mutedUntil) > new Date();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [seen, setSeen] = useState(messages.length);
@@ -65,8 +68,15 @@ export function ChatPanel({ messages, myId, onSend, onReport }: ChatPanelProps):
           }
         }}
       >
-        <input value={draft} maxLength={200} onChange={(event) => setDraft(event.target.value)} placeholder={t("chat.placeholder")} aria-label={t("chat.inputLabel")} />
-        <button type="submit" disabled={draft.trim() === ""}>{t("common.send")}</button>
+        <input
+          value={draft}
+          maxLength={200}
+          disabled={muted}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={muted ? t("chat.mutedUntil", { date: new Date(mutedUntil as string).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" }) }) : t("chat.placeholder")}
+          aria-label={t("chat.inputLabel")}
+        />
+        <button type="submit" disabled={muted || draft.trim() === ""}>{t("common.send")}</button>
       </form>
     </section>
   );
