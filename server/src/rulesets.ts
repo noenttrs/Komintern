@@ -25,14 +25,22 @@ export const RULESET_PRESETS = {
 	PRESET_14J_RAPIDE: { playerCount: 14, naziCount: 5, missionSizes: [5, 5, 6, 6, 7], missionCount: 5, winThreshold: 3 },
 } as const;
 
-/** Durée de partie choisie à la création : classique (joueurs ÷ 2 + 1) ou rapide (premier à 3). */
+/**
+ * Durée de partie : classique (joueurs ÷ 2 + 1) ou rapide (premier à 3). L'hôte peut choisir la
+ * partie rapide à partir de QUICK_PACE_MIN_PLAYERS joueurs, là où la règle classique dépasse 5 missions.
+ */
+export const QUICK_PACE_MIN_PLAYERS = 6;
+
 export type GamePace = "classic" | "quick";
 
 export function parsePace(raw: unknown): GamePace {
   return raw === "quick" ? "quick" : "classic";
 }
 
-export type RulesetPreset = keyof typeof RULESET_PRESETS;
+/** Format imposé à 2 joueurs : un duel (gameengine/duel.py), sans missions. */
+export const DUEL_PRESET = "PRESET_2J";
+
+export type RulesetPreset = keyof typeof RULESET_PRESETS | typeof DUEL_PRESET;
 
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 14;
@@ -67,6 +75,9 @@ export function parsePreset(rawPreset: unknown): RulesetPreset {
 		throw new Error("ruleset_preset must be a string");
 	}
 	const normalized = rawPreset.toUpperCase();
+	if (normalized === DUEL_PRESET) {
+		return DUEL_PRESET;
+	}
 	if (!(normalized in RULESET_PRESETS)) {
 		throw new Error("unknown ruleset preset");
 	}
@@ -97,7 +108,13 @@ export function resolveRulesetForPlayerCount(
 	}
 
 	if (rulesetPreset !== undefined) {
-		const resolvedPreset = parsePreset(rulesetPreset);
+		const parsedPreset = parsePreset(rulesetPreset);
+		if (parsedPreset === DUEL_PRESET) {
+			throw new Error("the duel format is played by 2 players");
+		}
+		// Format imposé et partie rapide : la version rapide de ce format, si elle existe.
+		const quickName = `${parsedPreset}_RAPIDE`;
+		const resolvedPreset = pace === "quick" && !parsedPreset.endsWith("_RAPIDE") && quickName in RULESET_PRESETS ? (quickName as keyof typeof RULESET_PRESETS) : parsedPreset;
 		const preset = RULESET_PRESETS[resolvedPreset];
 		if (preset.playerCount !== playerCount) {
 			throw new Error(`ruleset preset ${resolvedPreset} requires ${preset.playerCount} players`);
@@ -124,13 +141,13 @@ export function resolveRulesetForPlayerCount(
 }
 
 /** Preset jouable correspondant à ce nombre de joueurs, ou null. */
-export function getPresetNameForPlayerCount(playerCount: number, pace: GamePace = "classic"): RulesetPreset | null {
+export function getPresetNameForPlayerCount(playerCount: number, pace: GamePace = "classic"): keyof typeof RULESET_PRESETS | null {
 	const quick = `PRESET_${playerCount}J_RAPIDE`;
 	if (pace === "quick" && quick in RULESET_PRESETS) {
-		return quick as RulesetPreset;
+		return quick as keyof typeof RULESET_PRESETS;
 	}
 	const classic = `PRESET_${playerCount}J`;
-	return classic in RULESET_PRESETS ? (classic as RulesetPreset) : null;
+	return classic in RULESET_PRESETS ? (classic as keyof typeof RULESET_PRESETS) : null;
 }
 
 /** Même contrat que Ruleset.__post_init__ côté Python (gameengine/types.py). */

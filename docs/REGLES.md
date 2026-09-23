@@ -1,4 +1,4 @@
-# Règles officielles — v0.8
+# Règles officielles — v0.9
 
 **Nazi Communiste** — jeu de déduction sociale en temps réel.
 Règles © 2026 Komintern, publiées sous licence [Creative Commons Attribution - Pas d'utilisation commerciale - Partage dans les mêmes conditions 4.0 International (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr). Voir [Licence](#licence).
@@ -69,7 +69,7 @@ Principes de calibrage :
 
 ### Partie rapide
 
-À la création d'une room sans format imposé, l'hôte choisit la durée : **classique** (le tableau ci-dessus) ou **rapide** : toujours **5 missions, premier camp à 3**, avec des équipes plus grandes quand on est nombreux. Les camps sont les mêmes qu'en classique ; seules les missions changent. De 3 à 5 joueurs, les deux durées sont identiques. L'hôte peut changer la durée dans le salon, avant de démarrer.
+Dès que la règle classique dépasse 5 missions, c'est-à-dire **à partir de 6 joueurs**, l'hôte peut choisir dans le salon une partie **rapide** : toujours **5 missions, premier camp à 3**, avec des équipes plus grandes quand on est nombreux. Le choix apparaît quand le salon atteint 6 joueurs, ou dès le départ si la room impose un nombre de joueurs de 6 ou plus. Les camps sont les mêmes qu'en classique ; seules les missions changent. En dessous de 6 joueurs, la partie classique compte déjà 5 missions au plus.
 
 | Joueurs | Nazis | Missions (taille des équipes) |
 |---|---|---|
@@ -87,7 +87,7 @@ En partie rapide, les équipes grandissent de mission en mission : les dernière
 
 ### Rooms libres et rooms à format imposé
 
-Une room peut **imposer un format** (nombre exact de joueurs, ou des [règles personnalisées](#règles-personnalisées)) : elle ne démarre qu'avec ce nombre de joueurs. Elle peut aussi **rester libre** : elle démarre alors avec le nombre de joueurs présents, de 2 à 14, et prend le format correspondant à ce nombre et à la durée choisie.
+Une room peut **imposer un format** (nombre exact de joueurs de 2 à 14, 2 joueurs donnant un duel, ou des [règles personnalisées](#règles-personnalisées)) : elle ne démarre qu'avec ce nombre de joueurs. Elle peut aussi **rester libre** : elle démarre alors avec le nombre de joueurs présents, de 2 à 14, et prend le format correspondant à ce nombre et à la durée choisie.
 
 ---
 
@@ -116,7 +116,7 @@ Une room peut **imposer un format** (nombre exact de joueurs, ou des [règles pe
 | Qui a déjà voté la mission | oui | oui | public, pendant la mission |
 | Le vote de mission de chacun | non | non | **jamais**, pour personne |
 | Le nombre de votes nazis d'une mission | oui | oui | public, à la révélation |
-| Le rôle de tous | oui | oui | à la fin de la partie |
+| Le rôle de tous | oui | oui | à la fin de la partie, si la room annonce les nazis (option activée par défaut) |
 
 Aucun joueur, ni l'application, ne révèle en cours de partie qui a glissé un vote nazi : le serveur mélange les votes avant de les révéler.
 
@@ -124,7 +124,7 @@ Aucun joueur, ni l'application, ne révèle en cours de partie qui a glissé un 
 
 ## Mise en place
 
-1. **Salon.** Les joueurs rejoignent la room par son code, son lien ou son QR code. L'hôte peut exclure un joueur, transmettre son rôle d'hôte, choisir la durée (rooms libres) et le mode sur place ou à distance.
+1. **Salon.** Les joueurs rejoignent la room par son code, son lien ou son QR code. L'hôte peut exclure un joueur, transmettre son rôle d'hôte, choisir la durée (à partir de 6 joueurs), l'annonce des nazis à la fin et le mode sur place ou à distance.
 2. **Ordre de table.** Une fois la partie lancée, chaque joueur touche sa carte **à son tour, en suivant l'ordre de la table** (par exemple dans le sens des aiguilles d'une montre, à partir de n'importe qui). Chacun reçoit ainsi son numéro d'ordre.
    - Un joueur qui a touché trop tôt ou trop tard peut **corriger sa place** (« J'ai raté mon tour ») en indiquant le bon numéro ; l'ordre se réorganise.
    - L'hôte peut **tout recommencer**.
@@ -198,7 +198,7 @@ La partie se termine dès qu'un camp atteint le **nombre de missions requis** : 
 
 Elle se termine aussi par **abandon** : quand un joueur quitte la partie, ou reste absent au-delà du délai (voir [Absences et abandons](#absences-et-abandons)), son camp perd.
 
-À la fin, **tous les rôles sont révélés**. Pour rejouer, chaque joueur présent choisit « Rejouer » ; la revanche démarre quand tous les joueurs présents l'ont choisie. Les absents perdent leur place. Si le nombre de joueurs restant ne correspond plus au format imposé par la room, tout le monde revient au salon. Une room libre s'adapte : à 2 joueurs restants, la revanche est un duel.
+À la fin, **l'écran de fin annonce les nazis** avec le vainqueur. L'hôte peut désactiver cette option (« Révéler les nazis à la fin ») à la création de la room ou dans le salon : les rôles restent alors secrets, même après la partie, ce qui permet d'enchaîner les parties sans savoir qui était qui. Pour rejouer, chaque joueur présent choisit « Rejouer » ; la revanche démarre quand tous les joueurs présents l'ont choisie. Les absents perdent leur place. Si le nombre de joueurs restant ne correspond plus au format imposé par la room, tout le monde revient au salon. Une room libre s'adapte : à 2 joueurs restants, la revanche est un duel.
 
 ---
 
@@ -295,6 +295,7 @@ Le mode `blind` n'est accepté que marqué comme expérimental : sans informatio
 
 | Version | Changements |
 |---|---|
+| 0.9 | Partie rapide proposée dans le salon à partir de 6 joueurs (y compris en format imposé) ; option de room « Révéler les nazis à la fin » (activée par défaut ; désactivée, les rôles restent secrets) ; format imposé à 2 joueurs (duel) ; résultats des votes de confiance présentés en deux listes, Pour et Contre. |
 | 0.8 | Règles publiées sous licence CC BY-NC-SA 4.0. Document détaillé : qui sait quoi et quand, ordre de table (correction, confirmation), révélation des votes, revoir son rôle et l'historique, limite de 3 attentes par absence, règles personnalisées, cas particuliers, glossaire. |
 | 0.7 | Formats jusqu'à 14 joueurs (classique : 13 à 15 missions de 12 à 14 joueurs) ; partie rapide au choix (5 missions, premier à 3). |
 | 0.6 | Duel : rôles tirés indépendamment à pile ou face (25 / 50 / 25 %) ; un communiste gagne s'il juge juste ; deux nazis qui se font confiance gagnent ensemble. Plus aucun vote gagnant d'avance. |
@@ -319,5 +320,5 @@ Vous pouvez partager et adapter ces règles, à condition :
 
 Cette licence couvre le texte des règles. Le code source du jeu est publié séparément sous licence [AGPL-3.0](../LICENSE).
 
-> **Version** : 0.8
+> **Version** : 0.9
 > **Statut** : référence du moteur (`gameengine/`), de la page Règles du site et des pages pour les agents IA.

@@ -5,7 +5,7 @@ import { QrScanner } from "../components/QrScanner";
 import { RoomInvite } from "../components/RoomInvite";
 import { SupportBanner } from "../components/SupportBanner";
 import { useI18n } from "../i18n";
-import { PLAYABLE_PRESETS, type RulesetPreset } from "../types";
+import { PLAYABLE_PRESETS, QUICK_PACE_MIN_PLAYERS, type RulesetPreset } from "../types";
 import { useScreen } from "./ScreenContext";
 
 // Écrans hors partie : pseudo, accueil, création ou entrée dans une room, salle d'attente.
@@ -78,7 +78,7 @@ export function CreateRoomScreen(): JSX.Element {
     setCustomExperimental,
   } = useScreen();
   const { t } = useI18n();
-  const [pace, setPace] = useState<"classic" | "quick">("classic");
+  const [revealRoles, setRevealRoles] = useState(true);
   return (
     <main className="screen">
       <section className="panel panel--scroll">
@@ -129,30 +129,21 @@ export function CreateRoomScreen(): JSX.Element {
           <option value="custom">{t("createRoom.rulesCustom")}</option>
         </select>
 
-        {rulesMode === "default" ? (
-          <>
-            <span className="field-label" id="pace-label">{t("createRoom.paceLabel")}</span>
-            <div className="segmented" role="radiogroup" aria-labelledby="pace-label">
-              <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
-                {t("createRoom.paceClassic")}
-              </button>
-              <button type="button" role="radio" aria-checked={pace === "quick"} className={pace === "quick" ? "" : "secondary"} onClick={() => setPace("quick")}>
-                {t("createRoom.paceQuick")}
-              </button>
-            </div>
-            <p className="field-hint">{pace === "classic" ? t("createRoom.paceClassicHint") : t("createRoom.paceQuickHint")}</p>
-          </>
-        ) : null}
 
         {rulesMode === "preset" ? (
           <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
             {PLAYABLE_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
-                {t("createRoom.presetPlayers", { count: preset.replace("PRESET_", "").replace("J", "") })}
+                {preset === "PRESET_2J" ? t("createRoom.presetDuel") : t("createRoom.presetPlayers", { count: preset.replace("PRESET_", "").replace("J", "") })}
               </option>
             ))}
           </select>
         ) : null}
+
+        <label className="checkbox-row">
+          <input id="reveal-roles" type="checkbox" checked={revealRoles} onChange={(event) => setRevealRoles(event.target.checked)} />
+          {t("createRoom.revealRoles")}
+        </label>
 
         {rulesMode === "custom" ? (
           <>
@@ -237,7 +228,7 @@ export function CreateRoomScreen(): JSX.Element {
                     },
                   };
 
-            createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft, pace });
+            createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft, revealRoles });
           }}
         >
           {t("createRoom.submit")}
@@ -294,6 +285,8 @@ export function WaitingRoomScreen(): JSX.Element {
     isPublic,
     pace,
     setPace,
+    revealRoles,
+    setRevealRoles,
     chatEnabled,
     setPublicRoom,
     setChatMode,
@@ -303,6 +296,7 @@ export function WaitingRoomScreen(): JSX.Element {
     leaveRoom,
   } = useScreen();
   const { t } = useI18n();
+  const quickPaceAvailable = (flexibleRoom ? players.length : targetPlayerCount) >= QUICK_PACE_MIN_PLAYERS;
   return (
     <main className="screen">
       <section className="panel panel--scroll">
@@ -324,8 +318,9 @@ export function WaitingRoomScreen(): JSX.Element {
             ? t("waiting.playersFlexible", { count: players.length, min: minPlayers, max: targetPlayerCount })
             : t("waiting.playersFixed", { count: players.length, max: targetPlayerCount })}
         </p>
-        {flexibleRoom ? (
-          isHost ? (
+        {/* Partie rapide : proposée seulement quand la règle classique dépasse 5 missions (6 joueurs et plus). */}
+        {quickPaceAvailable && isHost ? (
+          <>
             <div className="segmented" role="radiogroup" aria-label={t("createRoom.paceLabel")}>
               <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
                 {t("createRoom.paceClassic")}
@@ -334,10 +329,18 @@ export function WaitingRoomScreen(): JSX.Element {
                 {t("createRoom.paceQuick")}
               </button>
             </div>
-          ) : (
-            <p className="mono">{pace === "quick" ? t("createRoom.paceQuick") : t("createRoom.paceClassic")}</p>
-          )
+            <p className="field-hint">{pace === "quick" ? t("createRoom.paceQuickHint") : t("createRoom.paceClassicHint")}</p>
+          </>
         ) : null}
+        {quickPaceAvailable && !isHost ? <p className="mono">{pace === "quick" ? t("createRoom.paceQuick") : t("createRoom.paceClassic")}</p> : null}
+        {isHost ? (
+          <label className="checkbox-row">
+            <input type="checkbox" checked={revealRoles} onChange={(event) => setRevealRoles(event.target.checked)} />
+            {t("createRoom.revealRoles")}
+          </label>
+        ) : (
+          <p className="mono">{revealRoles ? t("waiting.revealOn") : t("waiting.revealOff")}</p>
+        )}
         {isHost ? (
           <div className="segmented" role="radiogroup" aria-label={t("waiting.modeLabel")}>
             <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>

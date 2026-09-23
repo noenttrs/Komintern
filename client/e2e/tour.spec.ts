@@ -63,7 +63,6 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   // Création et salon
   await host.getByRole("button", { name: "Creer une room" }).click();
   await shot(host, "01-creation-room");
-  await host.getByRole("radio", { name: "Rapide" }).click();
   await host.getByRole("button", { name: "Creer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {
@@ -71,6 +70,8 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
     await expect(page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
   }
   await expect(host.getByText("14 joueurs · de 2 à 14")).toBeVisible();
+  // Partie rapide : proposée à l'hôte dans le salon, à partir de 6 joueurs.
+  await host.getByRole("radio", { name: "Rapide" }).click();
   await shot(host, "02-salon-14-hote");
   await shot(guest, "03-salon-14-invite");
   await host.getByRole("button", { name: "QR code" }).click();

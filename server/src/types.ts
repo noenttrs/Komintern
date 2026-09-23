@@ -56,6 +56,8 @@ export interface RoomUpdatedPayload {
   isPublic: boolean;
   /** Règles libres : partie classique (joueurs ÷ 2 + 1) ou rapide (premier à 3). */
   pace: "classic" | "quick";
+  /** Les nazis sont annoncés à la fin de la partie (sinon les rôles restent secrets). */
+  revealRoles: boolean;
 }
 
 export interface Scores {
@@ -102,7 +104,7 @@ export interface ResyncPayload {
   missionProgress: { team: string[]; votesSubmitted: number; votesRequired: number; submittedPlayerIds: string[] } | null;
   confidenceHistory: ConfidenceHistoryEntry[];
   missionHistory: MissionHistoryEntry[];
-  gameOver: { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string } | null;
+  gameOver: { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string; roleMap?: RoleMap; scores?: Scores } | null;
   /** Duel à 2 joueurs : qui a déjà voté (jamais le vote lui-même avant le résultat). */
   mode?: "duel";
   duel?: { votedPlayerIds: string[]; hasVoted: boolean };

@@ -47,6 +47,8 @@ export type SessionConfig = {
   revealPauseMs?: number;
   /** Des joueurs doivent agir (proposer, voter, jouer la mission) : notifications. */
   onTurn?: (playerIds: string[], kind: TurnKind) => void;
+  /** Option de la room : annoncer les nazis dès la fin de partie (sinon les rôles restent secrets). */
+  revealRolesAtEnd?: () => boolean;
 };
 
 export type TurnKind = "proposal" | "vote" | "mission";
@@ -384,7 +386,7 @@ export class GameSession {
       this.phase = "end_game";
       this.config.onGameDecided?.(this.summary());
       this.endGameConfirmed.clear();
-      this.toRoom(SERVER_EVENTS.GAME_OVER, { ...this.gameOver, scores: this.scores });
+      this.toRoom(SERVER_EVENTS.GAME_OVER, this.gameOverPayload());
       await this.tryCompleteEndGame();
     });
   }
@@ -638,7 +640,7 @@ export class GameSession {
       this.phase = "end_game";
       this.config.onGameDecided?.(this.summary());
       this.endGameConfirmed.clear();
-      this.toRoom(SERVER_EVENTS.GAME_OVER, { ...this.gameOver, scores: this.scores });
+      this.toRoom(SERVER_EVENTS.GAME_OVER, this.gameOverPayload());
       return;
     }
 
@@ -665,7 +667,8 @@ export class GameSession {
       log.warn("engine end_game failed", { roomId: this.roomId, error });
     }
 
-    this.toRoom(SERVER_EVENTS.ROLES_REVEALED, { roleMap: this.roleMap });
+    // Rôles secrets si la room l'a choisi : rien n'est révélé, même après la partie.
+    this.toRoom(SERVER_EVENTS.ROLES_REVEALED, { roleMap: this.revealsRoles() ? this.roleMap : {} });
     this.dispose();
     this.config.onGameFinished(nextChefId, this.summary());
   }
@@ -720,6 +723,15 @@ export class GameSession {
     return Object.keys(view).length > 1 ? { role, roleMap: { ...view } } : { role };
   }
 
+  private revealsRoles(): boolean {
+    return this.config.revealRolesAtEnd?.() ?? true;
+  }
+
+  /** Fin de partie : vainqueur, raison, score et, si la room l'a choisi, les rôles de tous. */
+  private gameOverPayload() {
+    return { ...(this.gameOver as GameOverInfo), scores: { ...this.scores }, ...(this.revealsRoles() ? { roleMap: { ...this.roleMap } } : {}) };
+  }
+
   private buildResyncPayload(playerId: string): ResyncPayload {
     return {
       room: this.config.getRoomPayload(),
@@ -752,7 +764,7 @@ export class GameSession {
       missionProgress: this.phase === "mission" ? this.missionProgressPayload() : null,
       confidenceHistory: this.confidenceHistory.map((entry) => ({ ...entry })),
       missionHistory: this.missionHistory.map((entry) => ({ ...entry })),
-      gameOver: this.gameOver === null ? null : { ...this.gameOver },
+      gameOver: this.gameOver === null ? null : this.gameOverPayload(),
     };
   }
 

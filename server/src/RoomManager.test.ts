@@ -76,7 +76,7 @@ test("only the host starts, and a non-host cannot change the ruleset first", asy
   const { manager } = setup();
   const code = manager.createRoom({ code: "ROOM", rulesetPreset: "PRESET_5J" });
   const [host, guest] = fill(manager, code, 5);
-  await assert.rejects(manager.startGame(code, guest as string, { rulesetPreset: "PRESET_2J" }), /only the host/);
+  await assert.rejects(manager.startGame(code, guest as string, { rulesetPreset: "PRESET_1J" }), /only the host/);
   await manager.startGame(code, host as string);
 });
 
@@ -91,7 +91,7 @@ test("double start creates a single session", async () => {
 
 test("placeholder presets and invalid rulesets are refused at creation", () => {
   const { manager } = setup();
-  assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_2J" }), /unknown ruleset preset/);
+  assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_1J" }), /unknown ruleset preset/);
   assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_99J" }), /unknown ruleset preset/);
   assert.throws(
     () =>
@@ -495,4 +495,23 @@ test("free rooms go up to 14 players, in classic or quick pace", async () => {
   assert.throws(() => manager.setPace(quick, quickPlayers[1] as string, "classic"), /only the host/);
   await manager.startGame(quick, quickPlayers[0] as string);
   assert.deepEqual(missionCounts(), [15, 5], "14 players: 15 missions in classic, 5 in quick");
+});
+
+test("a room with a fixed number of players can be a 2-player duel", async () => {
+  const { manager } = setup({ bridgeFactory: () => duelBridge({ a: "communist", b: "communist" }, () => []) });
+  const code = manager.createRoom({ rulesetPreset: "PRESET_2J" });
+  assert.deepEqual([manager.getRoomPayload(code).minPlayers, manager.getRoomPayload(code).maxPlayers], [2, 2]);
+  const [first] = fill(manager, code, 2) as [string, string];
+  assert.throws(() => manager.joinRoom(code, "s3"), /room is full/);
+  assert.equal((await manager.startAnyGame(code, first)) instanceof DuelSession, true);
+});
+
+test("a fixed format of 6 or more players can also be played in quick pace", async () => {
+  const { manager, events } = setup();
+  const code = manager.createRoom({ rulesetPreset: "PRESET_8J" });
+  const players = fill(manager, code, 5).concat(Array.from({ length: 3 }, (_, index) => manager.joinRoom(code, `x${index}`).playerId));
+  manager.setPace(code, players[0] as string, "quick");
+  await manager.startGame(code, players[0] as string);
+  const started = events.filter((entry) => entry.event === "game_started").at(-1)?.payload as { missionCount: number };
+  assert.equal(started.missionCount, 5, "8 players, quick: 5 missions instead of 9");
 });

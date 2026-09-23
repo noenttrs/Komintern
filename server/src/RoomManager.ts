@@ -7,7 +7,7 @@ import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
 import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
-import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePace, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
+import { DUEL_PRESET, MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePace, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
 import type { GamePace, RulesetPreset } from "./rulesets";
 import type { PlayerSummary, PushSubscriptionData, RoomStatus, RoomUpdatedPayload } from "./types";
 
@@ -96,6 +96,7 @@ type RoomRecord = {
   isPublic: boolean;
   /** Règles libres : partie classique ou rapide. */
   pace: GamePace;
+  revealRoles: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
   pseudoByPlayer: Map<string, string>;
@@ -144,6 +145,7 @@ export type CreateRoomOptions = {
   chatEnabled?: boolean;
   isPublic?: boolean;
   pace?: unknown;
+  revealRoles?: boolean;
 };
 
 export type JoinResult = {
@@ -197,7 +199,7 @@ export class RoomManager {
       minPlayers = maxPlayers = (configuredRuleset as { player_count: number }).player_count;
     } else if (options.rulesetPreset !== undefined && options.rulesetPreset !== null && options.rulesetPreset !== "") {
       configuredPreset = parsePreset(options.rulesetPreset);
-      minPlayers = maxPlayers = RULESET_PRESETS[configuredPreset].playerCount;
+      minPlayers = maxPlayers = configuredPreset === DUEL_PRESET ? DUEL_PLAYERS : RULESET_PRESETS[configuredPreset].playerCount;
     }
 
     this.rooms.set(code, {
@@ -214,6 +216,7 @@ export class RoomManager {
       chatEnabled: options.isPublic === true || options.chatEnabled !== false,
       isPublic: options.isPublic === true,
       pace: parsePace(options.pace),
+      revealRoles: options.revealRoles !== false,
       chat: [],
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
@@ -385,6 +388,13 @@ export class RoomManager {
     this.emitRoomUpdated(room);
   }
 
+  public setRevealRoles(code: string, hostId: string, revealRoles: boolean): void {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    room.revealRoles = revealRoles;
+    this.emitRoomUpdated(room);
+  }
+
   public setPace(code: string, hostId: string, pace: unknown): void {
     const room = this.requireRoom(code);
     this.requireHostInLobby(room, hostId);
@@ -455,7 +465,7 @@ export class RoomManager {
       ? parsePreset(options.rulesetPreset)
       : room.configuredPreset;
     const ruleset = options.ruleset ?? room.configuredRuleset;
-    if (room.playerIds.length === DUEL_PLAYERS && preset === undefined && ruleset === undefined) {
+    if (room.playerIds.length === DUEL_PLAYERS && (preset === undefined || preset === DUEL_PRESET) && ruleset === undefined) {
       return this.startDuel(room);
     }
     const resolved = resolveRulesetForPlayerCount(room.playerIds.length, ruleset === undefined ? preset : undefined, ruleset, room.pace);
@@ -478,6 +488,7 @@ export class RoomManager {
       onGameFinished: (nextChefId, summary) => this.onGameFinished(room, session, nextChefId, summary),
       onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
       onTurn: (playerIds, kind) => this.notifyAway(room, playerIds, { kind }),
+      revealRolesAtEnd: () => room.revealRoles,
       randomIndexProvider: this.options.randomIndexProvider,
       bridge: this.options.bridgeFactory?.(),
       pythonPath: this.options.pythonPath,
@@ -616,6 +627,7 @@ export class RoomManager {
       chatEnabled: room.chatEnabled,
       isPublic: room.isPublic,
       pace: room.pace,
+      revealRoles: room.revealRoles,
     };
   }
 

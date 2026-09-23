@@ -20,6 +20,7 @@ describe("protocol", () => {
       minPlayers: null,
       isPublic: null,
       pace: null,
+      revealRoles: null,
       players: [{ id: "p1", pseudo: "Rosa", isHost: false, isAfk: false, isConnected: true, absence: null }],
     });
     expect(parseRoom({ status: "hacked" }).status).toBeNull();

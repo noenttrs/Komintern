@@ -25,6 +25,7 @@ export type UIPhase =
 // Seuls les presets dont les tailles de mission sont définies sont jouables.
 // Formats de 3 à 14 joueurs (voir docs/REGLES.md).
 export const PLAYABLE_PRESETS = [
+  "PRESET_2J",
   "PRESET_3J",
   "PRESET_4J",
   "PRESET_5J",
@@ -38,6 +39,9 @@ export const PLAYABLE_PRESETS = [
   "PRESET_13J",
   "PRESET_14J",
 ] as const;
+
+/** Partie rapide proposée à partir de ce nombre de joueurs : la règle classique y dépasse 5 missions. */
+export const QUICK_PACE_MIN_PLAYERS = 6;
 
 export type RulesetPreset = (typeof PLAYABLE_PRESETS)[number];
 

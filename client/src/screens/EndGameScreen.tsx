@@ -76,6 +76,16 @@ export function EndGameScreen(): JSX.Element {
               {gameOver?.reason === "forfeit" && gameOver.forfeitedBy !== null ? (
                 <p>{t("endGame.forfeit", { name: nameById(gameOver.forfeitedBy) })}</p>
               ) : null}
+              {Object.keys(revealedRoles).length > 0 ? (
+                <p className="end-nazis">
+                  {t("endGame.nazisWere", {
+                    names: Object.entries(revealedRoles)
+                      .filter(([, playerFaction]) => playerFaction === "nazi")
+                      .map(([id]) => nameById(id))
+                      .join(", "),
+                  })}
+                </p>
+              ) : null}
               <p>{t("endGame.replayQuestion")}</p>
             </div>
           )
@@ -84,17 +94,6 @@ export function EndGameScreen(): JSX.Element {
         overlay={
           <div>
             {roleOverlay}
-            {/* Rôles de tous, dès qu'ils sont révélés (le rôle et les alliés sont déjà dans roleOverlay). */}
-            {Object.keys(revealedRoles).length > 0 ? (
-              <p>
-                {t("endGame.nazisWere", {
-                  names: Object.entries(revealedRoles)
-                    .filter(([, playerFaction]) => playerFaction === "nazi")
-                    .map(([id]) => nameById(id))
-                    .join(", "),
-                })}
-              </p>
-            ) : null}
           </div>
         }
         actions={

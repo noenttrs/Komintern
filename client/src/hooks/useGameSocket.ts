@@ -88,7 +88,7 @@ export interface GameActions {
   confirmPseudo: () => void;
   navigate: (phase: UIPhase) => void;
   dismissError: () => void;
-  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null; chatEnabled?: boolean; isPublic?: boolean; pace?: "classic" | "quick" }) => void;
+  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null; chatEnabled?: boolean; isPublic?: boolean; pace?: "classic" | "quick"; revealRoles?: boolean }) => void;
   joinRoom: (code: string) => void;
   leaveRoom: () => void;
   startGame: () => void;
@@ -115,6 +115,7 @@ export interface GameActions {
   setChatMode: (enabled: boolean) => void;
   setPublicRoom: (isPublic: boolean) => void;
   setPace: (pace: "classic" | "quick") => void;
+  setRevealRoles: (revealRoles: boolean) => void;
   sendDuelVote: (vote: DuelVote) => void;
   holdForPlayer: (playerId: string) => void;
   releaseHold: (playerId: string) => void;
@@ -356,6 +357,7 @@ export function useGameSocket(): UseGameSocketResult {
       setChatMode: (enabled) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { chatEnabled: enabled }),
       setPublicRoom: (isPublic) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { isPublic }),
       setPace: (pace) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { pace }),
+      setRevealRoles: (revealRoles) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { revealRoles }),
       sendDuelVote: (vote) => {
         dispatch({ type: "duel_voted", vote });
         emitAction(CLIENT_EVENTS.DUEL_VOTE, { vote });
@@ -385,6 +387,7 @@ export function useGameSocket(): UseGameSocketResult {
           chatEnabled: options?.chatEnabled !== false,
           isPublic: options?.isPublic === true,
           pace: options?.pace ?? "classic",
+          revealRoles: options?.revealRoles !== false,
         });
       },
       joinRoom: (rawCode) => {

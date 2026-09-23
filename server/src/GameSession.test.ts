@@ -19,7 +19,7 @@ function setup(overrides: Partial<SessionConfig> = {}) {
   const session = new GameSession("ROOM", PLAYERS, sockets, recorder.io, {
     ruleset: resolveRulesetForPlayerCount(5),
     getActivePlayerIds: () => PLAYERS.filter((id) => active.has(id)),
-    getRoomPayload: () => ({ players: [], code: "ROOM", hostPlayerId: "p1", targetPlayerCount: 5, minPlayers: 5, maxPlayers: 5, status: "playing", chatEnabled: true, isPublic: false, pace: "classic" }),
+    getRoomPayload: () => ({ players: [], code: "ROOM", hostPlayerId: "p1", targetPlayerCount: 5, minPlayers: 5, maxPlayers: 5, status: "playing", chatEnabled: true, isPublic: false, pace: "classic", revealRoles: true }),
     getHostPlayerId: () => "p1",
     onRevealComplete: () => {
       state.revealed = true;
@@ -196,6 +196,7 @@ test("a player going AFK after roles are dealt makes their faction forfeit", asy
     reason: "forfeit",
     forfeitedBy: "p2",
     scores: { nazi: 0, communist: 0 },
+    roleMap: { p1: "nazi", p2: "nazi", p3: "communist", p4: "communist", p5: "communist" },
   });
   for (const id of PLAYERS.filter((id) => id !== "p2")) {
     await session.confirmEndGame(id);
@@ -294,4 +295,18 @@ test("the engine start failing keeps the table order open", async () => {
   }
   assert.equal(session.currentPhase, "table_order");
   assert.ok(events.some((entry) => (entry.payload as { code?: string })?.code === "engine_start_failed"));
+});
+
+test("the Nazis are announced at the end, unless the room keeps roles secret", async () => {
+  for (const reveal of [true, false]) {
+    const { session, events, active } = setup({ revealRolesAtEnd: () => reveal });
+    await toProposing(session);
+    active.delete("p3");
+    await session.handlePlayerAfk("p3");
+    const over = events.find((entry) => entry.event === "game_over")?.payload as { roleMap?: Record<string, string> };
+    assert.equal(over.roleMap !== undefined, reveal);
+    for (const id of ["p1", "p2", "p4", "p5"]) await session.confirmEndGame(id);
+    const revealed = events.find((entry) => entry.event === "roles_revealed")?.payload as { roleMap: Record<string, string> };
+    assert.equal(Object.keys(revealed.roleMap).length, reveal ? 5 : 0);
+  }
 });

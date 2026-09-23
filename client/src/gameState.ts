@@ -54,6 +54,8 @@ export interface GameState {
   /** Faux pour une partie sur place : le chat n'est pas affiché. */
   chatEnabled: boolean;
   isPublic: boolean;
+  /** Les nazis sont annoncés à la fin de la partie. */
+  revealRoles: boolean;
   /** Règles libres : partie classique ou rapide. */
   pace: "classic" | "quick";
   phase: UIPhase;
@@ -159,6 +161,7 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     chatEnabled: true,
     isPublic: false,
     pace: "classic",
+    revealRoles: true,
     phase: pseudo.trim() === "" ? "pseudo_entry" : "landing",
     connection: "idle",
     error: null,
@@ -192,6 +195,7 @@ function applyRoom(state: GameState, payload: unknown): GameState {
     chatEnabled: room.chatEnabled ?? state.chatEnabled,
     isPublic: room.isPublic ?? state.isPublic,
     pace: room.pace ?? state.pace,
+    revealRoles: room.revealRoles ?? state.revealRoles,
   };
 }
 
@@ -422,10 +426,21 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
     }
 
     case SERVER_EVENTS.GAME_OVER:
-      return withPhase({ ...state, gameOver: parseGameOver(raw), score: parseScores(payload.scores) ?? state.score }, "end_game");
+      return withPhase(
+        {
+          ...state,
+          gameOver: parseGameOver(raw),
+          score: parseScores(payload.scores) ?? state.score,
+          // Room qui annonce les nazis : les rôles arrivent avec la fin de partie.
+          revealedRoles: payload.roleMap !== undefined ? factionMap(payload.roleMap) : state.revealedRoles,
+        },
+        "end_game",
+      );
 
-    case SERVER_EVENTS.ROLES_REVEALED:
-      return withPhase({ ...state, revealedRoles: factionMap(payload.roleMap), roomStatus: "finished" }, "replay_waiting");
+    case SERVER_EVENTS.ROLES_REVEALED: {
+      const roles = factionMap(payload.roleMap);
+      return withPhase({ ...state, revealedRoles: Object.keys(roles).length > 0 ? roles : state.revealedRoles, roomStatus: "finished" }, "replay_waiting");
+    }
 
     case SERVER_EVENTS.RESYNC:
       return applyResync(state, payload);
@@ -504,6 +519,7 @@ function applyResync(state: GameState, payload: Record<string, unknown>): GameSt
     ...base,
     phase,
     gameMeta: { missionCount: numberValue(payload.missionCount) ?? base.gameMeta.missionCount, mode: payload.mode === "duel" ? "duel" : "missions" },
+    revealedRoles: payload.gameOver !== null && toRecord(payload.gameOver).roleMap !== undefined ? factionMap(toRecord(payload.gameOver).roleMap) : base.revealedRoles,
     duel:
       payload.mode === "duel"
         ? {

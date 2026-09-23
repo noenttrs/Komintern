@@ -1904,3 +1904,7 @@ textarea {
   font-size: 0.9rem;
   overflow-wrap: anywhere;
 }
+
+.end-nazis {
+  font-weight: 700;
+}
