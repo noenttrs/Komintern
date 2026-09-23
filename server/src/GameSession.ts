@@ -165,7 +165,11 @@ export class GameSession {
 
   public start(): Promise<void> {
     return this.serial(async () => {
-      this.toRoom(SERVER_EVENTS.GAME_STARTED, { playerIds: [...this.playerIds] });
+      this.toRoom(SERVER_EVENTS.GAME_STARTED, {
+        playerIds: [...this.playerIds],
+        missionCount: this.config.ruleset.missionCount,
+        missionSizes: [...this.config.ruleset.missionSizes],
+      });
       this.emitTableOrderUpdate();
     });
   }

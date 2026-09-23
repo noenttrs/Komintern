@@ -44,6 +44,10 @@ describe("gameReducer", () => {
     expect(state.score).toEqual({ nazi: 0, communist: 1 });
   });
 
+  it("knows the number of missions as soon as the game starts", () => {
+    expect(run(joined(), ["game_started", { missionCount: 5 }]).gameMeta.missionCount).toBe(5);
+  });
+
   it("records confidence results with the proposed team", () => {
     const state = run(
       joined(),

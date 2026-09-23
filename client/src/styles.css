@@ -970,13 +970,15 @@ main.game-screen {
 
 /* ------------------------------------------------------------------ chat repliable */
 
+/* Dans le couloir du haut, symétrique au menu : il ne recouvre jamais la carte. */
 .chat-toggle {
   position: fixed;
   left: calc(var(--screen-gap) * 0.6 + env(safe-area-inset-left, 0px));
-  bottom: calc(var(--screen-gap) * 0.6 + env(safe-area-inset-bottom, 0px));
+  top: calc(var(--screen-gap) * 0.6 + env(safe-area-inset-top, 0px));
+  height: 2.6rem;
+  min-height: 2.6rem;
   z-index: 30;
   width: auto;
-  min-height: 2.4rem;
   padding: 0.4rem 0.9rem;
   background: var(--bg);
   font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
@@ -1079,10 +1081,6 @@ main.game-screen {
 /* ------------------------------------------------------------------ grands écrans */
 
 @media (min-width: 768px) {
-  .card-zone {
-    max-height: min(calc(var(--vh) - 10rem), 40rem);
-  }
-
   .stats-grid {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -1103,4 +1101,40 @@ main.game-screen {
   .friend-row {
     flex-wrap: wrap;
   }
+}
+
+/* ------------------------------------------------------------------ la carte tient dans l'écran */
+
+/* Une boîte aspect-ratio grandit pour contenir son contenu : on la borne à la hauteur
+   disponible (couloir du haut compris) et c'est le contenu de la carte qui défile. */
+.card-zone {
+  aspect-ratio: auto;
+  min-height: 0;
+  max-height: none;
+  height: min(calc(var(--vh) - 4.6rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 40rem);
+}
+
+.card-zone .card__face {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+main.game-screen {
+  grid-template-rows: 1fr;
+  align-items: center;
+}
+
+/* Le body a un padding de --screen-gap : les écrans occupent la hauteur restante, pas 100vh
+   (sinon 2 × 15 px débordent sous l'écran et le bas de la carte est coupé). */
+main.screen,
+main.game-screen {
+  height: calc(var(--vh) - 2 * var(--screen-gap));
+  min-height: 0;
+}
+
+.card-zone {
+  height: min(
+    calc(var(--vh) - 2 * var(--screen-gap) - 4.6rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)),
+    40rem
+  );
 }

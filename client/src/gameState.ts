@@ -246,7 +246,15 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
     }
 
     case SERVER_EVENTS.GAME_STARTED:
-      return withPhase({ ...state, ...gameReset(), roomStatus: "table_order" }, "table_order");
+      return withPhase(
+        {
+          ...state,
+          ...gameReset(),
+          roomStatus: "table_order",
+          gameMeta: { missionCount: numberValue(payload.missionCount) ?? state.gameMeta.missionCount },
+        },
+        "table_order",
+      );
 
     case SERVER_EVENTS.GAME_ABORTED:
       return withPhase({ ...state, ...gameReset(), roomStatus: "waiting" }, "waiting_room");
