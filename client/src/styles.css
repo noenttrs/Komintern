@@ -1430,3 +1430,11 @@ textarea {
   justify-self: center;
   font-size: 0.85rem;
 }
+
+.menu-toggles {
+  display: grid;
+  gap: 0.4rem;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 0.6rem;
+  font-size: 0.9rem;
+}

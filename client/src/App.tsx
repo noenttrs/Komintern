@@ -6,6 +6,7 @@ import { useAccount } from "./hooks/useAccount";
 import { useFriends } from "./hooks/useFriends";
 import { useGameSocket } from "./hooks/useGameSocket";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
+import { useTurnAlerts } from "./hooks/useTurnAlerts";
 import { AboutPage } from "./pages/AboutPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ContactPage } from "./pages/ContactPage";
@@ -377,6 +378,19 @@ export default function App(): JSX.Element {
   const route = useRoute();
   const friends = useFriends(account.status === "user");
   const install = useInstallPrompt();
+
+  // « C'est ton tour » : proposer (chef), voter la confiance, voter la mission (membre de l'équipe).
+  const turnKey =
+    myId === null
+      ? null
+      : phase === "mission_proposal" && proposal.chefId === myId
+        ? `propose-${proposal.missionIndex ?? 0}-${confidenceHistory.length}`
+        : phase === "confidence_vote"
+          ? `vote-${proposal.missionIndex ?? 0}-${confidenceHistory.length}`
+          : phase === "mission_execution" && mission.team.includes(myId)
+            ? `mission-${proposal.missionIndex ?? 0}`
+            : null;
+  const [alertSettings, setAlertSettings] = useTurnAlerts(turnKey);
 
   // Connecté : le pseudo du compte remplace le pseudo saisi, et le socket reste ouvert
   // pour la présence en ligne et les invitations, même hors d'une room.
@@ -1557,6 +1571,7 @@ export default function App(): JSX.Element {
         displayName={accountName}
         isAdmin={account.user?.isAdmin === true}
         pendingRequests={friends.view.incoming.length}
+        alerts={{ settings: alertSettings, update: setAlertSettings }}
         install={install}
       />
       <StatusBanners

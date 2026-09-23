@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { AlertSettings } from "../hooks/useTurnAlerts";
 import { navigate } from "../router";
 
 type MenuProps = {
@@ -7,11 +8,12 @@ type MenuProps = {
   displayName: string | null;
   isAdmin?: boolean;
   pendingRequests: number;
+  alerts?: { settings: AlertSettings; update: (settings: AlertSettings) => void };
   install: { canPrompt: boolean; isIos: boolean; installed: boolean; install: () => Promise<void> };
 };
 
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
-export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, install }: MenuProps): JSX.Element {
+export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, alerts, install }: MenuProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -103,6 +105,28 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
           </button>
         ) : null}
         {showIosHelp ? <p className="menu-help">Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p> : null}
+        {alerts !== undefined ? (
+          <div className="menu-toggles">
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                tabIndex={open ? 0 : -1}
+                checked={alerts.settings.vibration}
+                onChange={(event) => alerts.update({ ...alerts.settings, vibration: event.target.checked })}
+              />
+              Vibrer quand c'est mon tour
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                tabIndex={open ? 0 : -1}
+                checked={alerts.settings.sound}
+                onChange={(event) => alerts.update({ ...alerts.settings, sound: event.target.checked })}
+              />
+              Son quand c'est mon tour
+            </label>
+          </div>
+        ) : null}
         <div className="menu-footer">
           <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>À propos</button>
           <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>Contact</button>
