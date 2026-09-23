@@ -4,13 +4,10 @@ export type MissionVote = "nazi" | "communist";
 
 export type ConfidenceVote = "yes" | "no";
 
-export type RoundPhase = "proposing" | "voting" | "mission";
-
 export type FlowPhase =
   | "waiting"
   | "table_order"
   | "role_reveal"
-  | "revealing"
   | "proposing"
   | "confidence_vote"
   | "confidence_result"
@@ -19,63 +16,26 @@ export type FlowPhase =
   | "end_game"
   | "replay_waiting";
 
-export type Role = Faction;
+export type RoleMap = Record<string, Faction>;
 
-export type RoleMap = Record<string, Role>;
+export type PlayerView = Record<string, Faction>;
+
+export type RoomStatus = "waiting" | "table_order" | "playing" | "finished";
 
 export interface PlayerSummary {
   playerId: string;
   pseudo: string;
   isHost: boolean;
   isAfk: boolean;
+  isConnected: boolean;
 }
 
 export interface RoomUpdatedPayload {
   players: PlayerSummary[];
   code: string;
-}
-
-export interface TableOrderUpdatedPayload {
-  taps: number;
-  playerCount: number;
-  completed?: boolean;
-  order?: string[];
-  confirmed?: string[];
-}
-
-export interface RoleAssignedPayload {
-  role: Role;
-  roleMap?: RoleMap;
-}
-
-export interface ProposalPhasePayload {
-  chef: string;
-  missionSize: number;
-  missionIndex: number;
-}
-
-export interface ConfidenceVoteRecord {
-  playerId: string;
-  vote: ConfidenceVote;
-}
-
-export interface ConfidenceRevealedPayload {
-  votes: ConfidenceVoteRecord[];
-  result: ConfidenceVote;
-}
-
-export interface MissionRevealedPayload {
-  team?: string[];
-  naziVotes: number;
-  result: Faction;
-  scores: Scores;
-}
-
-export interface MissionProgressPayload {
-  votesSubmitted: number;
-  votesRequired: number;
-  team: string[];
-  submittedPlayerIds: string[];
+  hostPlayerId: string | null;
+  targetPlayerCount: number;
+  status: RoomStatus;
 }
 
 export interface Scores {
@@ -83,60 +43,44 @@ export interface Scores {
   communist: number;
 }
 
-export interface GameOverPayload {
-  winner: Faction;
-}
-
-export interface RolesRevealedPayload {
-  roleMap: RoleMap;
-}
-
-export interface PlayerAfkPayload {
+export interface ConfidenceVoteRecord {
   playerId: string;
+  vote: ConfidenceVote;
+}
+
+export interface ConfidenceHistoryEntry {
+  missionIndex: number;
+  chef: string;
+  team: string[];
+  votes: ConfidenceVoteRecord[];
+  approved: boolean;
+}
+
+export interface MissionHistoryEntry {
+  missionIndex: number;
+  team: string[];
+  naziVotes: number;
+  result: Faction;
 }
 
 export interface ResyncPayload {
   room: RoomUpdatedPayload;
   phase: FlowPhase;
   missionCount: number;
+  missionSizes: number[];
+  scores: Scores;
   tableOrder: string[];
-  tableOrderConfirmed?: string[];
-  role: RoleAssignedPayload | null;
-  proposal: ProposalPhasePayload | null;
-  confidence: ConfidenceRevealedPayload | null;
-  mission: MissionRevealedPayload | null;
-  missionProgress?: MissionProgressPayload | null;
-  gameOver: GameOverPayload | null;
-}
-
-export interface PlayerView {
-  [playerId: string]: Faction;
-}
-
-export interface BridgeCommand {
-  command: string;
-  args: Record<string, unknown>;
-}
-
-export interface BridgeResponse {
-  ok: boolean;
-  result?: unknown;
-  error?: string;
-}
-
-export interface RoomState {
-  roomId: string;
-  playerIds: string[];
-  hostPlayerId: string | null;
-  chefCursor: number;
-  targetPlayerCount: number;
-  status: "waiting" | "table_order" | "revealing" | "playing" | "finished";
-}
-
-export interface RoundStateLike {
-  phase: string;
-  chef_id: string;
-  proposed_team: string[];
-  confidence_votes: Record<string, string>;
-  mission_votes: string[];
+  tableOrderConfirmed: string[];
+  turnOrder: string[];
+  role: { role: Faction; roleMap?: RoleMap } | null;
+  proposal: { chef: string; missionSize: number; missionIndex: number; team: string[] } | null;
+  confidence: { votes: ConfidenceVoteRecord[]; result: ConfidenceVote; approved: boolean } | null;
+  hasVotedConfidence: boolean;
+  hasVotedMission: boolean;
+  hasConfirmed: boolean;
+  mission: (MissionHistoryEntry & { scores: Scores }) | null;
+  missionProgress: { team: string[]; votesSubmitted: number; votesRequired: number; submittedPlayerIds: string[] } | null;
+  confidenceHistory: ConfidenceHistoryEntry[];
+  missionHistory: MissionHistoryEntry[];
+  gameOver: { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string } | null;
 }

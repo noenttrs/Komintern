@@ -1,519 +1,543 @@
-import { Server } from "socket.io";
+import crypto from "crypto";
+
+import type { Server } from "socket.io";
 
 import { SERVER_EVENTS } from "./events";
 import { GameSession } from "./GameSession";
-import { RULESET_PRESETS, resolveRulesetForPlayerCount } from "./rulesets";
-import { PlayerSummary, RoomState } from "./types";
+import type { BridgeLike } from "./GameSession";
+import { log } from "./logger";
+import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
+import type { RulesetPreset } from "./rulesets";
+import type { RoomStatus, RoomUpdatedPayload } from "./types";
 
 type RoomRecord = {
-  state: RoomState;
+  code: string;
+  status: RoomStatus;
+  playerIds: string[];
+  hostPlayerId: string | null;
+  targetPlayerCount: number;
   socketByPlayer: Map<string, string>;
   playerByUid: Map<string, string>;
   pseudoByPlayer: Map<string, string>;
   afkTimers: Map<string, NodeJS.Timeout>;
   afkPlayers: Set<string>;
-  configuredRulesetPreset?: string;
+  replayRequests: Set<string>;
+  configuredPreset?: RulesetPreset;
   configuredRuleset?: unknown;
+  nextChefId: string | null;
+  session?: GameSession;
+  starting: boolean;
+  emptyTimer?: NodeJS.Timeout;
 };
 
-type JoinRoomResult = {
-  roomState: RoomState;
-  resolvedPlayerId: string;
+export type RoomManagerOptions = {
+  pythonPath: string;
+  enginePath: string;
+  afkTimeoutMs?: number;
+  emptyRoomGraceMs?: number;
+  maxRooms?: number;
+  engineTimeoutMs?: number;
+  revealPauseMs?: number;
+  /** Tests : remplace le process Python. */
+  bridgeFactory?: () => BridgeLike;
+  randomIndexProvider?: (length: number) => number;
 };
 
-type StartGameOptions = {
-  allowNonHost?: boolean;
-  rulesetPreset?: string;
+export type CreateRoomOptions = {
+  code?: string;
+  rulesetPreset?: unknown;
   ruleset?: unknown;
 };
 
-const MIN_ROOM_PLAYERS = 3;
-const MAX_ROOM_PLAYERS = 11;
-const AFK_TIMEOUT_MS = 60_000;
+export type JoinResult = {
+  playerId: string;
+  reconnected: boolean;
+  /** Socket qui occupait ce siège avant la reconnexion (autre onglet, ancienne connexion). */
+  replacedSocketId?: string;
+};
+
+const DEFAULT_AFK_TIMEOUT_MS = 60_000;
+const DEFAULT_EMPTY_ROOM_GRACE_MS = 120_000;
+const DEFAULT_MAX_ROOMS = 200;
+const DEFAULT_TARGET_PLAYERS = 5;
 
 export class RoomManager {
   private readonly io: Server;
-  private readonly pythonPath: string;
-  private readonly enginePath: string;
-
+  private readonly options: RoomManagerOptions;
   private readonly rooms = new Map<string, RoomRecord>();
-  private readonly sessions = new Map<string, GameSession>();
-  private readonly persistedCursor = new Map<string, number>();
-  private readonly replayRequests = new Map<string, Set<string>>();
 
-  public constructor(io: Server, pythonPath: string, enginePath: string) {
+  public constructor(io: Server, options: RoomManagerOptions) {
     this.io = io;
-    this.pythonPath = pythonPath;
-    this.enginePath = enginePath;
+    this.options = options;
   }
 
-  public createRoom(roomId: string): RoomState {
-    const existing = this.rooms.get(roomId);
-    if (existing !== undefined) {
-      return existing.state;
+  // ---------------------------------------------------------------- rooms
+
+  public get roomCount(): number {
+    return this.rooms.size;
+  }
+
+  public hasRoom(code: string): boolean {
+    return this.rooms.has(code);
+  }
+
+  public createRoom(options: CreateRoomOptions = {}): string {
+    if (this.rooms.size >= (this.options.maxRooms ?? DEFAULT_MAX_ROOMS)) {
+      throw new Error("server is full, try again later");
+    }
+    const code = options.code ?? this.generateCode();
+    if (this.rooms.has(code)) {
+      throw new Error("room code already exists");
     }
 
-    const roomState: RoomState = {
-      roomId,
+    let targetPlayerCount = DEFAULT_TARGET_PLAYERS;
+    let configuredPreset: RulesetPreset | undefined;
+    let configuredRuleset: unknown;
+    if (options.ruleset !== undefined && options.ruleset !== null) {
+      configuredRuleset = parseRuleset(options.ruleset);
+      targetPlayerCount = (configuredRuleset as { player_count: number }).player_count;
+    } else if (options.rulesetPreset !== undefined && options.rulesetPreset !== null && options.rulesetPreset !== "") {
+      configuredPreset = parsePreset(options.rulesetPreset);
+      targetPlayerCount = RULESET_PRESETS[configuredPreset].playerCount;
+    }
+
+    this.rooms.set(code, {
+      code,
+      status: "waiting",
       playerIds: [],
       hostPlayerId: null,
-      chefCursor: this.persistedCursor.get(roomId) ?? 0,
-      targetPlayerCount: 5,
-      status: "waiting",
-    };
-
-    this.rooms.set(roomId, {
-      state: roomState,
-      socketByPlayer: new Map<string, string>(),
-      playerByUid: new Map<string, string>(),
-      pseudoByPlayer: new Map<string, string>(),
-      afkTimers: new Map<string, NodeJS.Timeout>(),
-      afkPlayers: new Set<string>(),
-      configuredRulesetPreset: undefined,
-      configuredRuleset: undefined,
+      targetPlayerCount,
+      socketByPlayer: new Map(),
+      playerByUid: new Map(),
+      pseudoByPlayer: new Map(),
+      afkTimers: new Map(),
+      afkPlayers: new Set(),
+      replayRequests: new Set(),
+      configuredPreset,
+      configuredRuleset,
+      nextChefId: null,
+      starting: false,
     });
-
-    return roomState;
+    log.info("room created", { code, targetPlayerCount });
+    return code;
   }
 
-  public hasRoom(roomId: string): boolean {
-    return this.rooms.has(roomId);
+  /**
+   * Rejoint une room existante. Un `playerUid` déjà connu reprend son siège (rechargement,
+   * reconnexion) ; sinon un nouveau joueur est créé, uniquement tant que la room est au salon.
+   */
+  public joinRoom(code: string, socketId: string, playerUid?: string): JoinResult {
+    const room = this.requireRoom(code);
+    const knownPlayerId = playerUid === undefined ? undefined : room.playerByUid.get(playerUid);
+
+    if (knownPlayerId !== undefined && room.playerIds.includes(knownPlayerId)) {
+      const previous = room.socketByPlayer.get(knownPlayerId);
+      room.socketByPlayer.set(knownPlayerId, socketId);
+      this.cancelEmptyTimer(room);
+      this.clearAfk(room, knownPlayerId);
+      this.reassignHostIfNeeded(room);
+      this.emitRoomUpdated(room);
+      if (room.session !== undefined) {
+        this.runSessionTask(room, (session) => session.handleRosterChange());
+      }
+      return {
+        playerId: knownPlayerId,
+        reconnected: true,
+        replacedSocketId: previous !== undefined && previous !== socketId ? previous : undefined,
+      };
+    }
+
+    if (room.status !== "waiting" || room.starting) {
+      throw new Error("the game has already started in this room");
+    }
+    if (room.playerIds.length >= room.targetPlayerCount) {
+      throw new Error("room is full");
+    }
+
+    const playerId = `p_${crypto.randomBytes(6).toString("hex")}`;
+    room.playerIds.push(playerId);
+    room.socketByPlayer.set(playerId, socketId);
+    room.pseudoByPlayer.set(playerId, `Joueur ${room.playerIds.length}`);
+    if (playerUid !== undefined) {
+      room.playerByUid.set(playerUid, playerId);
+    }
+    this.cancelEmptyTimer(room);
+    this.reassignHostIfNeeded(room);
+    this.emitRoomUpdated(room);
+    return { playerId, reconnected: false };
   }
 
-  public joinRoom(
-    roomId: string,
-    playerId: string,
-    socketId: string,
-    playerUid?: string,
-    rulesetPreset?: string,
-    ruleset?: unknown,
-  ): JoinRoomResult {
-    const roomState = this.createRoom(roomId);
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room creation failed");
+  public leaveRoom(code: string, playerId: string): void {
+    const room = this.rooms.get(code);
+    if (room === undefined || !room.playerIds.includes(playerId)) {
+      return;
     }
 
-    if (roomState.status === "waiting" && roomState.playerIds.length === 0) {
-      if (ruleset !== undefined) {
-        const customPlayerCount = readPlayerCountFromRuleset(ruleset);
-        if (customPlayerCount < MIN_ROOM_PLAYERS || customPlayerCount > MAX_ROOM_PLAYERS) {
-          throw new Error("custom ruleset player_count must be between 3 and 11");
-        }
-        roomState.targetPlayerCount = customPlayerCount;
-        roomRecord.configuredRuleset = ruleset;
-        roomRecord.configuredRulesetPreset = undefined;
-      } else if (rulesetPreset !== undefined && rulesetPreset !== "") {
-        const presetName = rulesetPreset.toUpperCase();
-        const preset = RULESET_PRESETS[presetName as keyof typeof RULESET_PRESETS];
-        if (preset === undefined) {
-          throw new Error("unknown ruleset preset");
-        }
-        roomState.targetPlayerCount = preset.playerCount;
-        roomRecord.configuredRulesetPreset = presetName;
-        roomRecord.configuredRuleset = undefined;
-      } else {
-        roomState.targetPlayerCount = 5;
-        roomRecord.configuredRulesetPreset = undefined;
-        roomRecord.configuredRuleset = undefined;
-      }
+    if (room.session !== undefined && room.session.hasPlayer(playerId) && room.status !== "finished") {
+      // Quitter en pleine partie = abandon immédiat, comme un AFK.
+      room.afkPlayers.add(playerId);
+      room.socketByPlayer.delete(playerId);
+      this.io.to(code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
+      this.runSessionTask(room, (session) => session.handlePlayerAfk(playerId));
+      this.emitRoomUpdated(room);
+      this.scheduleEmptyCheck(room);
+      return;
     }
 
-    const mappedPlayerId =
-      playerUid !== undefined && playerUid !== ""
-        ? roomRecord.playerByUid.get(playerUid)
-        : undefined;
-    const resolvedPlayerId = mappedPlayerId ?? playerId;
-
-    if (roomState.status === "playing") {
-      if (!roomState.playerIds.includes(resolvedPlayerId)) {
-        throw new Error("game already started for this room");
-      }
-
-      roomRecord.socketByPlayer.set(resolvedPlayerId, socketId);
-      this.clearAfkState(roomRecord, resolvedPlayerId);
-      if (playerUid !== undefined && playerUid !== "") {
-        roomRecord.playerByUid.set(playerUid, resolvedPlayerId);
-      }
-
-      const session = this.sessions.get(roomId);
-      if (session !== undefined) {
-        session.updatePlayerSocket(resolvedPlayerId, socketId);
-      }
-
-      return { roomState, resolvedPlayerId };
-    }
-
-    if (roomState.status === "finished") {
-      if (!roomState.playerIds.includes(resolvedPlayerId)) {
-        throw new Error("room is finished; wait for the next replay");
-      }
-
-      roomRecord.socketByPlayer.set(resolvedPlayerId, socketId);
-      this.clearAfkState(roomRecord, resolvedPlayerId);
-      if (playerUid !== undefined && playerUid !== "") {
-        roomRecord.playerByUid.set(playerUid, resolvedPlayerId);
-      }
-
-      const session = this.sessions.get(roomId);
-      if (session !== undefined) {
-        session.updatePlayerSocket(resolvedPlayerId, socketId);
-      }
-
-      return { roomState, resolvedPlayerId };
-    }
-
-    if (!roomState.playerIds.includes(resolvedPlayerId)) {
-      if (roomState.playerIds.length >= roomState.targetPlayerCount) {
-        throw new Error("room is full");
-      }
-      roomState.playerIds.push(resolvedPlayerId);
-      if (roomState.hostPlayerId === null) {
-        roomState.hostPlayerId = resolvedPlayerId;
-      }
-    }
-
-    roomRecord.socketByPlayer.set(resolvedPlayerId, socketId);
-    this.clearAfkState(roomRecord, resolvedPlayerId);
-    if (playerUid !== undefined && playerUid !== "") {
-      roomRecord.playerByUid.set(playerUid, resolvedPlayerId);
-    }
-
-    if (!roomRecord.pseudoByPlayer.has(resolvedPlayerId)) {
-      roomRecord.pseudoByPlayer.set(resolvedPlayerId, resolvedPlayerId);
-    }
-
-    const session = this.sessions.get(roomId);
-    if (session !== undefined) {
-      session.updatePlayerSocket(resolvedPlayerId, socketId);
-    }
-
-    return { roomState, resolvedPlayerId };
+    this.removePlayer(room, playerId);
   }
 
-  public requestReplay(roomId: string, playerId: string): { shouldStart: boolean } {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room not found");
+  public handleDisconnect(code: string, playerId: string, socketId: string): void {
+    const room = this.rooms.get(code);
+    if (room === undefined) {
+      return;
     }
-
-    if (roomRecord.state.status !== "finished") {
-      throw new Error("replay is only available after a game finishes");
+    // Un rechargement connecte le nouveau socket avant la déconnexion de l'ancien :
+    // on n'efface le lien que s'il pointe encore sur le socket qui part.
+    if (room.socketByPlayer.get(playerId) !== socketId) {
+      return;
     }
+    room.socketByPlayer.delete(playerId);
+    this.scheduleAfk(room, playerId);
+    this.reassignHostIfNeeded(room);
+    this.emitRoomUpdated(room);
+    this.scheduleEmptyCheck(room);
+  }
 
-    if (!roomRecord.state.playerIds.includes(playerId)) {
+  public setPseudo(code: string, playerId: string, pseudo: string): void {
+    const room = this.requireRoom(code);
+    if (!room.playerIds.includes(playerId)) {
       throw new Error("unknown player for this room");
     }
-
-    const requests = this.replayRequests.get(roomId) ?? new Set<string>();
-    requests.add(playerId);
-    this.replayRequests.set(roomId, requests);
-
-    const connectedPlayerIds = roomRecord.state.playerIds.filter((id) => {
-      const socketId = roomRecord.socketByPlayer.get(id);
-      return socketId !== undefined && this.io.sockets.sockets.has(socketId);
-    });
-
-    // If nobody is connected, never auto-start replay.
-    if (connectedPlayerIds.length === 0) {
-      return { shouldStart: false };
-    }
-
-    const shouldStart = connectedPlayerIds.every((id) => requests.has(id));
-    if (shouldStart) {
-      this.replayRequests.delete(roomId);
-    }
-
-    return { shouldStart };
+    room.pseudoByPlayer.set(playerId, pseudo);
+    this.emitRoomUpdated(room);
   }
 
-  public async startGame(roomId: string, playerId: string, options: StartGameOptions = {}): Promise<GameSession> {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room not found");
-    }
+  // ---------------------------------------------------------------- parties
 
-    const existingSession = this.sessions.get(roomId);
-    if (existingSession !== undefined) {
-      return existingSession;
-    }
-
-    const effectivePreset = options.rulesetPreset ?? roomRecord.configuredRulesetPreset;
-    const effectiveRuleset = options.ruleset ?? roomRecord.configuredRuleset;
-
-    const resolvedRuleset = resolveRulesetForPlayerCount(
-      roomRecord.state.playerIds.length,
-      effectivePreset,
-      effectiveRuleset,
-    );
-
-    roomRecord.configuredRulesetPreset = effectivePreset;
-    roomRecord.configuredRuleset = effectiveRuleset;
-
-    if (!options.allowNonHost && roomRecord.state.hostPlayerId !== playerId) {
+  public async startGame(
+    code: string,
+    playerId: string,
+    options: { allowNonHost?: boolean; rulesetPreset?: unknown; ruleset?: unknown } = {},
+  ): Promise<GameSession> {
+    const room = this.requireRoom(code);
+    if (!options.allowNonHost && room.hostPlayerId !== playerId) {
       throw new Error("only the host can start the game");
     }
-
-    if (roomRecord.state.status !== "waiting" && roomRecord.state.status !== "finished") {
+    if ((room.status !== "waiting" && room.status !== "finished") || room.session !== undefined || room.starting) {
       throw new Error("game has already started for this room");
     }
 
-    if (roomRecord.state.hostPlayerId === null) {
-      throw new Error("room host is missing");
-    }
+    const preset = options.rulesetPreset !== undefined && options.rulesetPreset !== null && options.rulesetPreset !== ""
+      ? parsePreset(options.rulesetPreset)
+      : room.configuredPreset;
+    const ruleset = options.ruleset ?? room.configuredRuleset;
+    const resolved = resolveRulesetForPlayerCount(room.playerIds.length, ruleset === undefined ? preset : undefined, ruleset);
 
-    const chefCursor = this.persistedCursor.get(roomId) ?? 0;
-    const session = new GameSession(
-      roomId,
-      roomRecord.state.playerIds,
-      chefCursor,
-      roomRecord.socketByPlayer,
-      this.io,
-      {
-        pythonPath: this.pythonPath,
-        enginePath: this.enginePath,
-        ruleset: resolvedRuleset,
-        hostPlayerId: roomRecord.state.hostPlayerId,
-        persistCursor: (id, cursor) => {
-          this.persistCursor(id, cursor);
-          const room = this.rooms.get(id);
-          if (room !== undefined) {
-            room.state.status = "finished";
-            room.state.chefCursor = cursor;
-          }
-        },
-        onRevealComplete: (id) => {
-          const room = this.rooms.get(id);
-          if (room !== undefined) {
-            room.state.status = "playing";
-          }
-        },
-        onGameOver: (id) => {
-          this.sessions.delete(id);
-        },
-        getActivePlayerIds: () => this.getActivePlayerIds(roomId),
-        getPlayerSummaries: () => this.getRoomUpdatedPayload(roomId).players,
+    room.starting = true;
+    const previousStatus = room.status;
+    const session = new GameSession(code, room.playerIds, room.socketByPlayer, this.io, {
+      ruleset: resolved,
+      getActivePlayerIds: () => room.playerIds.filter((id) => !room.afkPlayers.has(id)),
+      getRoomPayload: () => this.getRoomPayload(code),
+      getHostPlayerId: () => room.hostPlayerId,
+      nextChefId: room.nextChefId,
+      onRevealComplete: () => {
+        room.status = "playing";
+        this.emitRoomUpdated(room);
       },
-    );
+      onGameFinished: (nextChefId) => this.onGameFinished(room, session, nextChefId),
+      onAborted: () => this.onGameAborted(room, session),
+      randomIndexProvider: this.options.randomIndexProvider,
+      bridge: this.options.bridgeFactory?.(),
+      pythonPath: this.options.pythonPath,
+      enginePath: this.options.enginePath,
+      engineTimeoutMs: this.options.engineTimeoutMs,
+      revealPauseMs: this.options.revealPauseMs,
+    });
 
     try {
-      roomRecord.state.chefCursor = chefCursor;
-      this.replayRequests.delete(roomId);
+      room.configuredPreset = ruleset === undefined ? preset : undefined;
+      room.configuredRuleset = ruleset;
+      room.replayRequests.clear();
+      room.session = session;
+      room.status = "table_order";
       await session.start();
-      roomRecord.state.status = "table_order";
-      this.sessions.set(roomId, session);
+      this.emitRoomUpdated(room);
+      log.info("game started", { code, players: room.playerIds.length });
+      return session;
     } catch (error) {
       session.dispose();
-      roomRecord.state.status = "waiting";
-      this.sessions.delete(roomId);
+      room.session = undefined;
+      room.status = previousStatus;
       throw error;
+    } finally {
+      room.starting = false;
     }
-
-    return session;
   }
 
-  public getSession(roomId: string): GameSession | undefined {
-    return this.sessions.get(roomId);
-  }
-
-  public persistCursor(roomId: string, cursor: number): void {
-    this.persistedCursor.set(roomId, cursor);
-  }
-
-  public leaveRoom(roomId: string, playerId: string): RoomState | null {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room not found");
+  /** Choix « rejouer » en fin de partie ; démarre quand tous les joueurs connectés ont choisi. */
+  public async requestReplay(code: string, playerId: string): Promise<void> {
+    const room = this.requireRoom(code);
+    if (room.status !== "finished") {
+      throw new Error("replay is only available after a game finishes");
     }
-
-    const playerIndex = roomRecord.state.playerIds.indexOf(playerId);
-    if (playerIndex !== -1) {
-      roomRecord.state.playerIds.splice(playerIndex, 1);
-    }
-    roomRecord.socketByPlayer.delete(playerId);
-    roomRecord.pseudoByPlayer.delete(playerId);
-    roomRecord.playerByUid.forEach((mappedPlayerId, uid) => {
-      if (mappedPlayerId === playerId) {
-        roomRecord.playerByUid.delete(uid);
-      }
-    });
-    this.clearAfkState(roomRecord, playerId);
-
-    const replayRequests = this.replayRequests.get(roomId);
-    if (replayRequests !== undefined) {
-      replayRequests.delete(playerId);
-      if (replayRequests.size === 0) {
-        this.replayRequests.delete(roomId);
-      }
-    }
-
-    // Handle host reassignment
-    if (roomRecord.state.hostPlayerId === playerId) {
-      if (roomRecord.state.playerIds.length > 0) {
-        roomRecord.state.hostPlayerId = roomRecord.state.playerIds[0];
-      } else {
-        roomRecord.state.hostPlayerId = null;
-      }
-    }
-
-    // If room is empty, clean up
-    if (roomRecord.state.playerIds.length === 0) {
-      this.disposeSession(roomId);
-      this.rooms.delete(roomId);
-      return null;
-    }
-
-    const session = this.sessions.get(roomId);
-    if (session !== undefined) {
-      void session.handleRosterChange();
-    }
-
-    return roomRecord.state;
-  }
-
-  public handleDisconnect(roomId: string, playerId: string): RoomState | null {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      return null;
-    }
-
-    roomRecord.socketByPlayer.delete(playerId);
-
-    this.scheduleAfk(roomId, playerId);
-
-    return roomRecord.state;
-  }
-
-  public setPseudo(roomId: string, playerId: string, pseudo: string): RoomState {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room not found");
-    }
-
-    if (!roomRecord.state.playerIds.includes(playerId)) {
+    if (!room.playerIds.includes(playerId)) {
       throw new Error("unknown player for this room");
     }
-
-    roomRecord.pseudoByPlayer.set(playerId, pseudo);
-    return roomRecord.state;
+    room.replayRequests.add(playerId);
+    this.emitRoomUpdated(room);
+    await this.maybeStartReplay(room);
   }
 
-  public getRoomUpdatedPayload(roomId: string): {
-    players: PlayerSummary[];
-    code: string;
-    hostPlayerId: string | null;
-    targetPlayerCount: number;
-  } {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      throw new Error("room not found");
-    }
+  public getSession(code: string): GameSession | undefined {
+    return this.rooms.get(code)?.session;
+  }
 
+  public getStatus(code: string): RoomStatus | undefined {
+    return this.rooms.get(code)?.status;
+  }
+
+  public getRoomPayload(code: string): RoomUpdatedPayload {
+    const room = this.requireRoom(code);
     return {
-      players: roomRecord.state.playerIds.map((playerId) => ({
+      players: room.playerIds.map((playerId) => ({
         playerId,
-        pseudo: roomRecord.pseudoByPlayer.get(playerId) ?? playerId,
-        isHost: roomRecord.state.hostPlayerId === playerId,
-        isAfk: roomRecord.afkPlayers.has(playerId),
+        pseudo: room.pseudoByPlayer.get(playerId) ?? playerId,
+        isHost: room.hostPlayerId === playerId,
+        isAfk: room.afkPlayers.has(playerId),
+        isConnected: room.socketByPlayer.has(playerId),
       })),
-      code: roomId,
-      hostPlayerId: roomRecord.state.hostPlayerId,
-      targetPlayerCount: roomRecord.state.targetPlayerCount,
+      code,
+      hostPlayerId: room.hostPlayerId,
+      targetPlayerCount: room.targetPlayerCount,
+      status: room.status,
     };
   }
 
-  public getActivePlayerIds(roomId: string): string[] {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
-      return [];
+  public disposeAll(): void {
+    for (const room of this.rooms.values()) {
+      this.clearTimers(room);
+      room.session?.dispose();
+      room.session = undefined;
     }
-
-    return roomRecord.state.playerIds.filter((playerId) => !roomRecord.afkPlayers.has(playerId));
+    this.rooms.clear();
   }
 
-  public markPlayerAfk(roomId: string, playerId: string): void {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
+  // ---------------------------------------------------------------- interne
+
+  private onGameFinished(room: RoomRecord, session: GameSession, nextChefId: string | null): void {
+    if (room.session !== session) {
       return;
     }
-
-    if (!roomRecord.state.playerIds.includes(playerId)) {
-      return;
+    room.session = undefined;
+    room.status = "finished";
+    room.nextChefId = nextChefId;
+    room.replayRequests.clear();
+    // Les joueurs AFK ont abandonné : ils libèrent leur siège.
+    for (const playerId of [...room.afkPlayers]) {
+      this.removePlayer(room, playerId, false);
     }
-
-    roomRecord.afkPlayers.add(playerId);
-    roomRecord.afkTimers.delete(playerId);
-    this.io.to(roomId).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
-
-    const session = this.sessions.get(roomId);
-    if (session !== undefined) {
-      void session.handleRosterChange();
+    if (this.rooms.has(room.code)) {
+      this.emitRoomUpdated(room);
     }
   }
 
-  private scheduleAfk(roomId: string, playerId: string): void {
-    const roomRecord = this.rooms.get(roomId);
-    if (roomRecord === undefined) {
+  private onGameAborted(room: RoomRecord, session: GameSession): void {
+    if (room.session !== session) {
+      return;
+    }
+    room.session = undefined;
+    room.status = "waiting";
+    for (const playerId of [...room.afkPlayers]) {
+      this.removePlayer(room, playerId, false);
+    }
+    if (this.rooms.has(room.code)) {
+      this.emitRoomUpdated(room);
+    }
+  }
+
+  private async maybeStartReplay(room: RoomRecord): Promise<void> {
+    if (room.status !== "finished" || room.starting) {
+      return;
+    }
+    const connected = room.playerIds.filter((id) => room.socketByPlayer.has(id));
+    if (connected.length === 0 || !connected.every((id) => room.replayRequests.has(id))) {
       return;
     }
 
-    const existingTimer = roomRecord.afkTimers.get(playerId);
-    if (existingTimer !== undefined) {
-      clearTimeout(existingTimer);
+    // Les absents ne bloquent pas la revanche : ils perdent leur siège.
+    for (const playerId of room.playerIds.filter((id) => !room.socketByPlayer.has(id))) {
+      this.removePlayer(room, playerId, false);
     }
 
+    try {
+      await this.startGame(room.code, connected[0] as string, { allowNonHost: true });
+    } catch (error) {
+      // Nombre de joueurs incompatible avec les règles : retour au salon pour compléter.
+      log.info("replay falls back to lobby", { code: room.code, reason: error instanceof Error ? error.message : String(error) });
+      room.status = "waiting";
+      room.replayRequests.clear();
+      this.emitRoomUpdated(room);
+    }
+  }
+
+  private removePlayer(room: RoomRecord, playerId: string, notify = true): void {
+    const index = room.playerIds.indexOf(playerId);
+    if (index === -1) {
+      return;
+    }
+    room.playerIds.splice(index, 1);
+    room.socketByPlayer.delete(playerId);
+    room.pseudoByPlayer.delete(playerId);
+    room.replayRequests.delete(playerId);
+    for (const [uid, mapped] of room.playerByUid) {
+      if (mapped === playerId) {
+        room.playerByUid.delete(uid);
+      }
+    }
+    this.clearAfk(room, playerId);
+    if (room.nextChefId === playerId) {
+      room.nextChefId = null;
+    }
+
+    if (room.playerIds.length === 0) {
+      this.deleteRoom(room);
+      return;
+    }
+
+    this.reassignHostIfNeeded(room);
+    if (notify) {
+      this.io.to(room.code).emit(SERVER_EVENTS.PLAYER_LEFT, { playerId });
+      this.emitRoomUpdated(room);
+    }
+    this.scheduleEmptyCheck(room);
+    if (room.status === "finished") {
+      void this.maybeStartReplay(room).catch((error: unknown) => log.error("replay failed", { code: room.code, error }));
+    }
+  }
+
+  private deleteRoom(room: RoomRecord): void {
+    this.clearTimers(room);
+    room.session?.dispose();
+    room.session = undefined;
+    this.rooms.delete(room.code);
+    log.info("room deleted", { code: room.code });
+  }
+
+  private scheduleAfk(room: RoomRecord, playerId: string): void {
+    const existing = room.afkTimers.get(playerId);
+    if (existing !== undefined) {
+      clearTimeout(existing);
+    }
     const timer = setTimeout(() => {
-      const latestRoom = this.rooms.get(roomId);
-      if (latestRoom === undefined) {
+      room.afkTimers.delete(playerId);
+      if (this.rooms.get(room.code) !== room || room.socketByPlayer.has(playerId) || !room.playerIds.includes(playerId)) {
         return;
       }
-
-      if (latestRoom.socketByPlayer.has(playerId)) {
-        return;
-      }
-
-      this.markPlayerAfk(roomId, playerId);
-    }, AFK_TIMEOUT_MS);
-
-    roomRecord.afkTimers.set(playerId, timer);
+      this.markAfk(room, playerId);
+    }, this.options.afkTimeoutMs ?? DEFAULT_AFK_TIMEOUT_MS);
+    timer.unref();
+    room.afkTimers.set(playerId, timer);
   }
 
-  private clearAfkState(roomRecord: RoomRecord, playerId: string): void {
-    const timer = roomRecord.afkTimers.get(playerId);
+  private markAfk(room: RoomRecord, playerId: string): void {
+    if (room.status === "waiting" || room.status === "finished") {
+      // Au salon, un absent libère simplement sa place.
+      this.removePlayer(room, playerId);
+      return;
+    }
+    room.afkPlayers.add(playerId);
+    this.io.to(room.code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
+    this.emitRoomUpdated(room);
+    this.runSessionTask(room, (session) => session.handlePlayerAfk(playerId));
+  }
+
+  private clearAfk(room: RoomRecord, playerId: string): void {
+    const timer = room.afkTimers.get(playerId);
     if (timer !== undefined) {
       clearTimeout(timer);
-      roomRecord.afkTimers.delete(playerId);
+      room.afkTimers.delete(playerId);
     }
-
-    roomRecord.afkPlayers.delete(playerId);
+    room.afkPlayers.delete(playerId);
   }
 
-  public disposeAll(): void {
-    for (const roomId of [...this.sessions.keys()]) {
-      this.disposeSession(roomId);
+  /** Si plus personne n'est connecté, la room (et son process Python) disparaît après un délai. */
+  private scheduleEmptyCheck(room: RoomRecord): void {
+    if (room.socketByPlayer.size > 0 || room.emptyTimer !== undefined || !this.rooms.has(room.code)) {
+      return;
+    }
+    room.emptyTimer = setTimeout(() => {
+      room.emptyTimer = undefined;
+      if (this.rooms.get(room.code) === room && room.socketByPlayer.size === 0) {
+        this.deleteRoom(room);
+      }
+    }, this.options.emptyRoomGraceMs ?? DEFAULT_EMPTY_ROOM_GRACE_MS);
+    room.emptyTimer.unref();
+  }
+
+  private cancelEmptyTimer(room: RoomRecord): void {
+    if (room.emptyTimer !== undefined) {
+      clearTimeout(room.emptyTimer);
+      room.emptyTimer = undefined;
     }
   }
 
-  private disposeSession(roomId: string): void {
-    const session = this.sessions.get(roomId);
+  private clearTimers(room: RoomRecord): void {
+    this.cancelEmptyTimer(room);
+    for (const timer of room.afkTimers.values()) {
+      clearTimeout(timer);
+    }
+    room.afkTimers.clear();
+  }
+
+  /** L'hôte doit être un joueur présent ; on préfère un joueur connecté. */
+  private reassignHostIfNeeded(room: RoomRecord): void {
+    const host = room.hostPlayerId;
+    const hostPresent = host !== null && room.playerIds.includes(host);
+    const hostConnected = hostPresent && room.socketByPlayer.has(host);
+    if (hostConnected) {
+      return;
+    }
+    const connected = room.playerIds.find((id) => room.socketByPlayer.has(id));
+    if (connected !== undefined) {
+      room.hostPlayerId = connected;
+    } else if (!hostPresent) {
+      room.hostPlayerId = room.playerIds[0] ?? null;
+    }
+  }
+
+  private runSessionTask(room: RoomRecord, task: (session: GameSession) => Promise<void>): void {
+    const session = room.session;
     if (session === undefined) {
       return;
     }
+    task(session).catch((error: unknown) => {
+      log.error("session task failed", { code: room.code, error });
+    });
+  }
 
-    session.dispose();
-    this.sessions.delete(roomId);
+  private emitRoomUpdated(room: RoomRecord): void {
+    this.io.to(room.code).emit(SERVER_EVENTS.ROOM_UPDATED, this.getRoomPayload(room.code));
+  }
+
+  private requireRoom(code: string): RoomRecord {
+    const room = this.rooms.get(code);
+    if (room === undefined) {
+      throw new Error("room not found");
+    }
+    return room;
+  }
+
+  private generateCode(): string {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const code = crypto.randomBytes(3).toString("hex").toUpperCase();
+      if (!this.rooms.has(code)) {
+        return code;
+      }
+    }
+    throw new Error("could not allocate a room code");
   }
 }
 
-function readPlayerCountFromRuleset(ruleset: unknown): number {
-  if (typeof ruleset !== "object" || ruleset === null || Array.isArray(ruleset)) {
-    throw new Error("ruleset must be an object");
-  }
-
-  const payload = ruleset as Record<string, unknown>;
-  const playerCount = payload.player_count;
-  if (!Number.isInteger(playerCount)) {
-    throw new Error("ruleset.player_count must be an integer");
-  }
-  return playerCount as number;
-}
+export { MAX_PLAYERS, MIN_PLAYERS };

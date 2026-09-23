@@ -19,25 +19,24 @@ export const CLIENT_EVENTS = {
 } as const;
 
 export const SERVER_EVENTS = {
+  /** Envoyé au seul socket qui vient de rejoindre : porte son `playerId`. */
+  ROOM_JOINED: "room_joined",
+  /** État public de la room, diffusé à tous (jamais d'identifiant secret). */
   ROOM_UPDATED: "room_updated",
-  ROOM_JOINED: "room_updated",
+  PLAYER_LEFT: "player_left",
   GAME_STARTED: "game_started",
+  GAME_ABORTED: "game_aborted",
   TABLE_ORDER_UPDATED: "table_order_updated",
   ROLE_ASSIGNED: "role_assigned",
   PROPOSAL_PHASE: "proposal_phase",
-  ROUND_STARTED: "proposal_phase",
-  TEAM_PROPOSED: "proposal_phase",
   CONFIDENCE_PHASE: "confidence_phase",
   CONFIDENCE_REVEALED: "confidence_revealed",
-  CONFIDENCE_RESULT: "confidence_revealed",
   MISSION_PHASE: "mission_phase",
   MISSION_PROGRESS: "mission_progress",
   MISSION_REVEALED: "mission_revealed",
-  MISSION_RESULT: "mission_revealed",
   GAME_OVER: "game_over",
   ROLES_REVEALED: "roles_revealed",
   PLAYER_AFK: "player_afk",
-  PLAYER_LEFT: "room_updated",
   RESYNC: "resync",
   ERROR: "error",
 } as const;
