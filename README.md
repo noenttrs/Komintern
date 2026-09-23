@@ -103,3 +103,7 @@ infra/         initialisation MongoDB
 scripts/       vérification, intégration, sauvegarde
 docs/          règles, audit technique, briefs de conception
 ```
+
+## Licence
+
+[AGPL-3.0](LICENSE) : le code est libre. Toute version modifiée mise en ligne doit publier son code source sous la même licence.
