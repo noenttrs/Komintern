@@ -55,6 +55,14 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     setSessionCookie(response, await sessions.create(user.id));
     response.json({ user: accountView(user, true) });
   };
+  /** Connexion par mot de passe : si la 2FA est active, on renvoie un défi au lieu de la session. */
+  const startSessionOrChallenge = async (response: Response, user: User): Promise<void> => {
+    if (services.security.needsTotp(user)) {
+      response.json({ totpRequired: true, token: await services.security.createLoginChallenge(user.id) });
+      return;
+    }
+    await startSession(response, user);
+  };
 
   router.use(express.json({ limit: "10kb" }));
   router.use((_request, response, next) => {
@@ -139,7 +147,11 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
 
   router.post("/auth/login", route(async (request, response) => {
-    await startSession(response, await accounts.login(request.body ?? {}, clientIp(request)));
+    await startSessionOrChallenge(response, await accounts.login(request.body ?? {}, clientIp(request)));
+  }));
+
+  router.post("/auth/login/totp", route(async (request, response) => {
+    await startSession(response, await services.security.completeLoginChallenge(request.body?.token, request.body?.code));
   }));
 
   router.post("/auth/logout", route(async (request, response) => {
@@ -156,7 +168,7 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
 
   router.post("/auth/password/reset", route(async (request, response) => {
-    await startSession(response, await accounts.resetPassword(request.body ?? {}));
+    await startSessionOrChallenge(response, await accounts.resetPassword(request.body ?? {}));
   }));
 
   router.get("/auth/google", route(async (_request, response) => {
@@ -175,6 +187,10 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     }
     try {
       const user = await accounts.loginWithGoogle(await services.google.handleCallback(code, state));
+      if (services.security.needsTotp(user)) {
+        back(`connexion?totp=${await services.security.createLoginChallenge(user.id)}`);
+        return;
+      }
       setSessionCookie(response, await sessions.create(user.id));
       back(user.displayName === null ? "profil?setup=1" : "?auth=ok");
     } catch (callbackError) {
@@ -191,6 +207,26 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
 
   router.get("/me/games", route(async (request, response) => {
     response.json({ games: await services.gameLogs.gamesForUser(requireUser(request), 30) });
+  }));
+
+  router.post("/me/totp/setup", route(async (request, response) => {
+    response.json(await services.security.beginTotpSetup(requireUser(request)));
+  }));
+  router.post("/me/totp/enable", route(async (request, response) => {
+    await services.security.confirmTotpSetup(requireUser(request), request.body?.code);
+    response.status(204).end();
+  }));
+  router.post("/me/totp/disable", route(async (request, response) => {
+    await services.security.disableTotp(requireUser(request), request.body?.code);
+    response.status(204).end();
+  }));
+  router.post("/me/email", route(async (request, response) => {
+    await services.security.requestEmailChange(requireUser(request), request.body ?? {});
+    response.status(202).json({ status: "code_sent" });
+  }));
+  router.post("/me/email/confirm", route(async (request, response) => {
+    const user = await services.security.confirmEmailChange(requireUser(request), request.body?.code);
+    response.json({ user: accountView(user, true) });
   }));
 
   router.patch("/me", route(async (request, response) => {
@@ -231,6 +267,14 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.status(204).end();
   }));
 
+  // Mesure d'audience anonyme (voir analytics/audience.ts) ; toujours 204, même en cas d'erreur.
+  router.post("/visit", (request, response) => {
+    void services.audience
+      .record(request.body?.path, clientIp(request), String(request.headers["user-agent"] ?? ""))
+      .catch(() => undefined);
+    response.status(204).end();
+  });
+
   router.get("/rooms/public", (_request, response) => {
     response.json({ rooms: publicRooms() });
   });
@@ -262,6 +306,10 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   router.get("/admin/stats", route(async (request, response) => {
     await requireElevated(request);
     response.json(await admin.stats());
+  }));
+  router.get("/admin/audience", route(async (request, response) => {
+    await requireElevated(request);
+    response.json(await services.audience.summary(30));
   }));
   router.get("/admin/reports", route(async (request, response) => {
     await requireElevated(request);

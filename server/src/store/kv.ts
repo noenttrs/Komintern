@@ -15,6 +15,11 @@ export interface Kv {
   sadd(key: string, member: string): Promise<void>;
   srem(key: string, member: string): Promise<void>;
   smembers(key: string): Promise<string[]>;
+  /** Comptage approximatif d'éléments distincts (HyperLogLog) : aucun élément n'est stocké. */
+  pfadd(key: string, member: string): Promise<void>;
+  pfcount(key: string): Promise<number>;
+  hincr(key: string, field: string): Promise<void>;
+  hgetall(key: string): Promise<Record<string, string>>;
   ping(): Promise<boolean>;
   close(): Promise<void>;
 }
@@ -72,6 +77,22 @@ export class RedisKv implements Kv {
 
   public async smembers(key: string): Promise<string[]> {
     return this.client.smembers(key);
+  }
+
+  public async pfadd(key: string, member: string): Promise<void> {
+    await this.client.pfadd(key, member);
+  }
+
+  public async pfcount(key: string): Promise<number> {
+    return this.client.pfcount(key);
+  }
+
+  public async hincr(key: string, field: string): Promise<void> {
+    await this.client.hincrby(key, field, 1);
+  }
+
+  public async hgetall(key: string): Promise<Record<string, string>> {
+    return this.client.hgetall(key);
   }
 
   public async ping(): Promise<boolean> {
@@ -152,6 +173,26 @@ export class MemoryKv implements Kv {
 
   public async smembers(key: string): Promise<string[]> {
     return [...(this.sets.get(key) ?? [])];
+  }
+
+  private readonly hashes = new Map<string, Map<string, number>>();
+
+  public async pfadd(key: string, member: string): Promise<void> {
+    await this.sadd(key, member);
+  }
+
+  public async pfcount(key: string): Promise<number> {
+    return (await this.smembers(key)).length;
+  }
+
+  public async hincr(key: string, field: string): Promise<void> {
+    const hash = this.hashes.get(key) ?? new Map<string, number>();
+    hash.set(field, (hash.get(field) ?? 0) + 1);
+    this.hashes.set(key, hash);
+  }
+
+  public async hgetall(key: string): Promise<Record<string, string>> {
+    return Object.fromEntries([...(this.hashes.get(key) ?? new Map<string, number>())].map(([field, value]) => [field, String(value)]));
   }
 
   public async ping(): Promise<boolean> {

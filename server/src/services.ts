@@ -7,6 +7,7 @@ import { EmailCodeService } from "./auth/codes";
 import { GoogleOAuth } from "./auth/google";
 import { LogMailer, ResendMailer } from "./auth/mailer";
 import type { Mailer } from "./auth/mailer";
+import { AccountSecurity } from "./auth/security";
 import { SessionService } from "./auth/sessions";
 import type { Config } from "./config";
 import { log } from "./logger";
@@ -18,6 +19,7 @@ import { FriendService } from "./social/friends";
 import { PresenceService } from "./social/presence";
 import type { Notifier } from "./social/presence";
 import { ContactService } from "./admin/service";
+import { Audience } from "./analytics/audience";
 import { MemoryContactStore, MongoContactStore } from "./store/contact";
 import type { ContactStore } from "./store/contact";
 import { MemoryFriendStore, MongoFriendStore } from "./store/friends";
@@ -36,6 +38,8 @@ export type Services = Stores & {
   sessions: SessionService;
   codes: EmailCodeService;
   accounts: AccountService;
+  security: AccountSecurity;
+  audience: Audience;
   friendService: FriendService;
   presence: PresenceService;
   moderation: ModerationService;
@@ -165,6 +169,8 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
     sessions,
     codes,
     accounts: new AccountService({ ...stores, sessions, codes }),
+    security: new AccountSecurity(stores.users, stores.kv, codes, stores.mailer),
+    audience: new Audience(stores.kv),
     friendService: new FriendService(stores.users, stores.friends, presence, stores.kv, notify),
     presence,
     moderation,

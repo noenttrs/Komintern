@@ -7,6 +7,13 @@ export interface Mailer {
 }
 
 /** Envoi via l'API HTTP de Resend (https://resend.com/docs/api-reference/emails/send-email). */
+/** Prévient l'ancienne adresse d'un changement d'email (en cas de prise de contrôle du compte). */
+export function emailChangedMail(to: string, newEmail: string): Mail {
+  const masked = newEmail.replace(/^(.).*(@.*)$/, "$1***$2");
+  const text = `L'adresse email de ton compte Nazi Communiste vient d'être remplacée par ${masked}.\n\nSi tu n'es pas à l'origine de ce changement, réponds à ce message pour que nous sécurisions ton compte.`;
+  return { to, subject: "Ton adresse email a été modifiée", text, html: `<div style="font-family:monospace;color:#0f0f0f"><p>${text.replace(/\n/g, "<br>")}</p></div>` };
+}
+
 export class ResendMailer implements Mailer {
   public constructor(
     private readonly apiKey: string,
@@ -53,12 +60,15 @@ export class MemoryMailer implements Mailer {
   }
 }
 
-export function codeMail(to: string, purpose: "verify" | "reset", code: string): Mail {
-  const title = purpose === "verify" ? "Valide ton adresse email" : "Réinitialise ton mot de passe";
+export function codeMail(to: string, purpose: "verify" | "reset" | "change", code: string): Mail {
+  const title =
+    purpose === "verify" ? "Valide ton adresse email" : purpose === "reset" ? "Réinitialise ton mot de passe" : "Confirme ta nouvelle adresse email";
   const intro =
     purpose === "verify"
       ? "Voici ton code pour valider ton compte Nazi Communiste :"
-      : "Voici ton code pour choisir un nouveau mot de passe sur Nazi Communiste :";
+      : purpose === "reset"
+        ? "Voici ton code pour choisir un nouveau mot de passe sur Nazi Communiste :"
+        : "Voici ton code pour confirmer cette nouvelle adresse sur ton compte Nazi Communiste :";
   return {
     to,
     subject: `${code} — ${title}`,

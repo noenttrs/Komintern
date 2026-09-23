@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 import type { Kv } from "../store/kv";
 
-export type CodePurpose = "verify" | "reset";
+export type CodePurpose = "verify" | "reset" | "change";
 
 const CODE_TTL_SECONDS = 15 * 60;
 const RESEND_COOLDOWN_SECONDS = 60;

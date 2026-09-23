@@ -90,6 +90,16 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
   const second = await api("/auth/login", { body: { email: "admin@example.org", password: "admin password 123" } });
   assert.equal((await api("/admin/session", { body: { code }, cookie: second.cookie })).status, 401);
 
+  // Mesure d'audience : visiteurs uniques et pages vues, chemins normalisés, robots ignorés
+  for (const path of ["/", "/r/AB12CD", "/regles", "/nimporte-quoi"]) {
+    assert.equal((await api("/visit", { body: { path } })).status, 204);
+  }
+  const audience = (await api("/admin/audience", { cookie: login.cookie })).body;
+  const today = audience.daily.at(-1);
+  assert.equal(today.visitors, 1);
+  assert.equal(today.pageviews, 3);
+  assert.deepEqual(audience.topPages.map((page: { path: string }) => page.path).sort(), ["/", "/r/:code", "/regles"]);
+
   // Contact et bannissement depuis l'admin
   const messages = (await api("/admin/contact", { cookie: login.cookie })).body.messages;
   assert.equal(messages[0].subject, "Bug");

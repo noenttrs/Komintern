@@ -44,6 +44,7 @@ export type AccountView = {
   hasPassword?: boolean;
   hasGoogle?: boolean;
   isAdmin?: boolean;
+  totpEnabled?: boolean;
 };
 
 const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -85,7 +86,7 @@ function parseCode(raw: unknown): string {
 export function accountView(user: User, self: boolean): AccountView {
   const base: AccountView = { id: user.id, displayName: user.displayName, createdAt: user.createdAt.toISOString(), stats: { ...user.stats } };
   return self
-    ? { ...base, email: user.email, hasPassword: user.passwordHash !== null, hasGoogle: user.googleSub !== null, isAdmin: user.role === "admin" }
+    ? { ...base, email: user.email, hasPassword: user.passwordHash !== null, hasGoogle: user.googleSub !== null, isAdmin: user.role === "admin", totpEnabled: user.totpSecret !== null }
     : base;
 }
 
