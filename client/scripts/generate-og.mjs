@@ -2,16 +2,21 @@
 // Usage : node scripts/generate-og.mjs
 import sharp from "sharp";
 
+// Icônes des deux camps (components/game/FactionIcon.tsx).
 const mustache =
   '<path fill="#0f0f0f" d="M21 12c-2 0-3-3-6-3s-3 2-3 2s0-2-3-2s-4 3-6 3c-1 0-2-1-2-1s1 5 5 5c5 0 6-3 6-3s1 3 6 3c4 0 5-5 5-5s-1 1-2 1"/>';
+const hat = '<path fill="#0f0f0f" d="M256 25c-71 0-111.7 11.79-135.2 38.89C100.2 87.64 91.37 125.9 89.49 183H16v18h480v-18h-73.5c-1.9-57.1-10.7-95.36-31.3-119.11C367.7 36.79 327 25 256 25M108.4 217c-2.2 15.1-3.4 30.9-3.4 47c0 25.5 2.9 50 8.3 72.8c1.5-2.2 3-4.3 4.6-6.5c8.5-12 17.5-24.5 29.3-34.4c11.7-9.8 26.6-16.9 44.8-16.9c17.5 0 35.1 4.2 49 13.5c5.9 3.9 11 8.9 15 14.8c4-5.9 9.1-10.9 15-14.8c13.9-9.3 31.5-13.5 49-13.5c18.2 0 33.1 7.1 44.8 16.9c11.8 9.9 20.8 22.4 29.3 34.4c1.6 2.2 3.1 4.3 4.6 6.5c5.4-22.8 8.3-47.3 8.3-72.8c0-16.1-1.2-31.9-3.4-47zm83.6 80c-13.8 0-23.8 4.8-33.2 12.7s-17.8 19.2-26.2 31.1c-8.4 11.8-16.8 24.2-27.5 34.3c-10.7 10-24.23 17.5-40.9 17.9c-20.06.5-39.32-11.3-55.147-23.2c2.077 4.1 4.077 8.2 6.467 12.5c14.17 25.5 34.55 51.7 51.26 57.1c18.97 6.2 54.32-4.1 90.02-17.9C192.5 407.6 228 391 256 391s63.5 16.6 99.2 30.5c35.7 13.8 71.1 24.1 90 17.9c16.7-5.4 37.1-31.6 51.3-57.1c2.4-4.3 4.4-8.4 6.4-12.5c-15.8 11.9-35 23.7-55.1 23.2c-16.7-.4-30.2-7.9-40.9-17.9c-10.7-10.1-19.1-22.5-27.5-34.3c-8.4-11.9-16.8-23.2-26.2-31.1S333.8 297 320 297c-14.5 0-28.9 3.8-39 10.5S265 323 256 323s-14.9-8.8-25-15.5s-24.5-10.5-39-10.5m64 112c-20 0-56.5 15.2-92.7 29.2c-.3.1-.7.3-1 .4c26 30.7 58.6 48.4 93.7 48.4s67.7-17.7 93.7-48.4c-.3-.1-.7-.3-1-.4c-36.2-14-72.7-29.2-92.7-29.2"/>';
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#ffffff"/>
   <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#111111" stroke-width="3"/>
-  <g transform="translate(90 120) scale(9)">${mustache}</g>
-  <text x="90" y="400" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="92" fill="#0f0f0f">Nazi Communiste</text>
-  <text x="92" y="470" font-family="DejaVu Sans, Arial, sans-serif" font-size="36" fill="#535353">Jeu de déduction sociale · 4 à 11 joueurs</text>
-  <text x="92" y="530" font-family="DejaVu Sans Mono, monospace" font-size="28" letter-spacing="4" fill="#0f0f0f">FASCISMWONTGET.ME</text>
+  <g transform="translate(90 95) scale(7)">${mustache}</g>
+  <text x="290" y="200" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="64" fill="#0f0f0f">contre</text>
+  <g transform="translate(560 70) scale(0.36)">${hat}</g>
+  <text x="90" y="380" font-family="DejaVu Sans, Arial, sans-serif" font-weight="700" font-size="92" fill="#0f0f0f">Nazi Communiste</text>
+  <text x="92" y="450" font-family="DejaVu Sans, Arial, sans-serif" font-size="40" fill="#0f0f0f">Le jeu de bluff parfait pour vos soirées</text>
+  <text x="92" y="500" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#535353">De 2 à 14 joueurs · chacun sur son téléphone · gratuit</text>
+  <text x="92" y="555" font-family="DejaVu Sans Mono, monospace" font-size="26" letter-spacing="4" fill="#0f0f0f">FASCISMWONTGET.ME</text>
 </svg>`;
 
 await sharp(Buffer.from(svg)).png().toFile("public/og.png");
