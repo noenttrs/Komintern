@@ -17,4 +17,18 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
 // Nouvelle version déployée : le service worker l'active et la page se recharge.
 // En pleine partie, le rechargement reprend la place du joueur (resync).
-registerSW({ immediate: true });
+// Nouvelle version déployée : recherchée au retour sur l'app et toutes les 30 minutes (sinon une
+// webapp restée ouverte garderait l'ancienne version jusqu'à sa fermeture complète).
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, registration) {
+    if (registration === undefined) return;
+    const check = (): void => {
+      if (navigator.onLine) void registration.update().catch(() => undefined);
+    };
+    window.setInterval(check, 30 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") check();
+    });
+  },
+});
