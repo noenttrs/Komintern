@@ -105,8 +105,20 @@ export function useGameSocket(): UseGameSocketResult {
   // Un create/join explicite est en cours : pas de rejoin automatique concurrent.
   const pendingJoinRef = useRef(false);
   const queueRef = useRef<Array<{ event: string; payload: Record<string, unknown> }>>([]);
+  // Demande de création/entrée en attente : envoyée à la connexion (et renvoyée après une
+  // reconnexion) plutôt que confiée au tampon de Socket.IO, qui peut la perdre.
+  const joinRequestRef = useRef<{ event: string; payload: Record<string, unknown> } | null>(null);
 
   useEffect(() => {
+    const sendPendingJoin = (): boolean => {
+      const request = joinRequestRef.current;
+      if (request === null) {
+        return false;
+      }
+      socket.emit(request.event, request.payload);
+      return true;
+    };
+
     const rejoinStoredRoom = (): void => {
       const code = readStorage("session", ROOM_STORAGE_KEY);
       const pseudo = stateRef.current.pseudo.trim();
@@ -119,6 +131,7 @@ export function useGameSocket(): UseGameSocketResult {
     const forgetRoom = (): void => {
       joinedRef.current = false;
       pendingJoinRef.current = false;
+      joinRequestRef.current = null;
       queueRef.current = [];
       writeStorage("session", ROOM_STORAGE_KEY, null);
       dispatch({ type: "left_room" });
@@ -126,7 +139,9 @@ export function useGameSocket(): UseGameSocketResult {
 
     const onConnect = (): void => {
       dispatch({ type: "connection", status: "connected" });
-      rejoinStoredRoom();
+      if (!sendPendingJoin()) {
+        rejoinStoredRoom();
+      }
     };
     const onDisconnect = (): void => {
       joinedRef.current = false;
@@ -138,6 +153,7 @@ export function useGameSocket(): UseGameSocketResult {
     const onRoomJoined = (payload: unknown): void => {
       joinedRef.current = true;
       pendingJoinRef.current = false;
+      joinRequestRef.current = null;
       const code = stringValue(toRecord(payload).code);
       if (code !== null) {
         writeStorage("session", ROOM_STORAGE_KEY, code);
@@ -152,6 +168,7 @@ export function useGameSocket(): UseGameSocketResult {
     const onError = (payload: unknown): void => {
       const code = stringValue(toRecord(payload).code);
       if (code === "invalid_join_room" || code === "invalid_create_room") {
+        joinRequestRef.current = null;
         if (!joinedRef.current) {
           forgetRoom();
         }
@@ -227,13 +244,18 @@ export function useGameSocket(): UseGameSocketResult {
 
     const emitJoin = (event: "create_room" | "join_room", payload: Record<string, unknown>): void => {
       pendingJoinRef.current = true;
-      ensureConnected();
-      socket.emit(event, { ...payload, pseudo: stateRef.current.pseudo.trim(), playerUid: uidRef.current });
+      joinRequestRef.current = { event, payload: { ...payload, pseudo: stateRef.current.pseudo.trim(), playerUid: uidRef.current } };
+      if (socket.connected) {
+        socket.emit(joinRequestRef.current.event, joinRequestRef.current.payload);
+      } else {
+        ensureConnected(); // envoyée par onConnect
+      }
     };
 
     const leaveLocally = (): void => {
       joinedRef.current = false;
       pendingJoinRef.current = false;
+      joinRequestRef.current = null;
       queueRef.current = [];
       writeStorage("session", ROOM_STORAGE_KEY, null);
       dispatch({ type: "left_room" });

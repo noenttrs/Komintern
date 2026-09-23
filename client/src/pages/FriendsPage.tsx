@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { api } from "../api";
-import type { FriendsView, PresenceStatus } from "../api";
+import type { FriendsView, PresenceStatus, Stats } from "../api";
 import { PageShell } from "../components/PageShell";
 import { navigate } from "../router";
 
@@ -12,6 +12,36 @@ type FriendsPageProps = {
   canInvite: boolean;
   onInvite: (userId: string) => void;
 };
+
+type LeaderboardEntry = { userId: string; displayName: string; stats: Stats; self: boolean };
+
+/** Classement : soi-même et ses amis, par victoires. */
+function Leaderboard({ version }: { version: number }): JSX.Element | null {
+  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  useEffect(() => {
+    api<{ leaderboard: LeaderboardEntry[] }>("/friends/leaderboard")
+      .then((result) => setEntries(result.leaderboard))
+      .catch(() => setEntries(null));
+  }, [version]);
+  if (entries === null || entries.length < 2) return null;
+  return (
+    <section className="friends-section">
+      <h3 className="field-label">Classement</h3>
+      <ol className="leaderboard">
+        {entries.map((entry, index) => {
+          const played = entry.stats.wins + entry.stats.losses;
+          return (
+            <li key={entry.userId} className={entry.self ? "leaderboard__row leaderboard__row--self" : "leaderboard__row"}>
+              <span className="leaderboard__rank">{index + 1}</span>
+              <span className="leaderboard__name">{entry.displayName}{entry.self ? " (toi)" : ""}</span>
+              <span className="mono">{entry.stats.wins} V · {played} P · {played === 0 ? "—" : `${Math.round((entry.stats.wins / played) * 100)} %`}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
 
 const STATUS_LABEL: Record<PresenceStatus, string> = { online: "en ligne", in_game: "en partie", offline: "hors ligne" };
 
@@ -119,6 +149,7 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
             </ul>
           </section>
         ) : null}
+        <Leaderboard version={view.friends.length} />
         {!canInvite ? <p className="mono">Pour inviter un ami, crée ou rejoins d'abord une room.</p> : null}
       </div>
     </PageShell>

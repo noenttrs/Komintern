@@ -33,6 +33,8 @@ export type SessionConfig = {
   /** Chef désigné par la partie précédente (rotation continue), s'il est encore là. */
   nextChefId?: string | null;
   onRevealComplete: () => void;
+  /** Vainqueur connu (missions ou abandon) : la partie peut être enregistrée tout de suite. */
+  onGameDecided?: (summary: GameSummary) => void;
   onGameFinished: (nextChefId: string | null, summary: GameSummary) => void;
   onAborted: (reason: string, summary: GameSummary) => void;
   randomIndexProvider?: (length: number) => number;
@@ -362,6 +364,7 @@ export class GameSession {
       }
       this.gameOver = { winner: faction === "nazi" ? "communist" : "nazi", reason: "forfeit", forfeitedBy: playerId };
       this.phase = "end_game";
+      this.config.onGameDecided?.(this.summary());
       this.endGameConfirmed.clear();
       this.toRoom(SERVER_EVENTS.GAME_OVER, { ...this.gameOver, scores: this.scores });
       await this.tryCompleteEndGame();
@@ -615,6 +618,7 @@ export class GameSession {
       const winner = outcome.gameWinner ?? (this.scores.nazi > this.scores.communist ? "nazi" : "communist");
       this.gameOver = { winner, reason: "missions" };
       this.phase = "end_game";
+      this.config.onGameDecided?.(this.summary());
       this.endGameConfirmed.clear();
       this.toRoom(SERVER_EVENTS.GAME_OVER, { ...this.gameOver, scores: this.scores });
       return;

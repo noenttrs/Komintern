@@ -2,7 +2,7 @@ import { ApiError, parseDisplayName } from "../auth/accounts";
 import { allow } from "../auth/rateLimit";
 import type { FriendStore } from "../store/friends";
 import type { Kv } from "../store/kv";
-import type { UserStore } from "../store/users";
+import type { UserStats, UserStore } from "../store/users";
 import type { Notifier, PresenceService, PresenceStatus } from "./presence";
 
 export type FriendEntry = { userId: string; displayName: string; status: PresenceStatus };
@@ -71,6 +71,17 @@ export class FriendService {
     await this.friends.remove(userId, otherId);
     this.notify(otherId, "friends_changed", {});
     this.notify(userId, "friends_changed", {});
+  }
+
+  /** Classement : soi-même et ses amis acceptés, par victoires puis taux de victoire. */
+  public async leaderboard(userId: string): Promise<Array<{ userId: string; displayName: string; stats: UserStats; self: boolean }>> {
+    const friendships = await this.friends.listFor(userId);
+    const ids = [userId, ...friendships.filter((f) => f.status === "accepted").map((f) => (f.requester === userId ? f.addressee : f.requester))];
+    const users = await this.users.findManyByIds(ids);
+    const rate = (stats: { wins: number; losses: number }) => (stats.wins + stats.losses === 0 ? 0 : stats.wins / (stats.wins + stats.losses));
+    return users
+      .map((user) => ({ userId: user.id, displayName: user.displayName ?? "?", stats: user.stats, self: user.id === userId }))
+      .sort((a, b) => b.stats.wins - a.stats.wins || rate(b.stats) - rate(a.stats) || a.displayName.localeCompare(b.displayName));
   }
 
   public areFriends(a: string, b: string): Promise<boolean> {

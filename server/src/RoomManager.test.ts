@@ -205,6 +205,35 @@ test("the host can kick, hand over the host role and switch the chat, only in th
   assert.throws(() => manager.transferHost(code, other, host), /only possible in the waiting room/);
 });
 
+test("a decided game is recorded right away, even if everybody quits from the end screen", async () => {
+  const recorded: string[] = [];
+  const { manager } = setup({ hooks: { onGameRecorded: (game) => void recorded.push(game.outcome) } });
+  const code = manager.createRoom();
+  const players = fill(manager, code, 5);
+  const session = await manager.startGame(code, players[0] as string);
+  for (const id of players) await session.handleTableOrderTap(id);
+  for (const id of players) await session.confirmTableOrder(id);
+  for (const id of players) await session.confirmRoleReveal(id);
+  // Abandon d'un joueur : le vainqueur est connu immédiatement.
+  manager.leaveRoom(code, players[1] as string);
+  await tick(20);
+  assert.deepEqual(recorded, ["finished"]);
+  for (const id of players) manager.leaveRoom(code, id);
+  await tick(20);
+  assert.deepEqual(recorded, ["finished"], "recorded only once");
+});
+
+test("a room deleted in the middle of a game records it as aborted", async () => {
+  const recorded: string[] = [];
+  const { manager } = setup({ afkTimeoutMs: 10_000, hooks: { onGameRecorded: (game) => void recorded.push(game.outcome) } });
+  const code = manager.createRoom();
+  const players = fill(manager, code, 5);
+  await manager.startGame(code, players[0] as string);
+  players.forEach((id, index) => manager.handleDisconnect(code, id, `s${index + 1}`));
+  await tick(100);
+  assert.deepEqual(recorded, ["aborted"]);
+});
+
 test("room creation is capped", () => {
   const { manager } = setup({ maxRooms: 2 });
   manager.createRoom();

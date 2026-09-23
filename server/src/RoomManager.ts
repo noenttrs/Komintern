@@ -354,6 +354,9 @@ export class RoomManager {
         room.status = "playing";
         this.emitRoomUpdated(room);
       },
+      onGameDecided: (summary) => {
+        if (room.session === session) this.recordGame(room, "finished", summary);
+      },
       onGameFinished: (nextChefId, summary) => this.onGameFinished(room, session, nextChefId, summary),
       onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
       randomIndexProvider: this.options.randomIndexProvider,
@@ -647,6 +650,10 @@ export class RoomManager {
 
   private deleteRoom(room: RoomRecord): void {
     this.clearTimers(room);
+    // Room abandonnée en pleine partie : la partie reste tracée, comme annulée.
+    if (room.session !== undefined && room.currentGame !== undefined) {
+      this.recordGame(room, "aborted", room.session.summary());
+    }
     room.session?.dispose();
     room.session = undefined;
     this.rooms.delete(room.code);

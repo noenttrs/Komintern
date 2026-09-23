@@ -212,6 +212,10 @@ export function createApi(services: Services, admin: AdminService): express.Rout
     response.json(await services.friendService.list(requireUser(request)));
   }));
 
+  router.get("/friends/leaderboard", route(async (request, response) => {
+    response.json({ leaderboard: await services.friendService.leaderboard(requireUser(request)) });
+  }));
+
   router.post("/friends/requests", route(async (request, response) => {
     const status = await services.friendService.request(requireUser(request), request.body?.displayName);
     response.status(201).json({ status });

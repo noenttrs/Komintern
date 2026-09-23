@@ -5,6 +5,7 @@ import type { Account } from "../api";
 import { PageShell } from "../components/PageShell";
 import type { AccountActions, AccountState } from "../hooks/useAccount";
 import { navigate } from "../router";
+import { Achievements } from "./Achievements";
 import { GameHistory } from "./GameHistory";
 import { StatsGrid } from "./StatsGrid";
 
@@ -15,6 +16,11 @@ export function ProfilePage({ account, userId, setup }: ProfilePageProps): JSX.E
   const [profile, setProfile] = useState<Account | null>(own ? account.user : null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(account.user?.displayName ?? "");
+  // Le compte peut finir de charger après l'ouverture de la page : on remplit le champ ensuite.
+  const loadedName = account.user?.displayName ?? "";
+  useEffect(() => {
+    setName(loadedName);
+  }, [loadedName]);
   const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,6 +88,7 @@ export function ProfilePage({ account, userId, setup }: ProfilePageProps): JSX.E
               <h2 className="profile-name">{profile.displayName}</h2>
             )}
             <StatsGrid stats={profile.stats} />
+            <Achievements stats={profile.stats} />
             {own ? <GameHistory /> : null}
             <p className="mono">Inscrit le {new Date(profile.createdAt).toLocaleDateString("fr-FR")}</p>
             {own ? (

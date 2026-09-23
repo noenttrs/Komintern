@@ -203,6 +203,11 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
     });
   }
 
+  // --- Classement entre amis : Rosa et Karl seulement (Clara n'est pas amie)
+  const board = await api("/friends/leaderboard", { cookie: rosa!.cookie });
+  assert.deepEqual(board.body.leaderboard.map((entry: { displayName: string }) => entry.displayName).sort(), ["Karl", "Rosa"]);
+  assert.equal(board.body.leaderboard.find((entry: { self: boolean }) => entry.self).displayName, "Rosa");
+
   // --- Historique des parties (uniquement les siennes)
   const history = await api("/me/games", { cookie: rosa!.cookie });
   assert.equal(history.body.games.length, 1);
