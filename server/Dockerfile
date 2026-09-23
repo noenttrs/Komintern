@@ -38,6 +38,7 @@ COPY gameengine ./gameengine
 RUN python3 -m unittest discover -s gameengine -t .
 COPY --from=deps /build/node_modules ./server/node_modules
 COPY server/package.json server/tsconfig.json ./server/
+COPY server/moderation ./server/moderation
 COPY server/src ./server/src
 WORKDIR /app/server
 RUN LOG_LEVEL=silent node_modules/.bin/tsx --test 'src/**/*.test.ts' && touch /tests-passed
@@ -57,6 +58,7 @@ COPY gameengine_entry.py ./
 COPY gameengine ./gameengine
 COPY --from=prod-deps /build/node_modules ./server/node_modules
 COPY server/package.json ./server/
+COPY server/moderation ./server/moderation
 COPY --from=build /build/dist ./server/dist
 
 WORKDIR /app/server

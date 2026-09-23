@@ -1,0 +1,5 @@
+body { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; font-family: "IBM Plex Sans", system-ui, sans-serif; color: #0f0f0f; line-height: 1.55; background: #fff; }
+h1, h2 { letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; margin-top: 2rem; border-top: 1px solid #111; padding-top: 1rem; }
+a { color: #0f0f0f; }
+code, .mono { font-family: "IBM Plex Mono", monospace; }

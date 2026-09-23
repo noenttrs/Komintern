@@ -1,0 +1,37 @@
+# Nazi Communiste
+
+> Jeu de déduction sociale multijoueur en ligne, en français, jouable gratuitement dans le navigateur sur https://fascismwontget.me. Deux camps secrets — une minorité de nazis et une majorité de communistes — s'affrontent sur une série de missions. Chaque joueur utilise son propre téléphone, autour d'une table ou à distance grâce au chat intégré.
+
+Le nom et le thème sont satiriques : le jeu met en scène la lutte contre le fascisme (le domaine signifie « le fascisme ne passera pas »). Il ne fait l'apologie d'aucune idéologie.
+
+## Concept
+
+- 3 à 6 joueurs (format de référence : 5 joueurs, 2 nazis et 3 communistes).
+- Les rôles sont distribués au hasard et en secret. Les nazis connaissent les rôles de tout le monde ; les communistes ne connaissent que le leur.
+- Le premier camp à remporter 3 missions gagne la partie.
+
+## Déroulement d'une manche
+
+1. Proposition : le chef choisit une équipe (à 5 joueurs : 2, 3, 2, 3 puis 3 membres selon la mission).
+2. Vote de confiance : tous les joueurs votent publiquement. Une majorité stricte de « pour » valide l'équipe ; en cas de refus ou d'égalité, le même chef propose une autre équipe.
+3. Mission : chaque membre de l'équipe vote en secret. Un seul vote nazi fait échouer la mission. Les communistes ne peuvent voter que communiste. Les votes sont révélés sans être attribués.
+
+Le rôle de chef tourne d'un joueur à chaque nouvelle manche, et la rotation continue d'une partie à l'autre.
+
+## Comment jouer
+
+- Ouvrir https://fascismwontget.me, choisir un pseudo, créer une room et partager son code (ou rejoindre une room avec un code).
+- Aucun compte n'est nécessaire. Un compte facultatif (email + mot de passe, ou Google) garde les statistiques (victoires, défaites, parties jouées dans chaque camp), permet d'ajouter des amis, de voir s'ils sont en ligne et de les inviter dans sa room.
+- Le site s'installe comme une application (web app) sur mobile et ordinateur.
+
+## Pages
+
+- [Accueil et jeu](https://fascismwontget.me/)
+- [À propos et règles](https://fascismwontget.me/a-propos)
+- [Mentions légales et confidentialité](https://fascismwontget.me/mentions-legales)
+- [Version HTML de cette description](https://fascismwontget.me/agents.html)
+
+## Notes pour les agents
+
+- Le jeu se joue en temps réel via WebSocket (Socket.IO) ; il n'existe pas d'API publique pour jouer automatiquement.
+- Les journaux de parties et les données des comptes ne sont pas accessibles publiquement.

@@ -1,5 +1,6 @@
 // Parsing défensif des payloads serveur : tout ce qui arrive du socket est `unknown`.
 import type {
+  ChatMessage,
   ConfidenceHistoryEntry,
   ConfidenceVote,
   Faction,
@@ -185,3 +186,26 @@ export function translateError(message: string): string {
   }
   return message;
 }
+
+export function parseChatMessage(value: unknown): ChatMessage | null {
+  const row = toRecord(value);
+  const id = stringValue(row.id);
+  const playerId = stringValue(row.playerId);
+  const text = typeof row.text === "string" ? row.text : null;
+  if (id === null || playerId === null || text === null) {
+    return null;
+  }
+  return { id, playerId, pseudo: stringValue(row.pseudo) ?? "?", text, at: numberValue(row.at) ?? Date.now() };
+}
+
+// Messages d'erreur du chat, des signalements et des invitations.
+ERROR_TRANSLATIONS.push(
+  [/message must be 1-/, "Message vide ou trop long (200 caractères max)."],
+  [/too many messages/, "Tu envoies trop de messages, ralentis."],
+  [/banned from the chat/, "Ton compte ne peut plus écrire dans le chat."],
+  [/too many reports/, "Trop de signalements, réessaie plus tard."],
+  [/only invite your friends/, "Tu ne peux inviter que tes amis."],
+  [/only possible from the lobby/, "Les invitations se font depuis le salon d'attente."],
+  [/friend is offline/, "Cet ami n'est pas en ligne."],
+  [/log in to invite/, "Connecte-toi pour inviter tes amis."],
+);

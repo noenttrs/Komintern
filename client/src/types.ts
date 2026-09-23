@@ -127,3 +127,17 @@ export interface TableOrderState {
   order: string[];
   confirmed: string[];
 }
+
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  pseudo: string;
+  text: string;
+  at: number;
+}
+
+export interface RoomInvite {
+  id: number;
+  code: string;
+  fromName: string;
+}

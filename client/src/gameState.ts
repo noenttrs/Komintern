@@ -2,6 +2,7 @@
 import { SERVER_EVENTS } from "./events";
 import {
   factionMap,
+  parseChatMessage,
   numberValue,
   parseConfidenceHistoryEntry,
   parseConfidenceVotes,
@@ -16,6 +17,7 @@ import {
   uiPhaseFromServer,
 } from "./protocol";
 import type {
+  ChatMessage,
   ConfidenceHistoryEntry,
   ConfidenceState,
   ConnectionStatus,
@@ -27,6 +29,7 @@ import type {
   MyProgress,
   ProposalState,
   RoleAssignment,
+  RoomInvite,
   RoomPlayer,
   RoomStatus,
   ScoreState,
@@ -59,6 +62,9 @@ export interface GameState {
   gameOver: GameOverState | null;
   revealedRoles: Record<string, Faction>;
   myProgress: MyProgress;
+  chat: ChatMessage[];
+  invite: RoomInvite | null;
+  notice: { message: string; id: number } | null;
 }
 
 export type GameAction =
@@ -68,6 +74,9 @@ export type GameAction =
   | { type: "connection"; status: ConnectionStatus }
   | { type: "error"; message: string; code?: string }
   | { type: "clear_error" }
+  | { type: "notice"; message: string }
+  | { type: "clear_notice" }
+  | { type: "dismiss_invite" }
   | { type: "left_room" };
 
 const EMPTY_SCORE: ScoreState = { nazi: 0, communist: 0 };
@@ -132,6 +141,9 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     phase: pseudo.trim() === "" ? "pseudo_entry" : "landing",
     connection: "idle",
     error: null,
+    chat: [],
+    invite: null,
+    notice: null,
     gameMeta: { missionCount: 0 },
     ...gameReset(),
   };
@@ -170,6 +182,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, error: { message: action.message, code: action.code ?? null, id: ++errorCounter } };
     case "clear_error":
       return { ...state, error: null };
+    case "notice":
+      return { ...state, notice: { message: action.message, id: ++errorCounter } };
+    case "clear_notice":
+      return { ...state, notice: null };
+    case "dismiss_invite":
+      return { ...state, invite: null };
     case "left_room":
       return {
         ...state,
@@ -178,6 +196,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         myId: null,
         hostId: null,
         players: [],
+        chat: [],
         roomStatus: null,
         targetPlayerCount: 5,
         phase: state.pseudo.trim() === "" ? "pseudo_entry" : "landing",
@@ -340,6 +359,30 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
 
     case SERVER_EVENTS.RESYNC:
       return applyResync(state, payload);
+
+    case SERVER_EVENTS.CHAT_HISTORY:
+      return {
+        ...state,
+        chat: Array.isArray(payload.messages)
+          ? payload.messages.map(parseChatMessage).filter((message): message is ChatMessage => message !== null)
+          : [],
+      };
+
+    case SERVER_EVENTS.CHAT_MESSAGE: {
+      const message = parseChatMessage(raw);
+      return message === null ? state : { ...state, chat: [...state.chat, message].slice(-100) };
+    }
+
+    case SERVER_EVENTS.ROOM_INVITE: {
+      const code = stringValue(payload.code);
+      if (code === null || code === state.roomCode) {
+        return state;
+      }
+      return { ...state, invite: { id: ++errorCounter, code, fromName: stringValue(toRecord(payload.from).displayName) ?? "Un ami" } };
+    }
+
+    case SERVER_EVENTS.REPORT_RECEIVED:
+      return { ...state, notice: { message: "Signalement envoyé. Merci, il sera examiné.", id: ++errorCounter } };
 
     case SERVER_EVENTS.ERROR: {
       const message = stringValue(payload.message) ?? "Erreur serveur";

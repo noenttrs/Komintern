@@ -11,3 +11,11 @@ const serverUrl = import.meta.env.VITE_SERVER_URL || defaultServerUrl;
 export const socket = io(serverUrl, {
   autoConnect: false,
 });
+
+/** Reconnecte le socket pour que le serveur relise le cookie de session (connexion/déconnexion). */
+export function reconnectSocket(): void {
+  if (socket.connected) {
+    socket.disconnect();
+    socket.connect();
+  }
+}

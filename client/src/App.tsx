@@ -1,6 +1,18 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { ChatPanel } from "./components/ChatPanel";
+import { Menu } from "./components/Menu";
+import { useAccount } from "./hooks/useAccount";
+import { useFriends } from "./hooks/useFriends";
 import { useGameSocket } from "./hooks/useGameSocket";
+import { useInstallPrompt } from "./hooks/useInstallPrompt";
+import { AboutPage } from "./pages/AboutPage";
+import { AuthPage } from "./pages/AuthPage";
+import { FriendsPage } from "./pages/FriendsPage";
+import { LegalPage } from "./pages/LegalPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { navigate as goTo, useRoute } from "./router";
+import { socket } from "./socket";
 
 import { PLAYABLE_PRESETS, type ConfidenceVote, type MissionVote, type RulesetPreset, type UIPhase } from "./types";
 
@@ -193,11 +205,21 @@ function VoteButtons({
 function StatusBanners({
   error,
   onDismiss,
+  notice,
+  onDismissNotice,
+  invite,
+  onAcceptInvite,
+  onDismissInvite,
   connection,
   inRoom,
 }: {
   error: { message: string; id: number } | null;
   onDismiss: () => void;
+  notice: { message: string; id: number } | null;
+  onDismissNotice: () => void;
+  invite: { code: string; fromName: string } | null;
+  onAcceptInvite: () => void;
+  onDismissInvite: () => void;
   connection: string;
   inRoom: boolean;
 }): JSX.Element | null {
@@ -209,15 +231,35 @@ function StatusBanners({
     return () => window.clearTimeout(timer);
   }, [error, onDismiss]);
 
+  useEffect(() => {
+    if (notice === null) {
+      return;
+    }
+    const timer = window.setTimeout(onDismissNotice, 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice, onDismissNotice]);
+
   const connectionMessage =
     !inRoom ? null : connection === "disconnected" ? "Connexion perdue, reconnexion en cours..." : connection === "connecting" ? "Connexion..." : null;
 
-  if (error === null && connectionMessage === null) {
+  if (error === null && connectionMessage === null && notice === null && invite === null) {
     return null;
   }
   return (
-    <div className="status-banners" role="status" aria-live="polite">
+    <div className="status-banners" role="status" aria-live="polite" onClick={(event) => event.stopPropagation()}>
       {connectionMessage !== null ? <p className="status-banner status-banner--connection">{connectionMessage}</p> : null}
+      {invite !== null ? (
+        <div className="status-banner status-banner--invite">
+          <span>{invite.fromName} t'invite dans la room {invite.code}</span>
+          <button type="button" onClick={onAcceptInvite}>Rejoindre</button>
+          <button type="button" className="secondary" onClick={onDismissInvite}>Ignorer</button>
+        </div>
+      ) : null}
+      {notice !== null ? (
+        <button type="button" className="status-banner status-banner--connection" onClick={onDismissNotice}>
+          {notice.message}
+        </button>
+      ) : null}
       {error !== null ? (
         <button type="button" className="status-banner status-banner--error" onClick={onDismiss}>
           {error.message}
@@ -305,7 +347,55 @@ export default function App(): JSX.Element {
     confirmMissionResult,
     confirmEndGame,
     sendReplayChoice,
+    chat,
+    invite,
+    notice,
+    sendChat,
+    report,
+    inviteFriend,
+    acceptInvite,
+    dismissInvite,
+    dismissNotice,
+    roomStatus,
   } = useGameSocket();
+  const account = useAccount();
+  const route = useRoute();
+  const friends = useFriends(account.status === "user");
+  const install = useInstallPrompt();
+
+  // Connecté : le pseudo du compte remplace le pseudo saisi, et le socket reste ouvert
+  // pour la présence en ligne et les invitations, même hors d'une room.
+  const accountName = account.user?.displayName ?? null;
+  useEffect(() => {
+    if (accountName !== null) {
+      setPseudo(accountName);
+      if (phase === "pseudo_entry") {
+        navigate("landing");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountName]);
+  useEffect(() => {
+    if (account.status === "user" && !socket.connected) {
+      socket.connect();
+    }
+  }, [account.status]);
+
+  // Retour de la connexion Google (?auth=ok|error|banned).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get("auth");
+    if (auth === null) {
+      return;
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+    if (auth === "ok") {
+      void account.refresh();
+    } else {
+      window.alert(auth === "banned" ? "Ce compte est suspendu." : "La connexion avec Google a échoué.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [joinCodeDraft, setJoinCodeDraft] = useState("");
   const [roomNameDraft, setRoomNameDraft] = useState("");
@@ -374,7 +464,8 @@ export default function App(): JSX.Element {
     }
 
     const computeBlocked = (): boolean =>
-      window.matchMedia("(max-width: 1024px) and (orientation: landscape)").matches;
+      // Seuls les téléphones à l'horizontale sont bloqués (écran tactile peu haut), pas les ordinateurs.
+      window.matchMedia("(orientation: landscape) and (max-height: 500px) and (pointer: coarse)").matches;
 
     const update = (): void => {
       setIsLandscapeBlocked(computeBlocked());
@@ -1347,10 +1438,57 @@ export default function App(): JSX.Element {
   );
   })();
 
+  const page =
+    route.page === "auth" ? (
+      account.status === "user" ? <ProfilePage account={account} userId={null} setup={false} /> : <AuthPage account={account} />
+    ) : route.page === "profile" ? (
+      <ProfilePage account={account} userId={route.userId} setup={route.setup} />
+    ) : route.page === "friends" ? (
+      <FriendsPage
+        signedIn={account.status === "user"}
+        view={friends.view}
+        refresh={friends.refresh}
+        canInvite={roomCode !== "" && roomStatus === "waiting"}
+        onInvite={inviteFriend}
+      />
+    ) : route.page === "about" ? (
+      <AboutPage />
+    ) : route.page === "legal" ? (
+      <LegalPage editorName={account.config?.legal.editorName ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
+    ) : null;
+
   return (
     <>
-      <StatusBanners error={error} onDismiss={dismissError} connection={connection} inRoom={roomCode !== ""} />
+      <Menu signedIn={account.status === "user"} displayName={accountName} pendingRequests={friends.view.incoming.length} install={install} />
+      <StatusBanners
+        error={error}
+        onDismiss={dismissError}
+        notice={notice}
+        onDismissNotice={dismissNotice}
+        invite={invite}
+        onAcceptInvite={() => {
+          acceptInvite();
+          goTo("/");
+        }}
+        onDismissInvite={dismissInvite}
+        connection={connection}
+        inRoom={roomCode !== ""}
+      />
       {screen}
+      {roomCode !== "" && myId !== null && route.page === "game" ? (
+        <ChatPanel
+          messages={chat}
+          myId={myId}
+          onSend={sendChat}
+          onReport={(message) => {
+            const reason = window.prompt(`Signaler le message de ${message.pseudo} ? Raison (facultatif) :`, "");
+            if (reason !== null) {
+              report({ messageId: message.id }, reason);
+            }
+          }}
+        />
+      ) : null}
+      {page}
     </>
   );
 }

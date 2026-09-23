@@ -110,4 +110,18 @@ describe("gameReducer", () => {
     const state = gameReducer(run(joined(), ["game_started", {}]), { type: "left_room" });
     expect(state).toMatchObject({ phase: "landing", roomCode: "", myId: null, players: [] });
   });
+
+  it("keeps the room chat and room invitations", () => {
+    const state = run(
+      joined(),
+      ["chat_history", { messages: [{ id: "m1", playerId: "p1", pseudo: "p1", text: "salut", at: 1 }, { bad: true }] }],
+      ["chat_message", { id: "m2", playerId: "p3", pseudo: "p3", text: "yo", at: 2 }],
+      ["room_invite", { from: { userId: "u1", displayName: "Karl" }, code: "OTHER" }],
+    );
+    expect(state.chat.map((m) => m.text)).toEqual(["salut", "yo"]);
+    expect(state.invite).toMatchObject({ code: "OTHER", fromName: "Karl" });
+    expect(run(state, ["room_invite", { from: {}, code: "ROOM" }]).invite?.code).toBe("OTHER");
+    const left = gameReducer(state, { type: "left_room" });
+    expect(left.chat).toEqual([]);
+  });
 });

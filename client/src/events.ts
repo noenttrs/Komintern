@@ -16,6 +16,9 @@ export const CLIENT_EVENTS = {
   END_GAME_CONFIRMED: "end_game_confirmed",
   REPLAY_CHOICE: "replay_choice",
   LEAVE_ROOM: "leave_room",
+  CHAT_SEND: "chat_send",
+  REPORT: "report",
+  INVITE_FRIEND: "invite_friend",
 } as const;
 
 export const SERVER_EVENTS = {
@@ -36,5 +39,12 @@ export const SERVER_EVENTS = {
   ROLES_REVEALED: "roles_revealed",
   PLAYER_AFK: "player_afk",
   RESYNC: "resync",
+  CHAT_MESSAGE: "chat_message",
+  CHAT_HISTORY: "chat_history",
+  REPORT_RECEIVED: "report_received",
+  ROOM_INVITE: "room_invite",
+  FRIEND_REQUEST: "friend_request",
+  FRIENDS_CHANGED: "friends_changed",
+  FRIEND_PRESENCE: "friend_presence",
   ERROR: "error",
 } as const;

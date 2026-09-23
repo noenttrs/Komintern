@@ -79,6 +79,12 @@ export interface GameActions {
   confirmMissionResult: () => void;
   confirmEndGame: () => void;
   sendReplayChoice: (choice: "replay" | "quit") => void;
+  sendChat: (text: string) => void;
+  report: (target: { playerId?: string; messageId?: string }, reason: string) => void;
+  inviteFriend: (userId: string) => void;
+  acceptInvite: () => void;
+  dismissInvite: () => void;
+  dismissNotice: () => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -242,6 +248,26 @@ export function useGameSocket(): UseGameSocketResult {
       },
       navigate: (phase) => dispatch({ type: "navigate", phase }),
       dismissError: () => dispatch({ type: "clear_error" }),
+      dismissNotice: () => dispatch({ type: "clear_notice" }),
+      dismissInvite: () => dispatch({ type: "dismiss_invite" }),
+      acceptInvite: () => {
+        const invite = stateRef.current.invite;
+        dispatch({ type: "dismiss_invite" });
+        if (invite !== null && stateRef.current.pseudo.trim() !== "") {
+          emitJoin(CLIENT_EVENTS.JOIN_ROOM, { code: invite.code });
+        }
+      },
+      sendChat: (text) => {
+        const trimmed = text.trim();
+        if (trimmed !== "") {
+          emitAction(CLIENT_EVENTS.CHAT_SEND, { text: trimmed.slice(0, 200) });
+        }
+      },
+      report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
+      inviteFriend: (userId) => {
+        emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });
+        dispatch({ type: "notice", message: "Invitation envoyée." });
+      },
       createRoom: (options) => {
         if (stateRef.current.pseudo.trim() === "") {
           dispatch({ type: "error", message: "Pseudo requis" });
