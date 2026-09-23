@@ -49,7 +49,9 @@ type RoomRecord = {
   status: RoomStatus;
   playerIds: string[];
   hostPlayerId: string | null;
-  targetPlayerCount: number;
+  /** Règles libres : de 4 à 11 joueurs. Preset ou règles perso : nombre exact. */
+  minPlayers: number;
+  maxPlayers: number;
   socketByPlayer: Map<string, string>;
   playerByUid: Map<string, string>;
   userIdByPlayer: Map<string, string>;
@@ -99,7 +101,6 @@ export type JoinResult = {
 const DEFAULT_AFK_TIMEOUT_MS = 60_000;
 const DEFAULT_EMPTY_ROOM_GRACE_MS = 120_000;
 const DEFAULT_MAX_ROOMS = 200;
-const DEFAULT_TARGET_PLAYERS = 5;
 
 export class RoomManager {
   private readonly io: Server;
@@ -130,15 +131,16 @@ export class RoomManager {
       throw new Error("room code already exists");
     }
 
-    let targetPlayerCount = DEFAULT_TARGET_PLAYERS;
+    let minPlayers = MIN_PLAYERS;
+    let maxPlayers = MAX_PLAYERS;
     let configuredPreset: RulesetPreset | undefined;
     let configuredRuleset: unknown;
     if (options.ruleset !== undefined && options.ruleset !== null) {
       configuredRuleset = parseRuleset(options.ruleset);
-      targetPlayerCount = (configuredRuleset as { player_count: number }).player_count;
+      minPlayers = maxPlayers = (configuredRuleset as { player_count: number }).player_count;
     } else if (options.rulesetPreset !== undefined && options.rulesetPreset !== null && options.rulesetPreset !== "") {
       configuredPreset = parsePreset(options.rulesetPreset);
-      targetPlayerCount = RULESET_PRESETS[configuredPreset].playerCount;
+      minPlayers = maxPlayers = RULESET_PRESETS[configuredPreset].playerCount;
     }
 
     this.rooms.set(code, {
@@ -146,7 +148,8 @@ export class RoomManager {
       status: "waiting",
       playerIds: [],
       hostPlayerId: null,
-      targetPlayerCount,
+      minPlayers,
+      maxPlayers,
       socketByPlayer: new Map(),
       playerByUid: new Map(),
       userIdByPlayer: new Map(),
@@ -161,7 +164,7 @@ export class RoomManager {
       nextChefId: null,
       starting: false,
     });
-    log.info("room created", { code, targetPlayerCount });
+    log.info("room created", { code, minPlayers, maxPlayers });
     return code;
   }
 
@@ -199,7 +202,7 @@ export class RoomManager {
     if (room.status !== "waiting" || room.starting) {
       throw new Error("the game has already started in this room");
     }
-    if (room.playerIds.length >= room.targetPlayerCount) {
+    if (room.playerIds.length >= room.maxPlayers) {
       throw new Error("room is full");
     }
 
@@ -376,7 +379,9 @@ export class RoomManager {
       })),
       code,
       hostPlayerId: room.hostPlayerId,
-      targetPlayerCount: room.targetPlayerCount,
+      targetPlayerCount: room.maxPlayers,
+      minPlayers: room.minPlayers,
+      maxPlayers: room.maxPlayers,
       status: room.status,
       chatEnabled: room.chatEnabled,
     };

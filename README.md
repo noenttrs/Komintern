@@ -21,13 +21,13 @@ Chacun joue sur son téléphone, autour d'une table ou à distance.
 
 ## Le jeu
 
-3 à 6 joueurs (le format de référence est à 5 : 2 nazis, 3 communistes). Les nazis connaissent tous les rôles ; les communistes ne connaissent que le leur. Chaque manche :
+4 à 11 joueurs (le format de référence est à 5 : 2 nazis, 3 communistes). Les nazis connaissent tous les rôles ; les communistes ne connaissent que le leur. Chaque manche :
 
 1. **Proposition** : le chef choisit une équipe.
 2. **Vote de confiance** : tout le monde vote publiquement. Il faut une majorité stricte, sinon le même chef repropose.
 3. **Mission** : l'équipe vote en secret. Un seul vote nazi fait échouer la mission.
 
-Le premier camp à 3 missions gagne. Règles complètes : [`docs/regles.md`](docs/regles.md).
+Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`docs/regles.md`](docs/regles.md).
 
 ## Fonctionnalités
 

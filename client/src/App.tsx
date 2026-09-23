@@ -313,6 +313,7 @@ export default function App(): JSX.Element {
     myId,
     hostId,
     targetPlayerCount,
+    minPlayers,
     players,
     phase,
     error,
@@ -427,7 +428,8 @@ export default function App(): JSX.Element {
   const [isLandscapeBlocked, setIsLandscapeBlocked] = useState(false);
 
   const isHost = myId !== null && hostId === myId;
-  const canStart = players.length >= targetPlayerCount;
+  const canStart = players.length >= minPlayers && players.length <= targetPlayerCount;
+  const flexibleRoom = minPlayers !== targetPlayerCount;
   const nameById = (id: string): string => {
     if (myId !== null && id === myId && pseudo.trim() !== "") {
       return pseudo;
@@ -843,9 +845,9 @@ export default function App(): JSX.Element {
 
           <label className="field-label">Regles</label>
           <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
-            <option value="default">Default</option>
-            <option value="preset">Preset</option>
-            <option value="custom">Custom</option>
+            <option value="default">Standard (de 4 à 11 joueurs)</option>
+            <option value="preset">Nombre de joueurs fixe</option>
+            <option value="custom">Règles personnalisées</option>
           </select>
 
           {rulesMode === "preset" ? (
@@ -863,7 +865,7 @@ export default function App(): JSX.Element {
               <input
                 type="number"
                 value={customPlayerCount}
-                min={3}
+                min={4}
                 max={11}
                 onChange={(event) => setCustomPlayerCount(Number(event.target.value))}
                 placeholder="player_count"
@@ -986,6 +988,9 @@ export default function App(): JSX.Element {
           </button>
           <h1>Salle d attente</h1>
           <p className="mono">{chatEnabled ? "Partie à distance · chat activé" : "Partie sur place · sans chat"}</p>
+          <p className="mono">
+            {flexibleRoom ? `${players.length} joueurs · de ${minPlayers} à ${targetPlayerCount}` : `${players.length} / ${targetPlayerCount} joueurs`}
+          </p>
           <ul className="plain-list">
             {players.map((player) => (
               <li key={player.id}>
@@ -995,7 +1000,9 @@ export default function App(): JSX.Element {
           </ul>
           {isHost ? (
             <button type="button" disabled={!canStart} onClick={startGame}>
-                {canStart ? "Demarrer" : `En attente de ${targetPlayerCount} joueurs`}
+                {canStart
+                  ? `Demarrer (${players.length} joueurs)`
+                  : `En attente : ${players.length} / ${minPlayers} joueurs minimum`}
             </button>
           ) : null}
           <button type="button" className="secondary" onClick={leaveRoom}>

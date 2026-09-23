@@ -128,4 +128,9 @@ describe("gameReducer", () => {
     const left = gameReducer(state, { type: "left_room" });
     expect(left.chat).toEqual([]);
   });
+
+  it("knows the start range of a flexible room", () => {
+    const state = run(initialGameState("Rosa", ""), ["room_joined", { playerId: "p1", ...room({ minPlayers: 4, maxPlayers: 11, targetPlayerCount: 11 }) }]);
+    expect([state.minPlayers, state.targetPlayerCount]).toEqual([4, 11]);
+  });
 });

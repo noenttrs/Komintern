@@ -42,7 +42,10 @@ export interface GameState {
   roomCode: string;
   myId: string | null;
   hostId: string | null;
+  /** Nombre maximal de joueurs de la room. */
   targetPlayerCount: number;
+  /** La partie peut démarrer à partir de ce nombre de joueurs. */
+  minPlayers: number;
   players: RoomPlayer[];
   roomStatus: RoomStatus | null;
   /** Faux pour une partie sur place : le chat n'est pas affiché. */
@@ -137,7 +140,8 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     roomCode,
     myId: null,
     hostId: null,
-    targetPlayerCount: 5,
+    targetPlayerCount: 11,
+    minPlayers: 4,
     players: [],
     roomStatus: null,
     chatEnabled: true,
@@ -169,6 +173,7 @@ function applyRoom(state: GameState, payload: unknown): GameState {
     players: room.players.length > 0 ? room.players : state.players,
     hostId: room.hostId ?? state.hostId,
     targetPlayerCount: room.targetPlayerCount ?? state.targetPlayerCount,
+    minPlayers: room.minPlayers ?? room.targetPlayerCount ?? state.minPlayers,
     roomStatus: room.status ?? state.roomStatus,
     chatEnabled: room.chatEnabled ?? state.chatEnabled,
   };
@@ -202,7 +207,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         players: [],
         chat: [],
         roomStatus: null,
-        targetPlayerCount: 5,
+        targetPlayerCount: 11,
+        minPlayers: 4,
         phase: state.pseudo.trim() === "" ? "pseudo_entry" : "landing",
       };
     case "server":

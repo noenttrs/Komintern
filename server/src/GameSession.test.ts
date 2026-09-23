@@ -19,7 +19,7 @@ function setup(overrides: Partial<SessionConfig> = {}) {
   const session = new GameSession("ROOM", PLAYERS, sockets, recorder.io, {
     ruleset: resolveRulesetForPlayerCount(5),
     getActivePlayerIds: () => PLAYERS.filter((id) => active.has(id)),
-    getRoomPayload: () => ({ players: [], code: "ROOM", hostPlayerId: "p1", targetPlayerCount: 5, status: "playing", chatEnabled: true }),
+    getRoomPayload: () => ({ players: [], code: "ROOM", hostPlayerId: "p1", targetPlayerCount: 5, minPlayers: 5, maxPlayers: 5, status: "playing", chatEnabled: true }),
     getHostPlayerId: () => "p1",
     onRevealComplete: () => {
       state.revealed = true;

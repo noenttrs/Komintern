@@ -90,7 +90,7 @@ test("double start creates a single session", async () => {
 
 test("placeholder presets and invalid rulesets are refused at creation", () => {
   const { manager } = setup();
-  assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_7J" }), /not playable/);
+  assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_3J" }), /unknown ruleset preset/);
   assert.throws(() => manager.createRoom({ rulesetPreset: "PRESET_99J" }), /unknown ruleset preset/);
   assert.throws(
     () =>
@@ -170,6 +170,18 @@ test("a room created for in-person play refuses chat messages", () => {
   assert.throws(() => manager.addChatMessage(code, player as string, "salut", "salut", false), /chat is disabled/);
   const remote = manager.createRoom();
   assert.equal(manager.getRoomPayload(remote).chatEnabled, true);
+});
+
+test("free rules rooms accept 4 to 11 players, preset rooms an exact count", async () => {
+  const { manager } = setup();
+  const free = manager.createRoom();
+  assert.deepEqual([manager.getRoomPayload(free).minPlayers, manager.getRoomPayload(free).maxPlayers], [4, 11]);
+  const players = Array.from({ length: 11 }, (_, index) => manager.joinRoom(free, `f${index}`).playerId);
+  assert.throws(() => manager.joinRoom(free, "f-extra"), /room is full/);
+  await manager.startGame(free, players[0] as string);
+
+  const seven = manager.createRoom({ rulesetPreset: "PRESET_7J" });
+  assert.deepEqual([manager.getRoomPayload(seven).minPlayers, manager.getRoomPayload(seven).maxPlayers], [7, 7]);
 });
 
 test("room creation is capped", () => {

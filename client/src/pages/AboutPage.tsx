@@ -20,8 +20,12 @@ export function AboutPage(): JSX.Element {
           <li><strong>Mission</strong> — chaque membre de l'équipe vote en secret. Un seul vote nazi suffit à faire échouer la mission ; les communistes ne peuvent voter que communiste.</li>
         </ol>
         <p>Le premier camp à remporter 3 missions gagne. Le rôle de chef tourne à chaque nouvelle manche.</p>
-        <h2>À 5 joueurs</h2>
-        <p>2 nazis, 3 communistes, 5 missions avec des équipes de 2, 3, 2, 3 et 3 joueurs. D'autres formats (3, 4 et 6 joueurs) sont disponibles.</p>
+        <h2>De 4 à 11 joueurs</h2>
+        <p>
+          Il faut remporter (joueurs ÷ 2) + 1 missions : 3 à 4-5 joueurs, 4 à 6-7, 5 à 8-9, 6 à 10-11. À 5 joueurs : 2 nazis,
+          3 communistes, 5 missions avec des équipes de 2, 3, 2, 3 et 3 joueurs. Une équipe ne dépasse jamais le nombre de
+          communistes : une équipe sans nazi est toujours possible.
+        </p>
         <h2>Compte facultatif</h2>
         <p>
           On joue sans inscription. Un compte permet de garder ses statistiques (victoires, défaites, parties jouées dans chaque camp),

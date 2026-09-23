@@ -2,103 +2,60 @@ from __future__ import annotations
 
 import unittest
 
-from gameengine.constants import (
-    PRESET_3J,
-    PRESET_5J,
-    PRESET_6J,
-    PRESET_7J,
-    PRESET_8J,
-    PRESET_9J,
-    PRESET_10J,
-    PRESET_11J,
-)
+from gameengine.constants import PRESETS
 from gameengine.types import InfoMode, Ruleset
 
 
-class RulesetValidationTests(unittest.TestCase):
-    def test_all_presets_respect_core_validation_contract(self) -> None:
-        presets = [
-            PRESET_3J,
-            PRESET_5J,
-            PRESET_6J,
-            PRESET_7J,
-            PRESET_8J,
-            PRESET_9J,
-            PRESET_10J,
-            PRESET_11J,
-        ]
+class PresetTests(unittest.TestCase):
+    def test_presets_cover_4_to_11_players(self) -> None:
+        self.assertEqual(sorted(PRESETS), list(range(4, 12)))
 
-        for preset in presets:
-            with self.subTest(player_count=preset.player_count):
-                self.assertEqual(preset.nazi_count + preset.communist_count, preset.player_count)
-                self.assertEqual(len(preset.mission_sizes), preset.mission_count)
-                self.assertLessEqual(preset.win_threshold, preset.mission_count)
+    def test_every_preset_follows_the_design_rules(self) -> None:
+        for count, preset in PRESETS.items():
+            with self.subTest(players=count):
+                threshold = count // 2 + 1
+                self.assertEqual(preset.win_threshold, threshold)
+                self.assertEqual(preset.mission_count, 2 * threshold - 1, "just enough missions for a winner")
+                self.assertEqual(preset.nazi_count + preset.communist_count, count)
+                self.assertLess(preset.nazi_count, preset.communist_count)
+                self.assertTrue(preset.is_playable)
+                self.assertLessEqual(max(preset.mission_sizes), preset.communist_count, "a nazi-free team must exist")
+                self.assertEqual(preset.mission_sizes[0], min(preset.mission_sizes), "games open with a small team")
                 self.assertEqual(preset.info_mode, InfoMode.FULL)
-                self.assertFalse(preset.experimental)
 
-    def test_preset_3j_matches_requested_configuration(self) -> None:
-        self.assertEqual(PRESET_3J.player_count, 3)
-        self.assertEqual(PRESET_3J.nazi_count, 1)
-        self.assertEqual(PRESET_3J.communist_count, 2)
-        self.assertEqual(PRESET_3J.mission_count, 3)
-        self.assertEqual(PRESET_3J.mission_sizes, [2, 2, 2])
 
-    def test_placeholder_mission_sizes_are_explicit_for_7j_9j_11j(self) -> None:
-        for preset in [PRESET_7J, PRESET_8J, PRESET_9J, PRESET_10J, PRESET_11J]:
-            with self.subTest(player_count=preset.player_count):
-                self.assertTrue(all(size == -1 for size in preset.mission_sizes))
+class RulesetValidationTests(unittest.TestCase):
+    def base(self, **overrides: object) -> dict[str, object]:
+        values: dict[str, object] = {
+            "player_count": 6,
+            "nazi_count": 2,
+            "communist_count": 4,
+            "mission_sizes": [2, 3, 3, 4, 3, 4, 4],
+            "mission_count": 7,
+            "win_threshold": 4,
+            "info_mode": InfoMode.FULL,
+            "experimental": False,
+        }
+        values.update(overrides)
+        return values
 
-    def test_custom_ruleset_rejects_invalid_faction_total(self) -> None:
-        with self.assertRaisesRegex(ValueError, r"nazi_count \+ communist_count"):
-            Ruleset(
-                player_count=6,
-                nazi_count=2,
-                communist_count=3,
-                mission_sizes=[2, 3, 2, 3, 3],
-                mission_count=5,
-                win_threshold=3,
-                info_mode=InfoMode.FULL,
-                experimental=False,
-            )
+    def test_valid(self) -> None:
+        Ruleset(**self.base())  # type: ignore[arg-type]
 
-    def test_custom_ruleset_rejects_invalid_mission_count_alignment(self) -> None:
-        with self.assertRaisesRegex(ValueError, "mission_sizes length"):
-            Ruleset(
-                player_count=6,
-                nazi_count=2,
-                communist_count=4,
-                mission_sizes=[2, 3],
-                mission_count=5,
-                win_threshold=3,
-                info_mode=InfoMode.FULL,
-                experimental=False,
-            )
+    def test_invalid(self) -> None:
+        cases = {
+            "faction total": {"communist_count": 3},
+            "mission count alignment": {"mission_sizes": [2, 3]},
+            "threshold above missions": {"win_threshold": 8},
+            "blind without experimental": {"info_mode": InfoMode.BLIND},
+            "fewer than 4 players": {"player_count": 3, "nazi_count": 1, "communist_count": 2},
+        }
+        for name, overrides in cases.items():
+            with self.subTest(name), self.assertRaises(ValueError):
+                Ruleset(**self.base(**overrides))  # type: ignore[arg-type]
 
-    def test_custom_ruleset_rejects_invalid_win_threshold(self) -> None:
-        with self.assertRaisesRegex(ValueError, "win_threshold"):
-            Ruleset(
-                player_count=6,
-                nazi_count=2,
-                communist_count=4,
-                mission_sizes=[2, 3, 2, 3, 3],
-                mission_count=5,
-                win_threshold=6,
-                info_mode=InfoMode.FULL,
-                experimental=False,
-            )
-
-    def test_blind_mode_requires_experimental_flag(self) -> None:
-        with self.assertRaisesRegex(ValueError, "blind mode requires experimental"):
-            Ruleset(
-                player_count=6,
-                nazi_count=2,
-                communist_count=4,
-                mission_sizes=[2, 3, 2, 3, 3],
-                mission_count=5,
-                win_threshold=3,
-                info_mode=InfoMode.BLIND,
-                experimental=False,
-            )
+    def test_team_larger_than_communists_is_not_playable(self) -> None:
+        self.assertFalse(Ruleset(**self.base(mission_sizes=[2, 3, 3, 5, 3, 4, 4])).is_playable)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

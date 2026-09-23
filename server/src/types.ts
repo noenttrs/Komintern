@@ -34,7 +34,11 @@ export interface RoomUpdatedPayload {
   players: PlayerSummary[];
   code: string;
   hostPlayerId: string | null;
+  /** Nombre maximal de joueurs (alias historique de maxPlayers). */
   targetPlayerCount: number;
+  /** La partie peut démarrer à partir de minPlayers joueurs, jusqu'à maxPlayers. */
+  minPlayers: number;
+  maxPlayers: number;
   status: RoomStatus;
   /** Faux pour une partie jouée sur place : pas de chat. */
   chatEnabled: boolean;

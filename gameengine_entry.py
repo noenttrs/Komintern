@@ -6,24 +6,14 @@ from dataclasses import asdict
 from enum import Enum
 from typing import Any
 
-from gameengine.constants import PRESET_3J, PRESET_4J, PRESET_5J, PRESET_6J, PRESET_7J, PRESET_8J, PRESET_9J, PRESET_10J, PRESET_11J
+from gameengine.constants import PRESET_5J, PRESETS
 from gameengine.game_manager import GameManager
 from gameengine.round_manager import RoundManager
 from gameengine.utils import make_rng
 from gameengine.types import ConfidenceVote, Faction, GameState, InfoMode, MissionVote, RoundPhase, RoundState, Ruleset
 
 
-PRESET_BY_NAME: dict[str, Ruleset] = {
-    "PRESET_3J": PRESET_3J,
-    "PRESET_4J": PRESET_4J,
-    "PRESET_5J": PRESET_5J,
-    "PRESET_6J": PRESET_6J,
-    "PRESET_7J": PRESET_7J,
-    "PRESET_8J": PRESET_8J,
-    "PRESET_9J": PRESET_9J,
-    "PRESET_10J": PRESET_10J,
-    "PRESET_11J": PRESET_11J,
-}
+PRESET_BY_NAME: dict[str, Ruleset] = {f"PRESET_{count}J": preset for count, preset in PRESETS.items()}
 
 
 def _enum_name(value: Enum) -> str:
@@ -112,7 +102,7 @@ class EngineBridge:
         # Tout est construit en local : un échec ne modifie pas la partie en cours.
         ruleset = self._parse_ruleset(args)
         if not ruleset.is_playable:
-            raise ValueError("ruleset has unconfigured (placeholder) mission sizes and cannot be played")
+            raise ValueError("each mission size must be between 1 and the number of communists")
         rng = make_rng(seed)
         game_manager = GameManager(player_ids, chef_cursor, ruleset, rng)
         game_state = game_manager.start_game()

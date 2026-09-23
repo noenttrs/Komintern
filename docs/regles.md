@@ -4,18 +4,38 @@
 
 ## Vue d'ensemble
 
-Jeu de déduction sociale pour **5 joueurs**, opposant deux factions secrètes sur une série de **5 missions**. La première faction à remporter **3 missions** gagne la partie.
+Jeu de déduction sociale pour **4 à 11 joueurs**, opposant deux factions secrètes sur une série de missions. La première faction à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne la partie. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
+
+### Formats
+
+| Joueurs | Nazis | Communistes | Victoires pour gagner | Missions (taille des équipes) |
+|---|---|---|---|---|
+| 4 | 1 | 3 | 3 | 2 · 3 · 2 · 3 · 3 |
+| 5 | 2 | 3 | 3 | 2 · 3 · 2 · 3 · 3 |
+| 6 | 2 | 4 | 4 | 2 · 3 · 3 · 4 · 3 · 4 · 4 |
+| 7 | 3 | 4 | 4 | 2 · 3 · 3 · 4 · 3 · 4 · 4 |
+| 8 | 3 | 5 | 5 | 3 · 3 · 4 · 4 · 3 · 4 · 5 · 4 · 5 |
+| 9 | 3 | 6 | 5 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 6 |
+| 10 | 4 | 6 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 |
+| 11 | 4 | 7 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 6 · 5 · 6 · 6 · 7 |
+
+Principes de calibrage :
+- **Juste assez de missions** pour qu'un camp atteigne forcément le seuil.
+- **Ouverture avec une petite équipe**, pour installer la confiance, puis alternance de petites et grandes équipes pour faire monter la tension.
+- **Une équipe ne dépasse jamais le nombre de communistes** : une équipe sans nazi reste toujours possible.
+
+À moins de 4 joueurs, le jeu n'est pas jouable.
 
 ---
 
 ## Les factions
 
-### Les Nazis — 2 joueurs
+### Les Nazis — une minorité (2 à 5 joueurs)
 - Reçoivent **la liste complète des rôles de tous les joueurs** de la partie
 - Peuvent voter **Nazi ou Communist** lors des missions
 - Objectif : faire échouer les missions en glissant des votes Nazi
 
-### Les Communistes — 3 joueurs
+### Les Communistes — la majorité
 - Connaissent **uniquement leur propre rôle**
 - Ne connaissent **pas l'identité des autres joueurs**
 - Peuvent uniquement voter **Communist** lors des missions
@@ -36,11 +56,7 @@ Chaque manche se déroule en **3 phases** :
 
 ### Phase 1 — Proposition du Chef
 
-Le Chef désigne les joueurs qu'il souhaite envoyer en mission, selon la taille requise :
-
-| Mission | 1ère | 2ème | 3ème | 4ème | 5ème |
-|---------|------|------|------|------|------|
-| Nb joueurs | 2 | 3 | 2 | 3 | 3 |
+Le Chef désigne les joueurs qu'il souhaite envoyer en mission, selon la taille requise par la mission en cours (voir le tableau des formats).
 
 ### Phase 2 — Vote de confiance
 
@@ -79,14 +95,14 @@ Le rôle de Chef suit un **roulement continu** qui persiste entre les parties :
 
 ## Fin de partie
 
-La partie se termine dès qu'une faction atteint **3 victoires de mission** :
+La partie se termine dès qu'une faction atteint le **nombre de victoires requis** (3 à 5 joueurs, 4 à 6-7 joueurs, 5 à 8-9 joueurs, 6 à 10-11 joueurs) :
 
 | Condition | Vainqueur |
 |-----------|-----------|
-| 3 missions avec au moins 1 vote Nazi | Nazis |
-| 3 missions avec tous les votes Communist | Communistes |
+| Seuil atteint en missions avec au moins 1 vote Nazi | Nazis |
+| Seuil atteint en missions avec tous les votes Communist | Communistes |
 
 ---
 
-> **Version** : 0.1
+> **Version** : 0.2 (formats de 4 à 11 joueurs)
 > **Statut** : Base de travail pour le game engine

@@ -61,6 +61,7 @@ export type RoomSnapshot = {
   players: RoomPlayer[];
   hostId: string | null;
   targetPlayerCount: number | null;
+  minPlayers: number | null;
   status: RoomStatus | null;
   chatEnabled: boolean | null;
 };
@@ -91,7 +92,8 @@ export function parseRoom(value: unknown): RoomSnapshot {
     code: stringValue(payload.code),
     players,
     hostId: stringValue(payload.hostPlayerId) ?? players.find((player) => player.isHost)?.id ?? null,
-    targetPlayerCount: numberValue(payload.targetPlayerCount),
+    targetPlayerCount: numberValue(payload.maxPlayers) ?? numberValue(payload.targetPlayerCount),
+    minPlayers: numberValue(payload.minPlayers),
     status: status !== null && (ROOM_STATUSES as string[]).includes(status) ? (status as RoomStatus) : null,
     chatEnabled: boolValue(payload.chatEnabled),
   };

@@ -1,21 +1,19 @@
-// Miroir des presets de gameengine/constants.py. Le moteur reste l'autorité : ces données
-// servent à valider tôt (création de room) et à afficher les tailles de mission.
+// Miroir des presets de gameengine/constants.py (4 à 11 joueurs). Le moteur reste l'autorité :
+// ces données servent à valider tôt (création de room) et à afficher les tailles de mission.
 export const RULESET_PRESETS = {
-	PRESET_3J: { playerCount: 3, missionSizes: [2, 2, 2], missionCount: 3 },
-	PRESET_4J: { playerCount: 4, missionSizes: [2, 2, 2], missionCount: 3 },
-	PRESET_5J: { playerCount: 5, missionSizes: [2, 3, 2, 3, 3], missionCount: 5 },
-	PRESET_6J: { playerCount: 6, missionSizes: [2, 3, 2, 3, 3], missionCount: 5 },
-	// Tailles de mission encore à définir (placeholders -1) : non jouables.
-	PRESET_7J: { playerCount: 7, missionSizes: [-1, -1, -1, -1, -1, -1, -1], missionCount: 7 },
-	PRESET_8J: { playerCount: 8, missionSizes: [-1, -1, -1, -1, -1, -1, -1], missionCount: 7 },
-	PRESET_9J: { playerCount: 9, missionSizes: [-1, -1, -1, -1, -1, -1, -1, -1, -1], missionCount: 9 },
-	PRESET_10J: { playerCount: 10, missionSizes: [-1, -1, -1, -1, -1, -1, -1, -1, -1], missionCount: 9 },
-	PRESET_11J: { playerCount: 11, missionSizes: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1], missionCount: 11 },
+	PRESET_4J: { playerCount: 4, naziCount: 1, missionSizes: [2, 3, 2, 3, 3], missionCount: 5, winThreshold: 3 },
+	PRESET_5J: { playerCount: 5, naziCount: 2, missionSizes: [2, 3, 2, 3, 3], missionCount: 5, winThreshold: 3 },
+	PRESET_6J: { playerCount: 6, naziCount: 2, missionSizes: [2, 3, 3, 4, 3, 4, 4], missionCount: 7, winThreshold: 4 },
+	PRESET_7J: { playerCount: 7, naziCount: 3, missionSizes: [2, 3, 3, 4, 3, 4, 4], missionCount: 7, winThreshold: 4 },
+	PRESET_8J: { playerCount: 8, naziCount: 3, missionSizes: [3, 3, 4, 4, 3, 4, 5, 4, 5], missionCount: 9, winThreshold: 5 },
+	PRESET_9J: { playerCount: 9, naziCount: 3, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 6], missionCount: 9, winThreshold: 5 },
+	PRESET_10J: { playerCount: 10, naziCount: 4, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 5, 6, 6], missionCount: 11, winThreshold: 6 },
+	PRESET_11J: { playerCount: 11, naziCount: 4, missionSizes: [3, 4, 4, 5, 4, 5, 6, 5, 6, 6, 7], missionCount: 11, winThreshold: 6 },
 } as const;
 
 export type RulesetPreset = keyof typeof RULESET_PRESETS;
 
-export const MIN_PLAYERS = 3;
+export const MIN_PLAYERS = 4;
 export const MAX_PLAYERS = 11;
 
 type RawRulesetPayload = Record<string, unknown>;
@@ -38,8 +36,9 @@ export type ResolvedRuleset = {
 	missionCount: number;
 };
 
-export function isPlayable(playerCount: number, missionSizes: readonly number[]): boolean {
-	return missionSizes.every((size) => Number.isInteger(size) && size >= 1 && size <= playerCount);
+/** Chaque équipe tient entre 1 joueur et le nombre de communistes (une équipe sans nazi existe). */
+export function isPlayable(communistCount: number, missionSizes: readonly number[]): boolean {
+	return missionSizes.every((size) => Number.isInteger(size) && size >= 1 && size <= communistCount);
 }
 
 export function parsePreset(rawPreset: unknown): RulesetPreset {
@@ -49,10 +48,6 @@ export function parsePreset(rawPreset: unknown): RulesetPreset {
 	const normalized = rawPreset.toUpperCase();
 	if (!(normalized in RULESET_PRESETS)) {
 		throw new Error("unknown ruleset preset");
-	}
-	const preset = RULESET_PRESETS[normalized as RulesetPreset];
-	if (!isPlayable(preset.playerCount, preset.missionSizes)) {
-		throw new Error(`ruleset preset ${normalized} is not playable yet (mission sizes not configured)`);
 	}
 	return normalized as RulesetPreset;
 }
@@ -109,7 +104,7 @@ export function resolveRulesetForPlayerCount(
 /** Preset jouable correspondant à ce nombre de joueurs, ou null. */
 export function getPresetNameForPlayerCount(playerCount: number): RulesetPreset | null {
 	for (const [presetName, preset] of Object.entries(RULESET_PRESETS) as Array<[RulesetPreset, (typeof RULESET_PRESETS)[RulesetPreset]]>) {
-		if (preset.playerCount === playerCount && isPlayable(preset.playerCount, preset.missionSizes)) {
+		if (preset.playerCount === playerCount) {
 			return presetName;
 		}
 	}
@@ -163,8 +158,8 @@ export function parseRuleset(rawRuleset: unknown): ParsedRulesetPayload {
 	if (missionSizes.length !== missionCount) {
 		throw new Error("invalid ruleset: mission_sizes length must equal mission_count");
 	}
-	if (!isPlayable(playerCount, missionSizes)) {
-		throw new Error("invalid ruleset: each mission size must be between 1 and player_count");
+	if (!isPlayable(communistCount, missionSizes)) {
+		throw new Error("invalid ruleset: each mission size must be between 1 and communist_count");
 	}
 	if (winThreshold < 1) {
 		throw new Error("invalid ruleset: win_threshold must be >= 1");

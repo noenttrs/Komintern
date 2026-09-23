@@ -203,11 +203,18 @@ class StartGameValidationTests(unittest.TestCase):
             with self.subTest(chef_cursor=bad), self.assertRaises(ValueError):
                 bridge.start_game({"player_ids": PLAYERS_5, "chef_cursor": bad})
 
-    def test_placeholder_presets_cannot_start(self) -> None:
-        bridge = EngineBridge()
-        players = [f"p{i}" for i in range(7)]
-        with self.assertRaisesRegex(ValueError, "placeholder"):
-            bridge.start_game({"player_ids": players, "chef_cursor": 0, "ruleset_preset": "PRESET_7J"})
+    def test_every_preset_starts_and_plays_its_first_round(self) -> None:
+        for count in range(4, 12):
+            with self.subTest(players=count):
+                bridge = EngineBridge()
+                players = [f"p{index}" for index in range(count)]
+                round_state = bridge.start_game({"player_ids": players, "chef_cursor": 0, "ruleset_preset": f"PRESET_{count}J"})["round"]
+                self.assertEqual(round_state["mission_count"], 2 * (count // 2 + 1) - 1)
+                bridge.propose_team({"team": players[: round_state["required_team_size"]]})
+
+    def test_fewer_than_four_players_cannot_play(self) -> None:
+        with self.assertRaisesRegex(ValueError, "ruleset_preset"):
+            EngineBridge().start_game({"player_ids": ["a", "b", "c"], "chef_cursor": 0, "ruleset_preset": "PRESET_3J"})
 
     def test_preset_4j_is_available(self) -> None:
         bridge = EngineBridge()

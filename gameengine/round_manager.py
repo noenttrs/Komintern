@@ -169,7 +169,7 @@ class RoundManager:
     def _validate_team(self, team: list[str]) -> None:
         expected_size = self._ruleset.mission_sizes[self._mission_number]
         if expected_size <= 0:
-            raise ValueError(f"mission size for mission {self._mission_number + 1} is a placeholder and must be configured")
+            raise ValueError(f"mission size for mission {self._mission_number + 1} is invalid")
         if len(team) != expected_size:
             raise ValueError("invalid team size")
         if len(set(team)) != len(team):

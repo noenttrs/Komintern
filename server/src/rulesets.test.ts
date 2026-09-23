@@ -18,17 +18,20 @@ test("resolveRulesetForPlayerCount infers the matching playable preset", () => {
   const resolved = resolveRulesetForPlayerCount(5);
   assert.equal(resolved.playerCount, 5);
   assert.deepEqual(resolved.missionSizes, [2, 3, 2, 3, 3]);
-  assert.equal(getPresetNameForPlayerCount(4), "PRESET_4J");
-  assert.equal(getPresetNameForPlayerCount(7), null, "placeholder presets are not playable");
-  assert.throws(() => resolveRulesetForPlayerCount(7), /no playable ruleset/);
+  for (let count = 4; count <= 11; count += 1) {
+    assert.equal(getPresetNameForPlayerCount(count), `PRESET_${count}J`);
+    const resolved = resolveRulesetForPlayerCount(count);
+    assert.equal(resolved.missionCount, 2 * (Math.floor(count / 2) + 1) - 1);
+  }
+  assert.throws(() => resolveRulesetForPlayerCount(3), /at least 4 players/);
 });
 
 test("parseRuleset mirrors the engine validation", () => {
   assert.deepEqual(parseRuleset(BASE).mission_sizes, [2, 3, 2, 3, 3]);
   const invalid: Array<[string, Record<string, unknown>, RegExp]> = [
     ["length", { mission_sizes: [2, 3] }, /mission_sizes length/],
-    ["zero size", { mission_sizes: [0, 3, 2, 3, 3] }, /between 1 and player_count/],
-    ["oversized", { mission_sizes: [6, 3, 2, 3, 3] }, /between 1 and player_count/],
+    ["zero size", { mission_sizes: [0, 3, 2, 3, 3] }, /between 1 and communist_count/],
+    ["larger than the communists", { mission_sizes: [4, 3, 2, 3, 3] }, /between 1 and communist_count/],
     ["draw", { mission_sizes: [2, 3, 2, 3], mission_count: 4 }, /draw would be possible/],
     ["threshold", { win_threshold: 0 }, /win_threshold must be >= 1/],
     ["negative", { nazi_count: -1, communist_count: 6 }, /each faction/],

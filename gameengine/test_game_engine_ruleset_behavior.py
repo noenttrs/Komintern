@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from gameengine.constants import PRESET_3J, PRESET_5J, PRESET_7J
+from gameengine.constants import PRESET_4J, PRESET_5J
 from gameengine.game_manager import GameManager
 from gameengine.round_manager import RoundManager
 from gameengine.types import Faction, GameState, InfoMode, Player, RoundPhase, Ruleset
@@ -83,26 +83,6 @@ class RoundAndBridgeRulesetTests(unittest.TestCase):
         manager = GameManager(["a", "b", "c", "d", "e"], 0)
         self.assertEqual(manager.ruleset, PRESET_5J)
 
-    def test_placeholder_mission_size_raises_explicit_error(self) -> None:
-        state = GameState(
-            players=[
-                Player(id="p1", faction=Faction.NAZI),
-                Player(id="p2", faction=Faction.NAZI),
-                Player(id="p3", faction=Faction.NAZI),
-                Player(id="p4", faction=Faction.COMMUNIST),
-                Player(id="p5", faction=Faction.COMMUNIST),
-                Player(id="p6", faction=Faction.COMMUNIST),
-                Player(id="p7", faction=Faction.COMMUNIST),
-            ],
-            chef_cursor=0,
-            nazi_wins=0,
-            communist_wins=0,
-        )
-        round_manager = RoundManager(state, 0, PRESET_7J)
-
-        with self.assertRaisesRegex(ValueError, "placeholder"):
-            round_manager.propose_team(["p1"])
-
     def test_bridge_submit_mission_votes_exposes_nazi_vote_count(self) -> None:
         bridge = EngineBridge()
         player_ids = ["a", "b", "c", "d", "e"]
@@ -137,22 +117,22 @@ class RoundAndBridgeRulesetTests(unittest.TestCase):
         round_state = bridge._require_round().get_state()  # noqa: SLF001
         self.assertEqual(round_state.phase, RoundPhase.PROPOSING)
 
-    def test_bridge_accepts_preset_3j(self) -> None:
+    def test_bridge_accepts_preset_4j(self) -> None:
         bridge = EngineBridge()
-        player_ids = ["a", "b", "c"]
+        player_ids = ["a", "b", "c", "d"]
 
         start_result = bridge.start_game(
             {
                 "player_ids": player_ids,
                 "chef_cursor": 0,
-                "ruleset_preset": "PRESET_3J",
+                "ruleset_preset": "PRESET_4J",
             }
         )
         self.assertEqual(start_result["status"], "ok")
 
         views = {player_id: bridge.get_player_view({"player_id": player_id}) for player_id in player_ids}
         nazi_ids = [player_id for player_id, view in views.items() if len(view) > 1]
-        self.assertEqual(len(nazi_ids), PRESET_3J.nazi_count)
+        self.assertEqual(len(nazi_ids), PRESET_4J.nazi_count)
 
 
 if __name__ == "__main__":

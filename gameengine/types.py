@@ -47,8 +47,8 @@ class Ruleset:
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
                 raise ValueError(f"invalid ruleset: {field_name} must be an integer")
-        if self.player_count < 2:
-            raise ValueError("invalid ruleset: player_count must be >= 2")
+        if self.player_count < 4:
+            raise ValueError("invalid ruleset: player_count must be >= 4")
         if self.nazi_count < 1 or self.communist_count < 1:
             raise ValueError("invalid ruleset: each faction needs at least one player")
         if self.mission_count < 1:
@@ -70,9 +70,11 @@ class Ruleset:
 
     @property
     def is_playable(self) -> bool:
-        """False tant que des tailles de mission sont des placeholders (-1)."""
+        """Vrai si chaque équipe tient entre 1 joueur et le nombre de communistes."""
+        # Une équipe ne doit jamais dépasser le nombre de communistes : sinon aucune
+        # équipe sans nazi n'est possible et la mission est perdue d'avance.
         return all(
-            not isinstance(size, bool) and isinstance(size, int) and 1 <= size <= self.player_count
+            not isinstance(size, bool) and isinstance(size, int) and 1 <= size <= self.communist_count
             for size in self.mission_sizes
         )
 
