@@ -20,14 +20,16 @@ Le rôle de chef tourne d'un joueur à chaque nouvelle manche, et la rotation co
 
 ## Comment jouer
 
-- Ouvrir https://fascismwontget.me, choisir un pseudo, créer une room et partager son code (ou rejoindre une room avec un code).
-- Aucun compte n'est nécessaire. Un compte facultatif (email + mot de passe, ou Google) garde les statistiques (victoires, défaites, parties jouées dans chaque camp), permet d'ajouter des amis, de voir s'ils sont en ligne et de les inviter dans sa room.
+- Ouvrir https://fascismwontget.me, choisir un pseudo, créer une room et partager son lien d'invitation ou son QR code (ou rejoindre avec un code, ou une partie publique).
+- Deux modes : « sur place » (sans chat, autour d'une table) ou « à distance » (avec chat).
+- Aucun compte n'est nécessaire. Un compte facultatif (email + mot de passe, ou Google, double authentification possible) garde les statistiques, les succès et l'historique des parties, donne accès aux parties publiques et permet d'ajouter des amis, de voir s'ils sont en ligne, de les inviter et de se comparer dans un classement.
 - Le site s'installe comme une application (web app) sur mobile et ordinateur.
 
 ## Pages
 
 - [Accueil et jeu](https://fascismwontget.me/)
-- [À propos et règles](https://fascismwontget.me/a-propos)
+- [Règles complètes](https://fascismwontget.me/regles)
+- [À propos](https://fascismwontget.me/a-propos)
 - [Mentions légales et confidentialité](https://fascismwontget.me/mentions-legales)
 - [Version HTML de cette description](https://fascismwontget.me/agents.html)
 

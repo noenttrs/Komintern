@@ -173,3 +173,19 @@ Nouvelles surfaces introduites et mesures prises :
 | Adapter Redis de Socket.IO | Désactivé par défaut (`SOCKET_REDIS_ADAPTER`) : sans multi-instance, il n'apporte rien et une panne Redis ne doit jamais couper les parties. |
 
 Tests ajoutés : 15 unitaires côté serveur (comptes, filtre, logs, anonymisation, pseudonymisation), un e2e complet (API, cookies, amis, présence, invitation, chat modéré, signalement, partie avec des comptes, stats, suppression de compte), 7 côté client (menu, chat, pages, routeur), et des tests visuels Playwright en 6 tailles d'écran plus un test PWA.
+
+
+---
+
+# v3 — ouverture au public (2026-09-23)
+
+| Sujet | Mesure |
+|---|---|
+| Fiabilité | CI GitHub Actions (moteur, serveur, client, images Docker), `/api/health` pour la surveillance, sauvegardes quotidiennes avec rotation. |
+| Formats 4 à 11 joueurs | Seuil de victoire (joueurs ÷ 2) + 1, juste assez de missions, équipes jamais plus grandes que le nombre de communistes (validé côté moteur et serveur). |
+| Rooms publiques | Réservées aux comptes (bannissements efficaces), chat toujours actif, liste limitée aux rooms au salon et non pleines. |
+| Contrôles de l'hôte | Exclusion définitive de la room (secret de reconnexion et compte bloqués), transfert d'hôte, changement de mode, uniquement au salon. |
+| Double authentification joueurs | TOTP facultatif, défi de connexion à usage unique (5 min), codes non rejouables, 5 essais / 15 min, aussi après Google. |
+| Changement d'email | Mot de passe actuel exigé, code envoyé à la nouvelle adresse, ancienne adresse prévenue. |
+| Mesure d'audience | Sans cookie ni tiers : HyperLogLog d'empreintes salées (sel quotidien en mémoire uniquement), chemins normalisés sans identifiants, robots ignorés, Do Not Track et opposition respectés. |
+| Bugs corrigés trouvés par les tests de bout en bout | Stats perdues quand tout le monde quittait depuis l'écran de fin (enregistrement dès que le vainqueur est connu, parties abandonnées tracées comme annulées) ; lien d'invitation parfois ignoré pour un joueur connecté (demande d'entrée renvoyée à la connexion au lieu du tampon Socket.IO) ; salle d'attente et carte débordant de l'écran sur petits téléphones. |

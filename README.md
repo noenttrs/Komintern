@@ -31,12 +31,17 @@ Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`doc
 
 ## Fonctionnalités
 
-- **Parties en temps réel** via WebSocket, avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
+- **Parties en temps réel** de 4 à 11 joueurs via WebSocket, avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
+- **Rejoindre en un scan** : lien d'invitation `/r/CODE` et QR code plein écran ; **rooms publiques** pour jouer avec des inconnus.
+- **Sur place ou à distance** : sans chat autour d'une table, avec chat à distance. L'hôte peut exclure un joueur, transférer son rôle ou changer de mode.
 - **Jouable sans compte.** Le compte est facultatif : email + mot de passe avec code de validation, ou Google.
-- **Profil et statistiques** : victoires, défaites, taux de victoire, détail par camp.
-- **Amis** : demandes, présence en ligne ou en partie, invitation dans sa room, profil visible uniquement par les amis.
+- **Profil et statistiques** : victoires, défaites, taux de victoire, détail par camp, succès, historique des parties.
+- **Amis** : demandes, présence en ligne ou en partie, invitation dans sa room, classement, profil visible uniquement par les amis.
+- **Sécurité du compte** : double authentification TOTP facultative, changement d'email confirmé par code.
+- **Prise en main** : règles consultables en pleine partie, astuces de première partie, vibration et son quand c'est son tour.
 - **Chat de room repliable** pour jouer à distance, avec **modération** : filtre de termes et signalements, puis dossiers pseudonymisés avec levée d'anonymat tracée.
-- **Administration** protégée par une double authentification (TOTP) : statistiques globales, signalements, messages de contact.
+- **Administration** protégée par une double authentification (TOTP) : statistiques globales, audience, signalements, messages de contact.
+- **Mesure d'audience anonyme**, sans cookie ni service tiers (empreinte hachée avec un sel quotidien jamais conservé).
 - **Web app installable** (PWA) et **responsive**, du 320 px au grand écran, dans une direction artistique monochrome.
 - **Pages pour les agents IA** : [`llms.txt`](https://fascismwontget.me/llms.txt) et [`agents.html`](https://fascismwontget.me/agents.html).
 
@@ -87,10 +92,11 @@ Sans clé Resend, les codes de validation s'affichent dans `docker compose logs 
 scripts/check.sh        # lint, types, tests moteur, serveur et client, build Docker, intégration des bases
 ```
 
-- **Moteur** : 41 tests (règles, validation, protocole).
-- **Serveur** : 63 tests, dont des parties complètes avec le vrai moteur, les comptes, les amis, le chat modéré et l'administration.
-- **Client** : 32 tests (reducer, hooks, écrans).
-- **Tests visuels Playwright** : parties à 5 joueurs dans 5 navigateurs mobiles, et contrôle de la mise en page de 320 à 1440 px.
+- **Moteur** : tests des règles, des 8 formats (4 à 11 joueurs), de la validation et du protocole.
+- **Serveur** : tests unitaires et de bout en bout, dont des parties complètes avec le vrai moteur, les comptes, la double authentification, les amis, le chat modéré, les rooms publiques et l'administration.
+- **Client** : tests du reducer, des hooks et des écrans.
+- **Tests visuels Playwright** : parties à 5 joueurs dans 5 navigateurs mobiles (sur place et à distance, liens d'invitation), et contrôle de la mise en page de 320 à 1440 px.
+- **CI GitHub Actions** sur chaque push.
 - **Images Docker** : elles ne se construisent que si les tests passent.
 
 ## Structure
