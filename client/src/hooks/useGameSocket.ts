@@ -85,6 +85,9 @@ export interface GameActions {
   acceptInvite: () => void;
   dismissInvite: () => void;
   dismissNotice: () => void;
+  kickPlayer: (playerId: string) => void;
+  transferHost: (playerId: string) => void;
+  setChatMode: (enabled: boolean) => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -175,6 +178,11 @@ export function useGameSocket(): UseGameSocketResult {
     socket.on("connect_error", onConnectError);
     socket.on(SERVER_EVENTS.ROOM_JOINED, onRoomJoined);
     socket.on(SERVER_EVENTS.ERROR, onError);
+    const onKicked = (): void => {
+      forgetRoom();
+      dispatch({ type: "notice", message: "L'hôte t'a retiré de la room." });
+    };
+    socket.on(SERVER_EVENTS.KICKED, onKicked);
 
     // Rechargement en pleine partie : on se reconnecte et on reprend sa place.
     if (readStorage("session", ROOM_STORAGE_KEY) !== "" && stateRef.current.pseudo.trim() !== "") {
@@ -195,6 +203,7 @@ export function useGameSocket(): UseGameSocketResult {
       socket.off("connect_error", onConnectError);
       socket.off(SERVER_EVENTS.ROOM_JOINED, onRoomJoined);
       socket.off(SERVER_EVENTS.ERROR, onError);
+      socket.off(SERVER_EVENTS.KICKED, onKicked);
     };
   }, []);
 
@@ -263,6 +272,9 @@ export function useGameSocket(): UseGameSocketResult {
           emitAction(CLIENT_EVENTS.CHAT_SEND, { text: trimmed.slice(0, 200) });
         }
       },
+      kickPlayer: (playerId) => emitAction(CLIENT_EVENTS.KICK_PLAYER, { playerId }),
+      transferHost: (playerId) => emitAction(CLIENT_EVENTS.TRANSFER_HOST, { playerId }),
+      setChatMode: (enabled) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { chatEnabled: enabled }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });

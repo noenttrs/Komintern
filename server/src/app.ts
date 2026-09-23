@@ -322,6 +322,33 @@ export function createKominternApp(options: AppOptions): KominternApp {
       notify(friendId, SERVER_EVENTS.ROOM_INVITE, { from: { userId: user.userId, displayName: user.displayName }, code: context.roomId });
     });
 
+    on(socket, CLIENT_EVENTS.KICK_PLAYER, "invalid_kick", async (payload) => {
+      const context = requireContext(socket);
+      const targetId = typeof payload.playerId === "string" ? payload.playerId : "";
+      const kickedSocketId = roomManager.kickPlayer(context.roomId, context.playerId, targetId);
+      if (kickedSocketId !== undefined) {
+        socketContext.delete(kickedSocketId);
+        const kicked = io.sockets.sockets.get(kickedSocketId);
+        if (kicked !== undefined) {
+          await kicked.leave(context.roomId);
+          kicked.emit(SERVER_EVENTS.KICKED, { code: context.roomId });
+        }
+      }
+    });
+
+    on(socket, CLIENT_EVENTS.TRANSFER_HOST, "invalid_transfer_host", (payload) => {
+      const context = requireContext(socket);
+      roomManager.transferHost(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "");
+    });
+
+    on(socket, CLIENT_EVENTS.SET_ROOM_OPTIONS, "invalid_room_options", (payload) => {
+      const context = requireContext(socket);
+      if (typeof payload.chatEnabled !== "boolean") {
+        throw new Error("chatEnabled must be a boolean");
+      }
+      roomManager.setChatEnabled(context.roomId, context.playerId, payload.chatEnabled);
+    });
+
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
       const pseudo = parsePseudo(payload.pseudo);
       pendingPseudoBySocket.set(socket.id, pseudo);

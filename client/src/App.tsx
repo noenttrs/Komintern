@@ -363,6 +363,9 @@ export default function App(): JSX.Element {
     dismissNotice,
     roomStatus,
     chatEnabled,
+    kickPlayer,
+    transferHost,
+    setChatMode,
   } = useGameSocket();
   const account = useAccount();
   const route = useRoute();
@@ -1002,23 +1005,63 @@ export default function App(): JSX.Element {
           <p className="mono">
             {flexibleRoom ? `${players.length} joueurs · de ${minPlayers} à ${targetPlayerCount}` : `${players.length} / ${targetPlayerCount} joueurs`}
           </p>
-          <ul className="plain-list">
+          {isHost ? (
+            <div className="segmented" role="radiogroup" aria-label="Mode de jeu">
+              <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>
+                Sur place
+              </button>
+              <button type="button" role="radio" aria-checked={chatEnabled} className={chatEnabled ? "" : "secondary"} onClick={() => setChatMode(true)}>
+                À distance
+              </button>
+            </div>
+          ) : null}
+          <ul className="plain-list lobby-players">
             {players.map((player) => (
-              <li key={player.id}>
+              <li key={player.id} className="lobby-player">
+                <span className="lobby-player__name">
                   {player.pseudo ?? player.id} {player.isHost ? "(hôte)" : ""} {player.isConnected === false ? "(déconnecté)" : ""}
+                </span>
+                {isHost && player.id !== myId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary icon-button"
+                      title="Donner le rôle d'hôte"
+                      aria-label={`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"}`}
+                      onClick={() => {
+                        if (window.confirm(`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"} ?`)) transferHost(player.id);
+                      }}
+                    >
+                      ♔
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary icon-button"
+                      title="Exclure"
+                      aria-label={`Exclure ${player.pseudo ?? "ce joueur"}`}
+                      onClick={() => {
+                        if (window.confirm(`Exclure ${player.pseudo ?? "ce joueur"} de la room ?`)) kickPlayer(player.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
-          {isHost ? (
-            <button type="button" disabled={!canStart} onClick={startGame}>
+          <div className="lobby-actions">
+            {isHost ? (
+              <button type="button" disabled={!canStart} onClick={startGame}>
                 {canStart
                   ? `Demarrer (${players.length} joueurs)`
                   : `En attente : ${players.length} / ${minPlayers} joueurs minimum`}
+              </button>
+            ) : null}
+            <button type="button" className="secondary" onClick={leaveRoom}>
+              Quitter
             </button>
-          ) : null}
-          <button type="button" className="secondary" onClick={leaveRoom}>
-            Quitter
-          </button>
+          </div>
         </section>
       </main>
     );

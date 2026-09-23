@@ -42,7 +42,9 @@ async function check(page: Page, file: string): Promise<void> {
       found.push(`card cut at the bottom (${Math.round(rect(card).bottom)} > ${window.innerHeight})`);
     }
     const floating = [...document.querySelectorAll(".menu-toggle, .chat-toggle")].map(rect);
+    // Les listes défilantes (joueurs du salon) peuvent sortir de l'écran ; pas les actions principales.
     const controls = [...document.querySelectorAll(".card__face--front button, .panel button, .card__face--front input")].filter((el) => {
+      if (el.closest(".lobby-players") !== null) return false;
       const r = rect(el);
       return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden";
     });

@@ -1326,3 +1326,49 @@ textarea {
   padding: 0.4rem;
   font-size: 0.85rem;
 }
+
+/* Salle d'attente : actions de l'hôte sur chaque joueur */
+.lobby-players {
+  max-height: none;
+}
+
+.lobby-player {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.4rem;
+}
+
+.lobby-player__name {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.icon-button {
+  width: 2.4rem;
+  min-height: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+/* Les panneaux défilants tiennent dans l'espace sous le couloir du menu. */
+.panel--scroll {
+  max-height: calc(var(--vh) - 2 * var(--screen-gap) - 4.4rem - env(safe-area-inset-top, 0px));
+}
+
+/* Démarrer / Quitter restent visibles en bas de la salle d'attente, même avec 11 joueurs. */
+.lobby-actions {
+  position: sticky;
+  bottom: -1rem;
+  margin: 0 -1rem -1rem;
+  padding: 0.7rem 1rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+  background: var(--bg);
+  border-top: 1px solid var(--line-soft);
+}
+
+.lobby-player {
+  min-height: 2.2rem;
+}

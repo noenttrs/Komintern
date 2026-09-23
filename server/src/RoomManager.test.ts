@@ -184,6 +184,27 @@ test("free rules rooms accept 4 to 11 players, preset rooms an exact count", asy
   assert.deepEqual([manager.getRoomPayload(seven).minPlayers, manager.getRoomPayload(seven).maxPlayers], [7, 7]);
 });
 
+test("the host can kick, hand over the host role and switch the chat, only in the lobby", async () => {
+  const { manager, events } = setup();
+  const code = manager.createRoom({ chatEnabled: false });
+  const [host, guest, other] = fill(manager, code, 3) as [string, string, string];
+  assert.throws(() => manager.kickPlayer(code, guest, other), /only the host/);
+  assert.equal(manager.kickPlayer(code, host, guest), "s2");
+  assert.ok(events.some((entry) => entry.event === "player_left"));
+  assert.throws(() => manager.joinRoom(code, "s2-again", UIDS[1]), /removed from this room/);
+
+  manager.setChatEnabled(code, host, true);
+  assert.equal(manager.getRoomPayload(code).chatEnabled, true);
+  manager.transferHost(code, host, other);
+  assert.equal(manager.getRoomPayload(code).hostPlayerId, other);
+  assert.throws(() => manager.setChatEnabled(code, host, false), /only the host/);
+
+  fill(manager, code, 0);
+  for (let index = 0; index < 3; index += 1) manager.joinRoom(code, `x${index}`);
+  await manager.startGame(code, other);
+  assert.throws(() => manager.transferHost(code, other, host), /only possible in the waiting room/);
+});
+
 test("room creation is capped", () => {
   const { manager } = setup({ maxRooms: 2 });
   manager.createRoom();

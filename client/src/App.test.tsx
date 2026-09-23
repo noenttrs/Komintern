@@ -121,4 +121,26 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "QR code" }));
     expect(await screen.findByAltText("QR code pour rejoindre la room ROOM")).toBeTruthy();
   });
+
+  it("lets the host kick a player or hand over the host role", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+    act(() => {
+      fake.socket.connect();
+    });
+    act(() => fake.socket.serverEmit("room_joined", { playerId: "p1", ...room }));
+    fireEvent.click(screen.getByRole("button", { name: "Exclure Joueur p2" }));
+    expect(fake.socket.emitted.at(-1)).toEqual({ event: "kick_player", payload: { playerId: "p2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Donner le rôle d'hôte à Joueur p3" }));
+    expect(fake.socket.emitted.at(-1)).toEqual({ event: "transfer_host", payload: { playerId: "p3" } });
+    confirm.mockRestore();
+  });
+
+  it("sends a kicked player back to the home screen", () => {
+    render(<App />);
+    act(() => fake.socket.serverEmit("room_joined", { playerId: "p2", ...room }));
+    act(() => fake.socket.serverEmit("kicked", { code: "ROOM" }));
+    expect(screen.getByText("L'hôte t'a retiré de la room.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Nazi Communiste" })).toBeTruthy();
+  });
 });

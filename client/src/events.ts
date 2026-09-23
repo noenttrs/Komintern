@@ -19,6 +19,9 @@ export const CLIENT_EVENTS = {
   CHAT_SEND: "chat_send",
   REPORT: "report",
   INVITE_FRIEND: "invite_friend",
+  KICK_PLAYER: "kick_player",
+  TRANSFER_HOST: "transfer_host",
+  SET_ROOM_OPTIONS: "set_room_options",
 } as const;
 
 export const SERVER_EVENTS = {
@@ -43,6 +46,7 @@ export const SERVER_EVENTS = {
   CHAT_HISTORY: "chat_history",
   REPORT_RECEIVED: "report_received",
   ROOM_INVITE: "room_invite",
+  KICKED: "kicked",
   FRIEND_REQUEST: "friend_request",
   FRIENDS_CHANGED: "friends_changed",
   FRIEND_PRESENCE: "friend_presence",

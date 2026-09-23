@@ -212,4 +212,8 @@ ERROR_TRANSLATIONS.push(
   [/only possible from the lobby/, "Les invitations se font depuis le salon d'attente."],
   [/friend is offline/, "Cet ami n'est pas en ligne."],
   [/log in to invite/, "Connecte-toi pour inviter tes amis."],
+  [/removed from this room/, "L'hôte t'a retiré de cette room."],
+  [/only the host can do that/, "Seul l'hôte peut faire ça."],
+  [/only possible in the waiting room/, "Possible uniquement dans la salle d'attente."],
+  [/chat is disabled/, "Le chat est désactivé dans cette room (partie sur place)."],
 );

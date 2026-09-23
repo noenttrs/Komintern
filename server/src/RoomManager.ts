@@ -62,6 +62,9 @@ type RoomRecord = {
   afkTimers: Map<string, NodeJS.Timeout>;
   afkPlayers: Set<string>;
   replayRequests: Set<string>;
+  /** Secrets de reconnexion des joueurs exclus : ils ne peuvent pas revenir dans cette room. */
+  kickedUids: Set<string>;
+  kickedUserIds: Set<string>;
   configuredPreset?: RulesetPreset;
   configuredRuleset?: unknown;
   nextChefId: string | null;
@@ -159,6 +162,8 @@ export class RoomManager {
       afkTimers: new Map(),
       afkPlayers: new Set(),
       replayRequests: new Set(),
+      kickedUids: new Set(),
+      kickedUserIds: new Set(),
       configuredPreset,
       configuredRuleset,
       nextChefId: null,
@@ -199,6 +204,9 @@ export class RoomManager {
       };
     }
 
+    if ((playerUid !== undefined && room.kickedUids.has(playerUid)) || (userId !== undefined && room.kickedUserIds.has(userId))) {
+      throw new Error("you were removed from this room by the host");
+    }
     if (room.status !== "waiting" || room.starting) {
       throw new Error("the game has already started in this room");
     }
@@ -257,6 +265,51 @@ export class RoomManager {
     this.reassignHostIfNeeded(room);
     this.emitRoomUpdated(room);
     this.scheduleEmptyCheck(room);
+  }
+
+  // ---------------------------------------------------------------- contrôles de l'hôte
+
+  private requireHostInLobby(room: RoomRecord, hostId: string): void {
+    if (room.hostPlayerId !== hostId) {
+      throw new Error("only the host can do that");
+    }
+    if (room.status !== "waiting" || room.starting) {
+      throw new Error("only possible in the waiting room");
+    }
+  }
+
+  /** Exclut un joueur du salon ; renvoie son socket (à déconnecter de la room) s'il est connecté. */
+  public kickPlayer(code: string, hostId: string, targetId: string): string | undefined {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    if (targetId === hostId || !room.playerIds.includes(targetId)) {
+      throw new Error("unknown player for this room");
+    }
+    const socketId = room.socketByPlayer.get(targetId);
+    for (const [uid, playerId] of room.playerByUid) {
+      if (playerId === targetId) room.kickedUids.add(uid);
+    }
+    const userId = room.userIdByPlayer.get(targetId);
+    if (userId !== undefined) room.kickedUserIds.add(userId);
+    this.removePlayer(room, targetId);
+    return socketId;
+  }
+
+  public transferHost(code: string, hostId: string, targetId: string): void {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    if (!room.playerIds.includes(targetId) || targetId === hostId) {
+      throw new Error("unknown player for this room");
+    }
+    room.hostPlayerId = targetId;
+    this.emitRoomUpdated(room);
+  }
+
+  public setChatEnabled(code: string, hostId: string, enabled: boolean): void {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    room.chatEnabled = enabled;
+    this.emitRoomUpdated(room);
   }
 
   public setPseudo(code: string, playerId: string, pseudo: string): void {
