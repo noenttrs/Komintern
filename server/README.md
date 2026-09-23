@@ -147,12 +147,12 @@ The votes array is already shuffled by the Python engine and must not be re-orde
 - If the client does not provide a ruleset, the server infers the matching preset from the room size at start time.
 - Mission team sizes are read from the selected ruleset, so preset-specific mission layouts are enforced by the server and Python engine together.
 - Confidence vote is public and requires strict majority yes to proceed.
-- If confidence fails, same mission repeats with a new chef proposal.
+- If confidence fails (NO majority or tie), the same chef proposes again for the same mission.
 - Mission outcome:
   - at least one nazi vote => nazis win mission,
   - all communist votes => communists win mission.
 - Game ends when a faction reaches 3 mission wins.
-- Chef rotation advances on each proposal and persists across games.
+- Chef rotation advances once per round (mission), never on a rejected proposal, and persists across games.
 
 ### Supported presets
 

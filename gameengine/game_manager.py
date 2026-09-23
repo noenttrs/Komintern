@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from dataclasses import replace
 
 from .constants import PRESET_5J
@@ -8,17 +9,24 @@ from .utils import assign_roles
 
 
 class GameManager:
-    def __init__(self, player_ids: list[str], chef_cursor: int, ruleset: Ruleset | None = None):
+    def __init__(
+        self,
+        player_ids: list[str],
+        chef_cursor: int,
+        ruleset: Ruleset | None = None,
+        rng: random.Random | None = None,
+    ):
         self._player_ids = list(player_ids)
         self._chef_cursor = chef_cursor
         self._ruleset = PRESET_5J if ruleset is None else ruleset
+        self._rng = rng
 
     @property
     def ruleset(self) -> Ruleset:
         return self._ruleset
 
     def start_game(self) -> GameState:
-        players = assign_roles(self._player_ids, self._ruleset)
+        players = assign_roles(self._player_ids, self._ruleset, self._rng)
         return GameState(players=players, chef_cursor=self._chef_cursor, nazi_wins=0, communist_wins=0)
 
     def set_turn_order(self, state: GameState, ordered_player_ids: list[str]) -> GameState:
@@ -31,10 +39,13 @@ class GameManager:
         if set(players_by_id.keys()) != set(ordered_player_ids):
             raise ValueError("ordered_player_ids must match current game players")
 
+        # Le chef courant reste le même joueur : seul son index change dans le nouvel ordre.
+        current_chef_id = state.players[state.chef_cursor].id
         ordered_players = [players_by_id[player_id] for player_id in ordered_player_ids]
+        new_cursor = ordered_player_ids.index(current_chef_id)
         self._player_ids = list(ordered_player_ids)
-        self._chef_cursor = 0
-        return replace(state, players=ordered_players, chef_cursor=0)
+        self._chef_cursor = new_cursor
+        return replace(state, players=ordered_players, chef_cursor=new_cursor)
 
     def get_player_view(self, player_id: str, state: GameState) -> dict:
         player_map = {player.id: player.faction for player in state.players}
@@ -76,4 +87,5 @@ class GameManager:
         return None
 
     def end_game(self, state: GameState) -> int:
+        """Index (dans l'ordre de jeu) du chef de la prochaine partie."""
         return state.chef_cursor

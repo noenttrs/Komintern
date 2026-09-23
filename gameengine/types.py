@@ -43,14 +43,38 @@ class Ruleset:
     experimental: bool
 
     def __post_init__(self) -> None:
+        for field_name in ("player_count", "nazi_count", "communist_count", "mission_count", "win_threshold"):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"invalid ruleset: {field_name} must be an integer")
+        if self.player_count < 2:
+            raise ValueError("invalid ruleset: player_count must be >= 2")
+        if self.nazi_count < 1 or self.communist_count < 1:
+            raise ValueError("invalid ruleset: each faction needs at least one player")
+        if self.mission_count < 1:
+            raise ValueError("invalid ruleset: mission_count must be >= 1")
+        if self.win_threshold < 1:
+            raise ValueError("invalid ruleset: win_threshold must be >= 1")
         if self.nazi_count + self.communist_count != self.player_count:
             raise ValueError("invalid ruleset: nazi_count + communist_count must equal player_count")
         if len(self.mission_sizes) != self.mission_count:
             raise ValueError("invalid ruleset: mission_sizes length must equal mission_count")
         if self.win_threshold > self.mission_count:
             raise ValueError("invalid ruleset: win_threshold must be <= mission_count")
+        # Chaque mission a un vainqueur : il faut assez de missions pour qu'un camp atteigne
+        # forcément le seuil (sinon 2-2 sur 4 missions avec un seuil à 3, par exemple).
+        if 2 * self.win_threshold - 1 > self.mission_count:
+            raise ValueError("invalid ruleset: mission_count must be >= 2 * win_threshold - 1 (a draw would be possible)")
         if self.info_mode == InfoMode.BLIND and not self.experimental:
             raise ValueError("invalid ruleset: blind mode requires experimental=True")
+
+    @property
+    def is_playable(self) -> bool:
+        """False tant que des tailles de mission sont des placeholders (-1)."""
+        return all(
+            not isinstance(size, bool) and isinstance(size, int) and 1 <= size <= self.player_count
+            for size in self.mission_sizes
+        )
 
 
 @dataclass(frozen=True)

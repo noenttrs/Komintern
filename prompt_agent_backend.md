@@ -79,7 +79,7 @@ GAME
   │    ├─ MissionProposal    ← Chef seul déclenche
   │    ├─ ConfidenceVote     ← sync groupe : tous ont voté
   │    ├─ ConfidenceResult   ← sync groupe : tous ont confirmé
-  │    │    └─ si NON → retour MissionProposal (Chef suivant)
+  │    │    └─ si NON ou égalité → retour MissionProposal (même Chef)
   │    ├─ MissionExecution   ← sync groupe : membres équipe ont voté
   │    └─ MissionResult      ← sync groupe : tous ont confirmé
   └─ EndGame             ← sync groupe : tous ont confirmé → RolesRevealed

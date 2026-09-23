@@ -120,7 +120,7 @@ class RoundAndBridgeRulesetTests(unittest.TestCase):
 
         bridge.propose_team({"team": mission_team})
 
-        votes = {"a": "YES", "b": "YES", "c": "YES"}
+        votes = {"a": "YES", "b": "YES", "c": "YES", "d": "NO", "e": "NO"}
         bridge.submit_confidence_votes({"votes": votes})
         result = bridge.submit_mission_votes(
             {

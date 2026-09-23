@@ -46,8 +46,8 @@ Le Chef désigne les joueurs qu'il souhaite envoyer en mission, selon la taille 
 
 Chaque joueur vote **simultanément et publiquement** pour ou contre la proposition :
 
-- **Majorité de OUI** → l'équipe part en mission
-- **Majorité de NON** → la proposition est rejetée, le Chef doit formuler une **nouvelle proposition**
+- **Majorité stricte de OUI** (plus de la moitié des votants) → l'équipe part en mission
+- Sinon (majorité de NON **ou égalité**) → la proposition est rejetée, **le même Chef** doit formuler une **nouvelle proposition**
 
 > Il n'y a pas de limite au nombre de re-propositions dans la version actuelle.
 
@@ -71,8 +71,8 @@ Les votes sont **révélés simultanément** sans attribution aux joueurs :
 
 Le rôle de Chef suit un **roulement continu** qui persiste entre les parties :
 
-- À chaque nouvelle proposition, le roulement avance d'un cran
-- En fin de partie, le joueur qui a effectué la dernière proposition est enregistré
+- À chaque nouvelle manche (mission), le roulement avance d'un cran ; une proposition rejetée ne le fait pas avancer
+- En fin de partie, le joueur qui a été Chef de la dernière manche est enregistré
 - En début de partie suivante, le Chef est le joueur **immédiatement suivant** dans l'ordre de roulement
 
 ---
