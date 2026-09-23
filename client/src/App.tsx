@@ -5,6 +5,7 @@ import { FactionIcon } from "./components/game/FactionIcon";
 import { formatMissionVotes, isGamePhaseUi, stepForPhase } from "./components/game/phases";
 import { StatusBanners } from "./components/game/StatusBanners";
 import { AbsencePrompt } from "./components/AbsencePrompt";
+import { VoteSplit } from "./components/game/VoteSplit";
 import { Menu } from "./components/Menu";
 import { ModerationPage } from "./pages/ModerationPage";
 import { WarningNotice } from "./components/WarningNotice";
@@ -417,15 +418,7 @@ export default function App(): JSX.Element {
               <p className="back-meta-line">
                 {t("history.proposed")} {renderNamesWithPipes(lastConfidenceProposedNames)}
               </p>
-              <ul className="back-list">
-                {lastConfidenceVotes.map((entry) => (
-                  <li key={`last-confidence-${entry.playerName}`}>
-                    <strong className="back-name">{entry.playerName}</strong>
-                    <strong className="back-sep"> | </strong>
-                    <span className="back-vote">{entry.voteLabel}</span>
-                  </li>
-                ))}
-              </ul>
+              <VoteSplit votes={lastConfidence!.votes} nameById={nameById} />
             </>
           ) : (
             <p className="back-empty">{t("history.noLastVote")}</p>
@@ -481,14 +474,7 @@ export default function App(): JSX.Element {
                   <strong className="back-sep"> | </strong>
                   <span>{t("history.proposed")} {renderNamesWithPipes(entry.team.map(nameById))}</span>
                   <strong className="back-sep"> | </strong>
-                  {Object.entries(entry.votes).map(([id, vote], voteIndex, list) => (
-                    <span key={`vote-${entry.missionIndex}-${id}`}>
-                      <strong className="back-name">{nameById(id)}</strong>
-                      <strong className="back-sep"> | </strong>
-                      <span className="back-vote">{vote === "yes" ? t("game.yes") : t("game.no")}</span>
-                      {voteIndex < list.length - 1 ? <strong className="back-sep"> | </strong> : null}
-                    </span>
-                  ))}
+                  <VoteSplit votes={entry.votes} nameById={nameById} compact />
                 </li>
               ))}
             </ul>

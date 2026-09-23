@@ -194,6 +194,7 @@ export const en: Dictionary = {
     replaySent: "Replay choice sent, waiting for the other players.",
     forfeit: "{name} forfeited",
     replayQuestion: "Play again?",
+    nazisWere: "The Nazis were: {names}",
     rolesPending: "Roles coming up",
     naziAllies: "Nazi allies: {names}",
     replay: "Play again",

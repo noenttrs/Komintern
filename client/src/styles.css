@@ -1876,3 +1876,31 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Vote de confiance : deux listes, Pour et Contre. */
+.vote-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+}
+
+.vote-split__column {
+  border: 1px solid var(--line-soft);
+  padding: 0.4rem 0.5rem;
+  min-width: 0;
+}
+
+.vote-split__title {
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.vote-split ul {
+  list-style: none;
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}

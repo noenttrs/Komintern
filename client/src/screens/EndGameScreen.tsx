@@ -20,9 +20,7 @@ export function EndGameScreen(): JSX.Element {
     phase,
     gameOver,
     winner,
-    role,
     revealedRoles,
-    naziAllies,
     nameById,
     setWaitingValidationStep,
     setQueuedReplayChoice,
@@ -86,8 +84,17 @@ export function EndGameScreen(): JSX.Element {
         overlay={
           <div>
             {roleOverlay}
-            <p>{Object.entries(revealedRoles).map(([id, playerFaction]) => `${nameById(id)}:${playerFaction}`).join(" | ") || t("endGame.rolesPending")}</p>
-            {role.faction === "nazi" ? <p>{t("endGame.naziAllies", { names: naziAllies.length > 0 ? naziAllies.join(", ") : t("common.none") })}</p> : null}
+            {/* Rôles de tous, dès qu'ils sont révélés (le rôle et les alliés sont déjà dans roleOverlay). */}
+            {Object.keys(revealedRoles).length > 0 ? (
+              <p>
+                {t("endGame.nazisWere", {
+                  names: Object.entries(revealedRoles)
+                    .filter(([, playerFaction]) => playerFaction === "nazi")
+                    .map(([id]) => nameById(id))
+                    .join(", "),
+                })}
+              </p>
+            ) : null}
           </div>
         }
         actions={

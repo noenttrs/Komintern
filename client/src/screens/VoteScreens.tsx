@@ -1,3 +1,4 @@
+import { VoteSplit } from "../components/game/VoteSplit";
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { VoteButtons } from "../components/game/VoteButtons";
@@ -174,9 +175,6 @@ export function ConfidenceResultScreen(): JSX.Element {
     nameById,
   } = useScreen();
   const { t } = useI18n();
-  const confidenceDetails = Object.entries(confidence.votes)
-    .map(([id, vote]) => `${nameById(id)}: ${vote === "yes" ? t("game.yes") : t("game.no")}`)
-    .join(" | ");
 
   return (
     <main className="game-screen">
@@ -192,7 +190,7 @@ export function ConfidenceResultScreen(): JSX.Element {
           ) : (
             <div className="result-panel">
               <h2>{confidence.approved ? t("confidence.majorityYes") : t("confidence.majorityNo")}</h2>
-              <p>{confidenceDetails || t("confidence.noVotes")}</p>
+              {Object.keys(confidence.votes).length > 0 ? <VoteSplit votes={confidence.votes} nameById={nameById} /> : <p>{t("confidence.noVotes")}</p>}
               <p>{t("common.tapNext")}</p>
             </div>
           )

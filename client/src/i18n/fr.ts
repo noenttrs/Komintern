@@ -193,6 +193,7 @@ export const fr = {
     replaySent: "Choix rejouer envoye, en attente des autres joueurs.",
     forfeit: "Abandon de {name}",
     replayQuestion: "Rejouer ?",
+    nazisWere: "Les nazis étaient : {names}",
     rolesPending: "Roles a venir",
     naziAllies: "Allies nazis: {names}",
     replay: "Rejouer",
