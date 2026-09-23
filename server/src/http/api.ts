@@ -5,13 +5,23 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import type { AdminService } from "../admin/service";
-import { ApiError, accountView } from "../auth/accounts";
+import { ApiError, PENDING_REGISTRATION_SECONDS, accountView } from "../auth/accounts";
+import { allow } from "../auth/rateLimit";
 import type { User } from "../store/users";
 import { SessionService } from "../auth/sessions";
 import { log } from "../logger";
 import type { Services } from "../services";
 
 const SESSION_COOKIE = "sid";
+/** Inscription en attente, liée au navigateur qui l'a faite (voir AccountService.register). */
+const REGISTRATION_COOKIE = "reg";
+/** État OAuth Google, lié au navigateur qui a lancé la connexion (anti « login CSRF »). */
+const OAUTH_STATE_COOKIE = "gstate";
+
+function readCookie(request: IncomingMessage, name: string): string | undefined {
+  const header = request.headers.cookie;
+  return header === undefined ? undefined : parseCookie(header)[name];
+}
 
 type AuthedRequest = Request & { userId?: string; sessionId?: string };
 
@@ -35,9 +45,14 @@ export function sessionIdFrom(request: IncomingMessage): string | undefined {
 export function createApi(services: Services, admin: AdminService, publicRooms: () => unknown[] = () => []): express.Router {
   const { accounts, sessions, config } = services;
   const router = express.Router();
+  router.use((_request, response, next) => {
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("Strict-Transport-Security", "max-age=31536000");
+    next();
+  });
 
   const setSessionCookie = (response: Response, id: string): void => {
-    response.setHeader(
+    response.append(
       "Set-Cookie",
       serializeCookie(SESSION_COOKIE, id, {
         httpOnly: true,
@@ -49,7 +64,7 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     );
   };
   const clearSessionCookie = (response: Response): void => {
-    response.setHeader("Set-Cookie", serializeCookie(SESSION_COOKIE, "", { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/", maxAge: 0 }));
+    response.append("Set-Cookie", serializeCookie(SESSION_COOKIE, "", { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/", maxAge: 0 }));
   };
   const startSession = async (response: Response, user: User): Promise<void> => {
     setSessionCookie(response, await sessions.create(user.id));
@@ -133,18 +148,33 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     });
   });
 
+  /** Routes à code email : limite par IP en plus des limites par email du service. */
+  const limitCodeRoute = async (request: Request): Promise<void> => {
+    if (!(await allow(services.kv, "code-route", clientIp(request), 30, 900))) {
+      throw new ApiError(429, "too_many_requests");
+    }
+  };
+
   router.post("/auth/register", route(async (request, response) => {
-    await accounts.register(request.body ?? {}, clientIp(request));
+    const token = await accounts.register(request.body ?? {}, clientIp(request));
+    response.append(
+      "Set-Cookie",
+      serializeCookie(REGISTRATION_COOKIE, token, { httpOnly: true, secure: config.secureCookies, sameSite: "strict", path: "/api/auth", maxAge: PENDING_REGISTRATION_SECONDS }),
+    );
     response.status(202).json({ status: "code_sent" });
   }));
 
   router.post("/auth/resend", route(async (request, response) => {
+    await limitCodeRoute(request);
     await accounts.resendVerification(request.body?.email);
     response.status(202).json({ status: "code_sent" });
   }));
 
   router.post("/auth/verify", route(async (request, response) => {
-    await startSession(response, await accounts.verifyEmail(request.body?.email, request.body?.code));
+    await limitCodeRoute(request);
+    const user = await accounts.verifyEmail(request.body?.email, request.body?.code, readCookie(request, REGISTRATION_COOKIE));
+    response.append("Set-Cookie", serializeCookie(REGISTRATION_COOKIE, "", { httpOnly: true, secure: config.secureCookies, sameSite: "strict", path: "/api/auth", maxAge: 0 }));
+    await startSession(response, user);
   }));
 
   router.post("/auth/login", route(async (request, response) => {
@@ -164,11 +194,13 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
 
   router.post("/auth/password/forgot", route(async (request, response) => {
+    await limitCodeRoute(request);
     await accounts.requestPasswordReset(request.body?.email);
     response.status(202).json({ status: "code_sent" });
   }));
 
   router.post("/auth/password/reset", route(async (request, response) => {
+    await limitCodeRoute(request);
     await startSessionOrChallenge(response, await accounts.resetPassword(request.body ?? {}));
   }));
 
@@ -176,13 +208,20 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     if (services.google === undefined) {
       throw new ApiError(404, "google_disabled");
     }
-    response.redirect(302, await services.google.authorizationUrl());
+    const url = await services.google.authorizationUrl();
+    const state = new URL(url).searchParams.get("state") ?? "";
+    // Lax : le cookie revient avec la redirection de Google (navigation de premier niveau).
+    response.append("Set-Cookie", serializeCookie(OAUTH_STATE_COOKIE, state, { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/api/auth/google", maxAge: 600 }));
+    response.redirect(302, url);
   }));
 
   router.get("/auth/google/callback", async (request: AuthedRequest, response: Response) => {
     const back = (query: string): void => response.redirect(302, `${config.publicUrl}/${query}`);
     const { code, state, error } = request.query;
-    if (services.google === undefined || typeof code !== "string" || typeof state !== "string" || error !== undefined) {
+    const expectedState = readCookie(request, OAUTH_STATE_COOKIE);
+    response.append("Set-Cookie", serializeCookie(OAUTH_STATE_COOKIE, "", { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/api/auth/google", maxAge: 0 }));
+    // L'état doit venir de ce navigateur : un lien de callback fabriqué par un tiers est refusé.
+    if (services.google === undefined || typeof code !== "string" || typeof state !== "string" || error !== undefined || expectedState === undefined || expectedState !== state) {
       back("?auth=error");
       return;
     }
@@ -270,8 +309,10 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
 
   // Mesure d'audience anonyme (voir analytics/audience.ts) ; toujours 204, même en cas d'erreur.
   router.post("/visit", (request, response) => {
-    void services.audience
-      .record(request.body?.path, clientIp(request), String(request.headers["user-agent"] ?? ""))
+    const ip = clientIp(request);
+    // Limite par IP : empêche de gonfler les compteurs d'audience.
+    void allow(services.kv, "visit", ip, 120, 3600)
+      .then((allowed) => (allowed ? services.audience.record(request.body?.path, ip, String(request.headers["user-agent"] ?? "")) : undefined))
       .catch(() => undefined);
     response.status(204).end();
   });

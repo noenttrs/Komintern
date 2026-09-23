@@ -56,8 +56,23 @@ type Absence = {
   kickAt: number;
   /** Pseudo du joueur qui a choisi d'attendre, ou null pendant le compte à rebours normal. */
   heldBy: string | null;
+  /** Nombre de mises en attente pendant cette absence (plafonné : pas de blocage sans fin). */
+  holds: number;
   timers: NodeJS.Timeout[];
 };
+
+const MAX_HOLDS_PER_ABSENCE = 3;
+const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+/** Pseudo unique dans la room (insensible à la casse) : personne ne peut se faire passer pour un autre joueur. */
+function uniquePseudo(room: { playerIds: string[]; pseudoByPlayer: Map<string, string> }, playerId: string, pseudo: string): string {
+  const taken = new Set(room.playerIds.filter((id) => id !== playerId).map((id) => (room.pseudoByPlayer.get(id) ?? "").toLowerCase()));
+  if (!taken.has(pseudo.toLowerCase())) return pseudo;
+  for (let index = 2; ; index += 1) {
+    const candidate = `${pseudo.slice(0, 17)} ${index}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+}
 
 const CHAT_HISTORY_LIMIT = 100;
 
@@ -221,7 +236,10 @@ export class RoomManager {
   public joinRoom(code: string, socketId: string, playerUid?: string, userId?: string): JoinResult {
     const room = this.requireRoom(code);
     // Un compte connecté retrouve son siège même depuis un autre appareil.
+    // Un socket n'occupe qu'un seul siège : un second join sur la même room reprend le premier
+    // (sinon des sièges fantômes, jamais déconnectés, bloqueraient la room et le serveur).
     const knownPlayerId =
+      [...room.socketByPlayer].find(([, id]) => id === socketId)?.[0] ??
       (playerUid === undefined ? undefined : room.playerByUid.get(playerUid)) ??
       (userId === undefined ? undefined : [...room.userIdByPlayer].find(([, id]) => id === userId)?.[0]);
 
@@ -394,7 +412,7 @@ export class RoomManager {
     if (!room.playerIds.includes(playerId)) {
       throw new Error("unknown player for this room");
     }
-    room.pseudoByPlayer.set(playerId, pseudo);
+    room.pseudoByPlayer.set(playerId, uniquePseudo(room, playerId, pseudo));
     this.emitRoomUpdated(room);
   }
 
@@ -654,8 +672,15 @@ export class RoomManager {
   public holdForPlayer(code: string, byPlayerId: string, targetId: string): void {
     const room = this.requireRoom(code);
     this.requirePresentPlayer(room, byPlayerId);
-    if (!room.absences.has(targetId)) {
+    const absence = room.absences.get(targetId);
+    if (absence === undefined) {
       throw new Error("this player is not away");
+    }
+    if (absence.heldBy !== null) {
+      throw new Error("the room is already waiting for this player");
+    }
+    if (absence.holds >= MAX_HOLDS_PER_ABSENCE) {
+      throw new Error("the room cannot wait any longer for this player");
     }
     const holdMs = this.options.absenceHoldMs ?? DEFAULT_ABSENCE_HOLD_MS;
     const by = room.pseudoByPlayer.get(byPlayerId) ?? byPlayerId;
@@ -916,7 +941,7 @@ export class RoomManager {
     const previous = room.absences.get(playerId);
     previous?.timers.forEach(clearTimeout);
     const now = Date.now();
-    const absence: Absence = { since: previous?.since ?? now, kickAt: now + durationMs, heldBy, timers: [] };
+    const absence: Absence = { since: previous?.since ?? now, kickAt: now + durationMs, heldBy, holds: (previous?.holds ?? 0) + (heldBy === null ? 0 : 1), timers: [] };
     const warningMs = this.options.absenceWarningMs ?? DEFAULT_ABSENCE_WARNING_MS;
     const stillAway = () => this.rooms.get(room.code) === room && room.absences.get(playerId) === absence && !room.socketByPlayer.has(playerId);
     const warn = setTimeout(() => {
@@ -1034,7 +1059,8 @@ export class RoomManager {
 
   private generateCode(): string {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const code = crypto.randomBytes(3).toString("hex").toUpperCase();
+      // 8 caractères sur 32 (sans 0/O, 1/I) : environ 10^12 codes, impossibles à deviner au hasard.
+      const code = Array.from(crypto.randomBytes(8), (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
       if (!this.rooms.has(code)) {
         return code;
       }

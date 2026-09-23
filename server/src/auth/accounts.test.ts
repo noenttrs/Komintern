@@ -20,8 +20,8 @@ const code = (error: unknown) => (error instanceof ApiError ? error.code : Strin
 
 async function registered(email = "rosa@example.org", displayName = "Rosa") {
   const ctx = setup();
-  await ctx.accounts.register({ email, password: "correct horse battery", displayName }, "1.1.1.1");
-  const user = await ctx.accounts.verifyEmail(email, ctx.mailer.lastCodeFor(email.toLowerCase()));
+  const token = await ctx.accounts.register({ email, password: "correct horse battery", displayName }, "1.1.1.1");
+  const user = await ctx.accounts.verifyEmail(email, ctx.mailer.lastCodeFor(email.toLowerCase()), token);
   return { ...ctx, user };
 }
 
@@ -42,13 +42,47 @@ test("input validation and uniqueness", async () => {
   await assert.rejects(accounts.register({ email: "k@example.org", password: "correct horse battery", displayName: "rosa" }, "2.2.2.2"), (e) => code(e) === "display_name_taken");
 });
 
-test("login refuses wrong passwords and unverified emails (and resends the code)", async () => {
-  const { accounts, mailer } = setup();
+test("an unconfirmed registration is not an account yet", async () => {
+  const { accounts, stores } = setup();
   await accounts.register({ email: "karl@example.org", password: "correct horse battery", displayName: "Karl" }, "1.1.1.1");
-  await assert.rejects(accounts.login({ email: "karl@example.org", password: "wrong password!" }, "1.1.1.1"), (e) => code(e) === "invalid_credentials");
+  assert.equal(await stores.users.findByEmail("karl@example.org"), null);
+  await assert.rejects(accounts.login({ email: "karl@example.org", password: "correct horse battery" }, "1.1.1.1"), (e) => code(e) === "invalid_credentials");
   await assert.rejects(accounts.login({ email: "ghost@example.org", password: "whatever12345" }, "1.1.1.1"), (e) => code(e) === "invalid_credentials");
-  await assert.rejects(accounts.login({ email: "karl@example.org", password: "correct horse battery" }, "1.1.1.1"), (e) => code(e) === "email_not_verified");
-  assert.equal(mailer.sent.length, 1, "the resend is throttled by the one-minute cooldown");
+});
+
+test("someone who knows the email cannot swap in their own password during a registration", async () => {
+  const { accounts, mailer, stores } = setup();
+  const victimToken = await accounts.register({ email: "rosa@example.org", password: "victim password!", displayName: "Rosa" }, "1.1.1.1");
+  const victimCode = mailer.lastCodeFor("rosa@example.org");
+  // L'attaquant ne peut pas redemander de code pendant la minute de délai...
+  await assert.rejects(accounts.register({ email: "rosa@example.org", password: "attacker password", displayName: "Evil" }, "6.6.6.6"), (e) => code(e) === "code_cooldown");
+  // ... et même après, son inscription reste liée à son propre jeton.
+  await stores.kv.del("codecool:verify:rosa@example.org");
+  const attackerToken = await accounts.register({ email: "rosa@example.org", password: "attacker password", displayName: "Evil" }, "6.6.6.6");
+  const latestCode = mailer.lastCodeFor("rosa@example.org");
+  assert.notEqual(latestCode, victimCode);
+  await assert.rejects(accounts.verifyEmail("rosa@example.org", victimCode, victimToken), (e) => code(e) === "invalid_code", "the old code was replaced");
+  // La victime tape le dernier code reçu, avec son navigateur : ce sont ses identifiants qui comptent.
+  const user = await accounts.verifyEmail("rosa@example.org", latestCode, victimToken);
+  assert.equal(user.displayName, "Rosa");
+  await accounts.login({ email: "rosa@example.org", password: "victim password!" }, "1.1.1.1");
+  await assert.rejects(accounts.login({ email: "rosa@example.org", password: "attacker password" }, "6.6.6.6"), (e) => code(e) === "invalid_credentials");
+  void attackerToken;
+});
+
+test("code guesses are counted atomically and capped per day, even across new codes", async () => {
+  const { accounts, stores, mailer } = setup();
+  const token = await accounts.register({ email: "karl@example.org", password: "correct horse battery", displayName: "Karl" }, "1.1.1.1");
+  const results = await Promise.allSettled(Array.from({ length: 20 }, () => accounts.verifyEmail("karl@example.org", "000000", token)));
+  const invalid = results.filter((result) => result.status === "rejected" && code(result.reason) === "invalid_code").length;
+  assert.ok(invalid <= 5, `at most 5 guesses per code, got ${invalid}`);
+  for (let round = 0; round < 5; round += 1) {
+    await stores.kv.del("codecool:verify:karl@example.org");
+    await accounts.resendVerification("karl@example.org").catch(() => undefined);
+    await accounts.register({ email: "karl@example.org", password: "correct horse battery", displayName: "Karl" }, "1.1.1.1").catch(() => undefined);
+    for (let guess = 0; guess < 5; guess += 1) await accounts.verifyEmail("karl@example.org", "000000", token).catch(() => undefined);
+  }
+  await assert.rejects(accounts.verifyEmail("karl@example.org", mailer.lastCodeFor("karl@example.org"), token), (e) => code(e) === "code_too_many_attempts" || code(e) === "code_expired", "the daily budget is spent");
 });
 
 test("codes expire after too many wrong attempts", async () => {
@@ -66,18 +100,22 @@ test("password reset changes the password and signs out everywhere", async () =>
   await stores.kv.del("codecool:reset:rosa@example.org");
   await accounts.requestPasswordReset("rosa@example.org");
   await accounts.requestPasswordReset("ghost@example.org");
+  // L'envoi part en arrière-plan (temps de réponse identique avec ou sans compte).
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(mailer.sent.filter((mail) => mail.to === "ghost@example.org").length, 0);
   await accounts.resetPassword({ email: "rosa@example.org", code: mailer.lastCodeFor("rosa@example.org"), password: "a brand new password" });
   assert.equal(await sessions.resolve(sessionId), null);
   await accounts.login({ email: "rosa@example.org", password: "a brand new password" }, "1.1.1.1");
 });
 
 test("google login links a verified account, takes over an unverified one, or creates a new one", async () => {
-  const { accounts, user } = await registered();
+  const { accounts, user, stores } = await registered();
   const linked = await accounts.loginWithGoogle({ sub: "g-1", email: "rosa@example.org", emailVerified: true, name: "Rosa" });
   assert.equal(linked.id, user.id);
   assert.equal((await accounts.loginWithGoogle({ sub: "g-1", email: "other@example.org", emailVerified: true, name: null })).id, user.id);
 
-  await accounts.register({ email: "squat@example.org", password: "attacker password", displayName: "Squat" }, "9.9.9.9");
+  // Compte non validé (ancien fonctionnement) : le vrai propriétaire, prouvé par Google, efface le mot de passe.
+  await stores.users.create({ email: "squat@example.org", emailVerified: false, passwordHash: "attacker-hash", googleSub: null, displayName: "Squat" });
   const takenOver = await accounts.loginWithGoogle({ sub: "g-2", email: "squat@example.org", emailVerified: true, name: null });
   assert.equal(takenOver.passwordHash, null, "an unverified password cannot survive the real owner signing in");
 
@@ -88,8 +126,8 @@ test("google login links a verified account, takes over an unverified one, or cr
 
 test("profiles are visible to their owner and accepted friends only", async () => {
   const { accounts, mailer, stores, user: rosa } = await registered();
-  await accounts.register({ email: "karl@example.org", password: "correct horse battery", displayName: "Karl" }, "3.3.3.3");
-  const karl = await accounts.verifyEmail("karl@example.org", mailer.lastCodeFor("karl@example.org"));
+  const karlToken = await accounts.register({ email: "karl@example.org", password: "correct horse battery", displayName: "Karl" }, "3.3.3.3");
+  const karl = await accounts.verifyEmail("karl@example.org", mailer.lastCodeFor("karl@example.org"), karlToken);
   assert.equal((await accounts.profile(rosa.id, rosa.id)).email, "rosa@example.org");
   await assert.rejects(accounts.profile(karl.id, rosa.id), (e) => code(e) === "forbidden");
   await stores.friends.request(karl.id, rosa.id);

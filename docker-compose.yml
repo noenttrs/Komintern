@@ -8,7 +8,8 @@ services:
     image: komintern-server:latest
     restart: always
     environment:
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      # Origines autorisées pour Socket.IO : le site lui-même uniquement (pas de "*").
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-${PUBLIC_URL:-http://localhost:8080}}
       SOCKET_RATE_LIMIT_MAX_EVENTS: ${SOCKET_RATE_LIMIT_MAX_EVENTS:-80}
       SOCKET_RATE_LIMIT_WINDOW_MS: ${SOCKET_RATE_LIMIT_WINDOW_MS:-10000}
       AFK_TIMEOUT_MS: ${AFK_TIMEOUT_MS:-60000}
@@ -54,8 +55,10 @@ services:
         VITE_SERVER_URL: ${VITE_SERVER_URL:-}
     image: komintern-web:latest
     restart: always
+    # Publié sur la boucle locale uniquement : le public passe par le tunnel Cloudflare (HTTPS),
+    # jamais directement par l'IP de la machine (HTTP en clair, en-têtes d'IP falsifiables).
     ports:
-      - "${WEB_PORT:-8080}:8080"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080"
     depends_on:
       server:
         condition: service_healthy

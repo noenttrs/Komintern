@@ -13,7 +13,7 @@ import { AdminService } from "./admin/service";
 import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
 import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
-import { createApi, sessionIdFrom } from "./http/api";
+import { clientIp, createApi, sessionIdFrom } from "./http/api";
 import { log } from "./logger";
 import { filterMessage } from "./moderation/filter";
 import { EngineError } from "./PythonBridge";
@@ -59,6 +59,9 @@ type SocketContext = { roomId: string; playerId: string };
 type SocketUser = { userId: string; displayName: string | null; bannedUntil: Date | null };
 
 const CHAT_MAX_LENGTH = 200;
+const MAX_SOCKETS_PER_IP = 30;
+/** Codes de room inexistants tentés par IP sur 10 minutes. */
+const MAX_JOIN_MISSES = 20;
 // eslint-disable-next-line no-control-regex
 const CHAT_CONTROL_CHARS = new RegExp("[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]", "g");
 
@@ -130,7 +133,10 @@ export function createKominternApp(options: AppOptions): KominternApp {
       },
     },
   });
-  const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats());
+  const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats(), async (userId) => {
+    await services.sessions.destroyAll(userId);
+    io.in(`user:${userId}`).disconnectSockets(true);
+  });
   expressApp.use("/api", createApi(services, admin, () => roomManager.listPublicRooms()));
   const userBySocket = new Map<string, SocketUser>();
 
@@ -252,8 +258,24 @@ export function createKominternApp(options: AppOptions): KominternApp {
     }
   }
 
+  // Connexions simultanées par IP : un seul client ne peut pas épuiser les rooms du serveur.
+  const socketsByIp = new Map<string, number>();
+
   io.on("connection", (socket: Socket) => {
     log.debug("socket connected", { socketId: socket.id });
+    const ip = clientIp(socket.request);
+    const openFromIp = (socketsByIp.get(ip) ?? 0) + 1;
+    socketsByIp.set(ip, openFromIp);
+    socket.on("disconnect", () => {
+      const left = (socketsByIp.get(ip) ?? 1) - 1;
+      if (left <= 0) socketsByIp.delete(ip);
+      else socketsByIp.set(ip, left);
+    });
+    if (openFromIp > MAX_SOCKETS_PER_IP) {
+      socket.emit(SERVER_EVENTS.ERROR, { code: "rate_limited", message: "too many connections from this network" });
+      socket.disconnect(true);
+      return;
+    }
     const connectedUser = userBySocket.get(socket.id);
     if (connectedUser !== undefined) {
       void socket.join(`user:${connectedUser.userId}`);
@@ -301,7 +323,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
       }
       const { masked, flagged } = filterMessage(text, services.wordList);
       roomManager.addChatMessage(context.roomId, context.playerId, masked, text, flagged.length > 0);
-      if (flagged.length > 0) {
+      // Un dossier par joueur et par room toutes les 10 minutes au plus (les suivants s'y ajoutent via le log).
+      if (flagged.length > 0 && (await allow(services.kv, "flag-case", `${context.roomId}:${context.playerId}`, 1, 600))) {
         const author = roomManager.getIdentity(context.roomId, context.playerId);
         void openModerationCase(context.roomId, { type: "flagged_word", words: flagged }, author === null ? [] : [author]);
       }
@@ -402,6 +425,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
       const pseudo = parsePseudo(payload.pseudo);
+      // Connecté : le pseudo du compte fait foi, il ne se change pas depuis la room.
+      if (userBySocket.get(socket.id)?.displayName != null) return;
       pendingPseudoBySocket.set(socket.id, pseudo);
       const context = socketContext.get(socket.id);
       if (context !== undefined) {
@@ -415,6 +440,9 @@ export function createKominternApp(options: AppOptions): KominternApp {
       const pseudo = parseOptionalPseudo(payload.pseudo);
       if (payload.isPublic === true && userBySocket.get(socket.id) === undefined) {
         throw new Error("log in to create a public room");
+      }
+      if (!(await allow(services.kv, "create-room", ip, 60, 3600))) {
+        throw new Error("too many rooms created, try again later");
       }
       const roomId = roomManager.createRoom({
         isPublic: payload.isPublic === true,
@@ -431,7 +459,18 @@ export function createKominternApp(options: AppOptions): KominternApp {
       const roomId = parseRoomCode(payload.code ?? payload.roomId);
       const playerUid = parseOptionalPlayerUid(payload.playerUid);
       const pseudo = parseOptionalPseudo(payload.pseudo);
-      await attach(socket, roomId, playerUid, pseudo);
+      // Codes inexistants limités par IP : on ne peut pas balayer les codes pour trouver des rooms privées.
+      if (Number((await services.kv.get(`rl:join-miss:${ip}`)) ?? 0) >= MAX_JOIN_MISSES) {
+        throw new Error("too many attempts, try again later");
+      }
+      try {
+        await attach(socket, roomId, playerUid, pseudo);
+      } catch (error) {
+        if (error instanceof Error && error.message === "room not found") {
+          await allow(services.kv, "join-miss", ip, MAX_JOIN_MISSES, 600);
+        }
+        throw error;
+      }
     });
 
     on(socket, CLIENT_EVENTS.START_GAME, "invalid_start_game", async (payload) => {

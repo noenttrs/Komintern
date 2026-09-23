@@ -203,3 +203,26 @@ Tests ajoutés : 15 unitaires côté serveur (comptes, filtre, logs, anonymisati
 | Client | Traduction anglaise, bannière de soutien Ko-fi (stockage local uniquement, aucun traceur ni script tiers). |
 
 Tests : moteur 48, serveur 84, client 70, Playwright 11 (dont absence avec attente et retour, et duel avec revanche).
+
+---
+
+# v5 — audit de sécurité (2026-09-23)
+
+Relecture complète (comptes et API, temps réel et fuites d'information, bases de données, client, infrastructure) et corrections :
+
+| Gravité | Problème | Correction |
+|---|---|---|
+| Haute | À l'inscription, un compte en attente de validation pouvait recevoir un autre mot de passe par quiconque connaissait l'email ; la victime validait ensuite le compte de l'attaquant. | Rien n'est écrit sur un compte avant la validation : l'inscription en attente vit dans Redis, liée à un cookie `HttpOnly; SameSite=Strict` que seul le navigateur qui s'inscrit détient. |
+| Haute | Codes email (validation, réinitialisation) : la limite de 5 essais se contournait par des requêtes simultanées et en redemandant un code chaque minute. | Compteurs atomiques (`INCR`), budget de 20 essais par email et par 24 h même en redemandant des codes, limite par IP sur les routes à code. |
+| Haute | Un même socket pouvait occuper plusieurs sièges d'une room ; les sièges fantômes ne se déconnectaient jamais et bloquaient la room, puis toutes les rooms du serveur. | Un socket n'occupe qu'un siège : un second join reprend le premier. |
+| Moyenne | Limites de débit par IP contournables en falsifiant les en-têtes d'IP quand le site était joint sans passer par Cloudflare. | Port web publié sur la boucle locale uniquement, `X-Forwarded-For` n'accepte plus la chaîne du client, limite de connexion par email indépendante de l'IP. |
+| Moyenne | Connexion Google : l'état OAuth n'était pas lié au navigateur (« login CSRF »). | Cookie d'état `HttpOnly` vérifié au retour de Google. |
+| Moyenne | Aucune limite par client : quelques centaines de sockets suffisaient à remplir le serveur ; codes de room courts (16 millions) devinables. | 30 connexions simultanées par IP, 60 créations de room par heure et par IP, 20 codes inexistants par IP sur 10 min ; codes de 8 caractères sur 32 (sans 0/O, 1/I). |
+| Moyenne | Bibliothèques Socket.IO et `ws` vulnérables (déni de service, fuite de mémoire). | Mises à jour (`npm audit` : 0 vulnérabilité en production). |
+| Basse | Un bannissement ne coupait pas les sessions ouvertes. | Sessions supprimées et sockets du compte déconnectés au bannissement. |
+| Basse | Mise en attente d'un absent renouvelable sans fin ; pseudos usurpables ; un dossier de modération par message signalé. | 3 mises en attente par absence au plus, pseudo unique dans la room et pseudo du compte non modifiable, un dossier par joueur et par room toutes les 10 min. |
+| Info | CSP `connect-src` ouverte à tout hôte WebSocket, pas de HSTS. | `connect-src` limité au site, HSTS (1 an) et `Cross-Origin-Opener-Policy` ; `nosniff` sur l'API ; Socket.IO n'accepte que l'origine du site. |
+
+Vérifié sans problème : aucune fuite de rôle ou de vote secret (émissions, resync, duel), aucun secret de reconnexion ni userId diffusé, pas d'injection d'opérateurs Mongo, utilisateurs Mongo cloisonnés, bases non exposées, pas de secret dans l'historique Git, sessions et mots de passe (argon2id), TOTP, CSRF par contrôle de l'`Origin`, push limité aux services des navigateurs, aucun rendu HTML de texte utilisateur.
+
+Limites assumées : un invité exclu peut revenir avec une nouvelle identité (bloquer l'IP exclurait aussi ses voisins de table sur le même Wi-Fi) ; la double authentification se bloque 15 min après 5 codes faux, y compris pour le propriétaire si son mot de passe est connu d'un tiers (il doit alors le changer).

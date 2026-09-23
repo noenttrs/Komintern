@@ -1,5 +1,7 @@
 import type { FriendStore } from "../store/friends";
 import type { GameLogStore } from "../store/gamelog";
+import crypto from "crypto";
+
 import type { Kv } from "../store/kv";
 import { DuplicateError } from "../store/users";
 import type { User, UserStore } from "../store/users";
@@ -13,6 +15,11 @@ import { allow } from "./rateLimit";
 import type { SessionService } from "./sessions";
 
 /** Erreur d'API : `code` stable (traduit côté client), statut HTTP. */
+
+type PendingRegistration = { email: string; passwordHash: string; displayName: string };
+/** Durée de vie d'une inscription en attente, alignée sur celle du code. */
+export const PENDING_REGISTRATION_SECONDS = 15 * 60;
+
 export class ApiError extends Error {
   public constructor(
     public readonly status: number,
@@ -97,7 +104,13 @@ export function isBanned(user: User, now = new Date()): boolean {
 export class AccountService {
   public constructor(private readonly deps: AccountDeps) {}
 
-  public async register(input: { email: unknown; password: unknown; displayName: unknown }, ip: string): Promise<void> {
+  /**
+   * Inscription en attente : rien n'est écrit sur un compte avant la validation du code. Les
+   * identifiants choisis restent dans Redis, liés à un jeton que seul ce navigateur détient
+   * (cookie) : quelqu'un qui connaît l'email ne peut pas y substituer son propre mot de passe.
+   * Renvoie ce jeton.
+   */
+  public async register(input: { email: unknown; password: unknown; displayName: unknown }, ip: string): Promise<string> {
     const email = parseEmail(input.email);
     const password = parsePassword(input.password);
     const displayName = parseDisplayName(input.displayName);
@@ -109,21 +122,19 @@ export class AccountService {
     if (existing !== null && existing.emailVerified) {
       throw new ApiError(409, "email_taken");
     }
-    const passwordHash = await hashPassword(password);
-    try {
-      if (existing === null) {
-        await this.deps.users.create({ email, emailVerified: false, passwordHash, googleSub: null, displayName });
-      } else {
-        // Inscription jamais validée : on repart des nouvelles informations.
-        await this.deps.users.update(existing.id, { passwordHash, displayName });
-      }
-    } catch (error) {
-      if (error instanceof DuplicateError) {
-        throw new ApiError(409, error.field === "displayName" ? "display_name_taken" : "email_taken");
-      }
-      throw error;
+    const holder = await this.deps.users.findByDisplayName(displayName);
+    if (holder !== null && holder.id !== existing?.id) {
+      throw new ApiError(409, "display_name_taken");
     }
-    await this.sendCode("verify", email, true);
+    const code = await this.deps.codes.issue("verify", email);
+    if (code === null) {
+      throw new ApiError(429, "code_cooldown");
+    }
+    const token = crypto.randomBytes(32).toString("base64url");
+    const pending: PendingRegistration = { email, passwordHash: await hashPassword(password), displayName };
+    await this.deps.kv.set(`regpending:${token}`, JSON.stringify(pending), PENDING_REGISTRATION_SECONDS);
+    await this.deps.mailer.send(codeMail(email, "verify", code));
+    return token;
   }
 
   public async resendVerification(rawEmail: unknown): Promise<void> {
@@ -134,21 +145,46 @@ export class AccountService {
     }
   }
 
-  public async verifyEmail(rawEmail: unknown, rawCode: unknown): Promise<User> {
+  public async verifyEmail(rawEmail: unknown, rawCode: unknown, pendingToken?: string): Promise<User> {
     const email = parseEmail(rawEmail);
     const code = parseCode(rawCode);
+    // Le code d'abord, pour tout le monde : la réponse ne dit pas si l'email a un compte.
+    await this.checkCode("verify", email, code);
+    const pending = await this.takePending(pendingToken, email);
     const user = await this.deps.users.findByEmail(email);
-    if (user === null) {
+    if (pending !== null) {
+      try {
+        if (user === null) {
+          return await this.deps.users.create({ email, emailVerified: true, passwordHash: pending.passwordHash, googleSub: null, displayName: pending.displayName });
+        }
+        if (user.emailVerified) {
+          throw new ApiError(409, "email_taken");
+        }
+        // Compte jamais validé (créé avant ce correctif, ou par quelqu'un d'autre) : le détenteur
+        // du code impose ses identifiants.
+        return (await this.deps.users.update(user.id, { passwordHash: pending.passwordHash, displayName: pending.displayName, emailVerified: true })) as User;
+      } catch (error) {
+        if (error instanceof DuplicateError) {
+          throw new ApiError(409, error.field === "displayName" ? "display_name_taken" : "email_taken");
+        }
+        throw error;
+      }
+    }
+    if (user === null || user.emailVerified) {
       throw new ApiError(400, "invalid_code");
     }
-    await this.checkCode("verify", email, code);
     return (await this.deps.users.update(user.id, { emailVerified: true })) as User;
   }
 
   public async login(input: { email: unknown; password: unknown }, ip: string): Promise<User> {
     const email = parseEmail(input.email);
     const password = typeof input.password === "string" ? input.password.slice(0, 200) : "";
-    if (!(await allow(this.deps.kv, "login", `${ip}:${email}`, 10, 900)) || !(await allow(this.deps.kv, "login-ip", ip, 50, 900))) {
+    // Limite par email indépendante de l'IP : changer d'adresse ne donne pas d'essais en plus.
+    if (
+      !(await allow(this.deps.kv, "login", `${ip}:${email}`, 10, 900)) ||
+      !(await allow(this.deps.kv, "login-ip", ip, 50, 900)) ||
+      !(await allow(this.deps.kv, "login-email", email, 30, 900))
+    ) {
       throw new ApiError(429, "too_many_requests");
     }
     const user = await this.deps.users.findByEmail(email);
@@ -174,7 +210,8 @@ export class AccountService {
     const email = parseEmail(rawEmail);
     const user = await this.deps.users.findByEmail(email);
     if (user !== null) {
-      await this.sendCode("reset", email, false);
+      // Sans attendre l'envoi : le temps de réponse ne révèle pas si l'email a un compte.
+      this.sendCode("reset", email, false).catch(() => undefined);
     }
   }
 
@@ -182,11 +219,11 @@ export class AccountService {
     const email = parseEmail(input.email);
     const code = parseCode(input.code);
     const password = parsePassword(input.password);
+    await this.checkCode("reset", email, code);
     const user = await this.deps.users.findByEmail(email);
     if (user === null) {
       throw new ApiError(400, "invalid_code");
     }
-    await this.checkCode("reset", email, code);
     await this.deps.sessions.destroyAll(user.id);
     // Recevoir le code prouve aussi la possession de la boîte mail.
     return (await this.deps.users.update(user.id, { passwordHash: await hashPassword(password), emailVerified: true })) as User;
@@ -259,6 +296,16 @@ export class AccountService {
       })) as User;
     }
     return this.deps.users.create({ email: identity.email, emailVerified: true, passwordHash: null, googleSub: identity.sub, displayName: null });
+  }
+
+  private async takePending(token: string | undefined, email: string): Promise<PendingRegistration | null> {
+    if (token === undefined || !/^[A-Za-z0-9_-]{20,100}$/.test(token)) return null;
+    const raw = await this.deps.kv.get(`regpending:${token}`);
+    if (raw === null) return null;
+    const pending = JSON.parse(raw) as PendingRegistration;
+    if (pending.email !== email) return null;
+    await this.deps.kv.del(`regpending:${token}`);
+    return pending;
   }
 
   private async sendCode(purpose: "verify" | "reset", email: string, failOnCooldown: boolean): Promise<void> {

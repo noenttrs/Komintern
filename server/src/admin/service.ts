@@ -23,6 +23,8 @@ export class AdminService {
     private readonly contact: ContactStore,
     private readonly kv: Kv,
     private readonly liveStats: () => LiveStats,
+    /** Bannissement : fermer les sessions et couper les connexions en cours du compte. */
+    private readonly onBan: (userId: string) => Promise<void> = async () => undefined,
   ) {}
 
   public async isAdmin(userId: string | undefined): Promise<boolean> {
@@ -95,6 +97,7 @@ export class AdminService {
     if (target.role === "admin") throw new ApiError(400, "invalid_input");
     const until = days === 0 ? null : new Date(Date.now() + days * 24 * 3600 * 1000);
     await this.users.update(userId, { bannedUntil: until });
+    if (until !== null) await this.onBan(userId);
     return until;
   }
 

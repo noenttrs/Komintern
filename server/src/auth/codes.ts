@@ -7,6 +7,9 @@ export type CodePurpose = "verify" | "reset" | "change";
 const CODE_TTL_SECONDS = 15 * 60;
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
+/** Essais par email et par usage sur 24 h, même en redemandant des codes. */
+const DAILY_ATTEMPTS = 20;
+const DAY_SECONDS = 24 * 3600;
 
 export type CodeCheck = "ok" | "invalid" | "expired" | "too_many_attempts";
 
@@ -20,7 +23,8 @@ export class EmailCodeService {
       return null;
     }
     const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
-    await this.kv.set(`code:${purpose}:${email}`, JSON.stringify({ hash: hash(email, code), attempts: 0 }), CODE_TTL_SECONDS);
+    await this.kv.set(`code:${purpose}:${email}`, JSON.stringify({ hash: hash(email, code) }), CODE_TTL_SECONDS);
+    await this.kv.del(`codeatt:${purpose}:${email}`);
     return code;
   }
 
@@ -30,18 +34,21 @@ export class EmailCodeService {
     if (raw === null) {
       return "expired";
     }
-    const stored = JSON.parse(raw) as { hash: string; attempts: number };
-    if (stored.attempts >= MAX_ATTEMPTS) {
+    // Compteurs atomiques (INCR) : des requêtes simultanées ne peuvent pas partager un même essai.
+    const attempts = await this.kv.incrWithTtl(`codeatt:${purpose}:${email}`, CODE_TTL_SECONDS);
+    const daily = await this.kv.incrWithTtl(`codebudget:${purpose}:${email}`, DAY_SECONDS);
+    if (attempts > MAX_ATTEMPTS || daily > DAILY_ATTEMPTS) {
       await this.kv.del(key);
       return "too_many_attempts";
     }
+    const stored = JSON.parse(raw) as { hash: string };
     const expected = Buffer.from(stored.hash, "hex");
     const actual = Buffer.from(hash(email, code), "hex");
     if (!crypto.timingSafeEqual(expected, actual)) {
-      await this.kv.set(key, JSON.stringify({ ...stored, attempts: stored.attempts + 1 }), CODE_TTL_SECONDS);
       return "invalid";
     }
     await this.kv.del(key);
+    await this.kv.del(`codeatt:${purpose}:${email}`);
     return "ok";
   }
 }

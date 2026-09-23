@@ -439,3 +439,45 @@ test("a duel player who stays away loses the duel", async () => {
   const result = events.find((entry) => entry.event === "duel_result")?.payload as { winners: string[]; reason: string; forfeitedBy: string };
   assert.deepEqual([result.winners, result.reason, result.forfeitedBy], [[first], "forfeit", second]);
 });
+
+// ---------------------------------------------------------------- sécurité
+
+test("a socket holds a single seat: joining the same room again reuses it", () => {
+  const { manager } = setup();
+  const code = manager.createRoom();
+  const first = manager.joinRoom(code, "s1");
+  const again = manager.joinRoom(code, "s1", "uid-another-secret-00001");
+  assert.equal(again.playerId, first.playerId);
+  assert.equal(manager.getRoomPayload(code).players.length, 1);
+});
+
+test("generated room codes are long and unambiguous", () => {
+  const { manager } = setup();
+  for (let index = 0; index < 20; index += 1) {
+    assert.match(manager.createRoom(), /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
+  }
+});
+
+test("pseudos are unique within a room", () => {
+  const { manager } = setup();
+  const code = manager.createRoom();
+  const [first, second] = fill(manager, code, 2) as [string, string];
+  manager.setPseudo(code, first, "Rosa");
+  manager.setPseudo(code, second, "rosa");
+  assert.deepEqual(manager.getRoomPayload(code).players.map((player) => player.pseudo), ["Rosa", "rosa 2"]);
+});
+
+test("waiting for an absent player is capped: no endless stall", async () => {
+  const { manager, code, players, session } = await gameWithRoles({ absenceHoldMs: 1_000 });
+  await revealRoles(session, players);
+  const [first, , , , gone] = players as [string, string, string, string, string];
+  manager.handleDisconnect(code, gone, "s5");
+  manager.holdForPlayer(code, first, gone);
+  assert.throws(() => manager.holdForPlayer(code, first, gone), /already waiting/);
+  for (let hold = 1; hold < 3; hold += 1) {
+    manager.releaseHold(code, first, gone);
+    manager.holdForPlayer(code, first, gone);
+  }
+  manager.releaseHold(code, first, gone);
+  assert.throws(() => manager.holdForPlayer(code, first, gone), /cannot wait any longer/);
+});

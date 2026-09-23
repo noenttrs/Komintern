@@ -67,11 +67,16 @@ async function api(path: string, init: { method?: string; body?: unknown; cookie
 
 async function signUp(name: string): Promise<Account> {
   const email = `${name.toLowerCase()}@example.org`;
-  assert.equal((await api("/auth/register", { body: { email, password: "correct horse battery", displayName: name } })).status, 202);
-  const verified = await api("/auth/verify", { body: { email, code: mailer.lastCodeFor(email) } });
+  const registered = await api("/auth/register", { body: { email, password: "correct horse battery", displayName: name } });
+  assert.equal(registered.status, 202);
+  // Le navigateur renvoie le cookie d'inscription en attente avec le code.
+  const pending = /reg=[^;]+/.exec(registered.setCookie ?? "")?.[0];
+  assert.ok(pending !== undefined, "registration is bound to this browser");
+  const code = mailer.lastCodeFor(email);
+  const verified = await api("/auth/verify", { body: { email, code }, cookie: pending });
   assert.equal(verified.status, 200);
   assert.match(verified.setCookie ?? "", /sid=.+HttpOnly/i);
-  return { id: verified.body.user.id, name, cookie: (verified.setCookie ?? "").split(";")[0] as string };
+  return { id: verified.body.user.id, name, cookie: /sid=[^;]+/.exec(verified.setCookie ?? "")?.[0] as string };
 }
 
 function open(cookie?: string): Socket {

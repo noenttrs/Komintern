@@ -151,9 +151,11 @@ export class MemoryKv implements Kv {
   }
 
   public async incrWithTtl(key: string, ttlSeconds: number): Promise<number> {
-    const current = await this.get(key);
-    const next = (current === null ? 0 : Number(current)) + 1;
+    // Lecture et écriture sans await entre les deux : atomique, comme INCR côté Redis.
     const existing = this.values.get(key);
+    const live = existing !== undefined && (existing.expiresAt === null || existing.expiresAt > this.now());
+    const current = live ? existing.value : null;
+    const next = (current === null ? 0 : Number(current)) + 1;
     this.values.set(key, {
       value: String(next),
       expiresAt: current === null || existing === undefined ? this.now() + ttlSeconds * 1000 : existing.expiresAt,
