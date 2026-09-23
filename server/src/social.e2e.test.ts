@@ -203,6 +203,15 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
     });
   }
 
+  // --- Historique des parties (uniquement les siennes)
+  const history = await api("/me/games", { cookie: rosa!.cookie });
+  assert.equal(history.body.games.length, 1);
+  assert.equal(history.body.games[0].playerCount, 5);
+  assert.equal(history.body.games[0].won, order[rosaPlayerId] === "communist");
+  assert.equal(history.body.games[0].missions.length, 3);
+  assert.equal(history.body.games[0].teammates.length, 4);
+  assert.equal((await api("/me/games")).status, 401);
+
   // --- Suppression de compte
   assert.equal((await api("/me", { method: "DELETE", cookie: karl!.cookie })).status, 204);
   assert.deepEqual((await api("/me", { cookie: karl!.cookie })).body, { user: null });

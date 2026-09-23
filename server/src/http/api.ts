@@ -189,6 +189,10 @@ export function createApi(services: Services, admin: AdminService): express.Rout
     response.json({ user: user === null ? null : accountView(user, true) });
   }));
 
+  router.get("/me/games", route(async (request, response) => {
+    response.json({ games: await services.gameLogs.gamesForUser(requireUser(request), 30) });
+  }));
+
   router.patch("/me", route(async (request, response) => {
     const user = await accounts.setDisplayName(requireUser(request), request.body?.displayName);
     response.json({ user: accountView(user, true) });

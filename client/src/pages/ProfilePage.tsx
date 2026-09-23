@@ -5,6 +5,7 @@ import type { Account } from "../api";
 import { PageShell } from "../components/PageShell";
 import type { AccountActions, AccountState } from "../hooks/useAccount";
 import { navigate } from "../router";
+import { GameHistory } from "./GameHistory";
 import { StatsGrid } from "./StatsGrid";
 
 type ProfilePageProps = { account: AccountState & AccountActions; userId: string | null; setup: boolean };
@@ -81,6 +82,7 @@ export function ProfilePage({ account, userId, setup }: ProfilePageProps): JSX.E
               <h2 className="profile-name">{profile.displayName}</h2>
             )}
             <StatsGrid stats={profile.stats} />
+            {own ? <GameHistory /> : null}
             <p className="mono">Inscrit le {new Date(profile.createdAt).toLocaleDateString("fr-FR")}</p>
             {own ? (
               <>

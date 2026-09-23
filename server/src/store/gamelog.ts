@@ -46,6 +46,42 @@ export type ModerationIdentity = { pseudonym: string; playerId: string; userId: 
 
 export type AuditEntry = { caseId: string; action: string; at: Date; detail?: string };
 
+/** Une partie vue par un joueur : ce qu'il a le droit de revoir sur son profil. */
+export type PlayedGame = {
+  id: string;
+  endedAt: Date;
+  playerCount: number;
+  faction: Faction | null;
+  winner: Faction | null;
+  won: boolean | null;
+  reason: "missions" | "forfeit" | null;
+  scores: Scores;
+  missions: Array<{ missionIndex: number; result: Faction; naziVotes: number; teamSize: number }>;
+  teammates: string[];
+};
+
+export function toPlayedGame(log: GameLog, userId: string): PlayedGame | null {
+  const me = log.players.find((player) => player.userId === userId);
+  if (me === undefined) return null;
+  return {
+    id: log.id,
+    endedAt: log.endedAt,
+    playerCount: log.players.length,
+    faction: me.faction,
+    winner: log.winner,
+    won: log.winner === null || me.faction === null ? null : log.winner === me.faction,
+    reason: log.reason,
+    scores: log.scores,
+    missions: log.missionHistory.map((mission) => ({
+      missionIndex: mission.missionIndex,
+      result: mission.result,
+      naziVotes: mission.naziVotes,
+      teamSize: mission.team.length,
+    })),
+    teammates: log.players.filter((player) => player.playerId !== me.playerId).map((player) => player.pseudo),
+  };
+}
+
 export type GameLogStats = {
   total: number;
   finished: number;
@@ -74,6 +110,8 @@ export interface GameLogStore {
   audit(entry: AuditEntry): Promise<void>;
   auditTrail(caseId: string): Promise<AuditEntry[]>;
   stats(now?: Date): Promise<GameLogStats>;
+  /** Parties terminées d'un compte, les plus récentes d'abord. */
+  gamesForUser(userId: string, limit: number): Promise<PlayedGame[]>;
 }
 
 export function newLogId(prefix: string): string {
@@ -188,6 +226,11 @@ export class MongoGameLogStore implements GameLogStore {
     return this.audits.find({ caseId }, { projection: { _id: 0 } }).sort({ at: 1 }).toArray();
   }
 
+  public async gamesForUser(userId: string, limit: number): Promise<PlayedGame[]> {
+    const docs = await this.games.find({ "players.userId": userId, outcome: "finished" }).sort({ endedAt: -1 }).limit(limit).toArray();
+    return docs.map((doc) => toPlayedGame(fromDoc<GameLog>(doc), userId)).filter((game): game is PlayedGame => game !== null);
+  }
+
   public async stats(now = new Date()): Promise<GameLogStats> {
     const day = new Date(now.getTime() - 24 * 3600 * 1000);
     const week = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
@@ -269,6 +312,15 @@ export class MemoryGameLogStore implements GameLogStore {
 
   public async auditTrail(caseId: string): Promise<AuditEntry[]> {
     return this.audits.filter((entry) => entry.caseId === caseId);
+  }
+
+  public async gamesForUser(userId: string, limit: number): Promise<PlayedGame[]> {
+    return [...this.games.values()]
+      .filter((log) => log.outcome === "finished")
+      .sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime())
+      .map((log) => toPlayedGame(log, userId))
+      .filter((game): game is PlayedGame => game !== null)
+      .slice(0, limit);
   }
 
   public async stats(now = new Date()): Promise<GameLogStats> {

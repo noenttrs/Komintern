@@ -1438,3 +1438,44 @@ textarea {
   padding-top: 0.6rem;
   font-size: 0.9rem;
 }
+
+/* Historique des parties */
+.history-list {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.history-item {
+  border: 1px solid var(--line-soft);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.history-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.history-item__head .mono {
+  margin-left: auto;
+}
+
+.history-missions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.history-item__details {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
