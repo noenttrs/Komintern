@@ -55,6 +55,7 @@ async function api(path: string, init: { method?: string; body?: unknown; cookie
 
 test("contact form, donation link, admin area behind role + TOTP", async () => {
   assert.equal((await api("/config")).body.donationUrl, "https://ko-fi.com/komintern");
+  assert.deepEqual((await api("/health")).body, { status: "ok", redis: true, mongo: true });
 
   // Contact public : stocké et transféré à la boîte de contact, avec reply-to
   assert.equal((await api("/contact", { body: { email: "rosa@example.org", subject: "Bug", message: "trop court" } })).status, 202);

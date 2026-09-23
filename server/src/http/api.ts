@@ -103,6 +103,18 @@ export function createApi(services: Services, admin: AdminService): express.Rout
       handler(request, response).catch(next);
     };
 
+  // Surveillance (UptimeRobot, Healthchecks…) : 200 si tout va bien, 503 si une base ne répond plus.
+  router.get("/health", async (_request, response) => {
+    const withTimeout = <T,>(promise: Promise<T>): Promise<T | false> =>
+      Promise.race([promise, new Promise<false>((resolve) => setTimeout(() => resolve(false), 2_000).unref())]);
+    const [redis, mongo] = await Promise.all([
+      withTimeout(services.kv.ping()).catch(() => false),
+      withTimeout(services.users.countAll().then(() => true)).catch(() => false),
+    ]);
+    const ok = redis === true && mongo === true;
+    response.status(ok ? 200 : 503).json({ status: ok ? "ok" : "degraded", redis: redis === true, mongo: mongo === true });
+  });
+
   router.get("/config", (_request, response) => {
     response.json({
       googleEnabled: services.google !== undefined,

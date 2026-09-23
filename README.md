@@ -7,6 +7,8 @@ Chacun joue sur son téléphone, autour d'une table ou à distance.
 
 [**Jouer →**](https://fascismwontget.me) · [Règles](docs/regles.md) · [Audit technique](docs/audit.md)
 
+[![CI](https://github.com/noenttrs/Komintern/actions/workflows/ci.yml/badge.svg)](https://github.com/noenttrs/Komintern/actions/workflows/ci.yml)
+
 </div>
 
 <p align="center">
