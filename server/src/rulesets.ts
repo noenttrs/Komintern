@@ -1,6 +1,7 @@
-// Miroir des presets de gameengine/constants.py (4 à 11 joueurs). Le moteur reste l'autorité :
+// Miroir des presets de gameengine/constants.py (3 à 11 joueurs). Le moteur reste l'autorité :
 // ces données servent à valider tôt (création de room) et à afficher les tailles de mission.
 export const RULESET_PRESETS = {
+	PRESET_3J: { playerCount: 3, naziCount: 1, missionSizes: [2, 2, 2], missionCount: 3, winThreshold: 2 },
 	PRESET_4J: { playerCount: 4, naziCount: 1, missionSizes: [2, 3, 2, 3, 3], missionCount: 5, winThreshold: 3 },
 	PRESET_5J: { playerCount: 5, naziCount: 2, missionSizes: [2, 3, 2, 3, 3], missionCount: 5, winThreshold: 3 },
 	PRESET_6J: { playerCount: 6, naziCount: 2, missionSizes: [2, 3, 3, 4, 3, 4, 4], missionCount: 7, winThreshold: 4 },
@@ -13,7 +14,7 @@ export const RULESET_PRESETS = {
 
 export type RulesetPreset = keyof typeof RULESET_PRESETS;
 
-export const MIN_PLAYERS = 4;
+export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 11;
 
 type RawRulesetPayload = Record<string, unknown>;

@@ -23,7 +23,8 @@ test("resolveRulesetForPlayerCount infers the matching playable preset", () => {
     const resolved = resolveRulesetForPlayerCount(count);
     assert.equal(resolved.missionCount, 2 * (Math.floor(count / 2) + 1) - 1);
   }
-  assert.throws(() => resolveRulesetForPlayerCount(3), /at least 4 players/);
+  assert.throws(() => resolveRulesetForPlayerCount(2), /at least 3 players/);
+  assert.deepEqual(resolveRulesetForPlayerCount(3).missionSizes, [2, 2, 2]);
 });
 
 test("parseRuleset mirrors the engine validation", () => {

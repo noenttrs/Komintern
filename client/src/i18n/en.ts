@@ -114,7 +114,7 @@ export const en: Dictionary = {
     public: "Public",
     publicLoginHint: "Log in to create a public game, open to everyone.",
     rules: "Rules",
-    rulesDefault: "Standard (4 to 11 players)",
+    rulesDefault: "Standard (3 to 11 players)",
     rulesPreset: "Fixed number of players",
     rulesCustom: "Custom rules",
     presetPlayers: "{count} players",
@@ -520,9 +520,9 @@ export const en: Dictionary = {
     mission:
       "<b>Mission</b> — each team member votes in secret. A single Nazi vote is enough to make the mission fail; Communists can only vote Communist.",
     win: "The first side to win 3 missions wins. The leader role rotates every new round.",
-    playersTitle: "4 to 11 players",
+    playersTitle: "3 to 11 players",
     players:
-      "You need to win (players ÷ 2) + 1 missions: 3 with 4-5 players, 4 with 6-7, 5 with 8-9, 6 with 10-11. With 5 players: 2 Nazis, 3 Communists, 5 missions with teams of 2, 3, 2, 3 and 3 players. A team is never bigger than the number of Communists: a team without Nazis is always possible.",
+      "You need to win (players ÷ 2) + 1 missions: 2 with 3 players, 3 with 4-5, 4 with 6-7, 5 with 8-9, 6 with 10-11. With 3 players, a single Nazi and teams of 2: a short game, all about bluffing. With 5 players: 2 Nazis, 3 Communists, 5 missions with teams of 2, 3, 2, 3 and 3 players. A team is never bigger than the number of Communists: a team without Nazis is always possible.",
     accountTitle: "Optional account",
     account:
       "No sign-up needed to play. An account lets you keep your stats (wins, losses, games played on each side), add friends, see when they're online and invite them to your room.",

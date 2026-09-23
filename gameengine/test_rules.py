@@ -204,7 +204,7 @@ class StartGameValidationTests(unittest.TestCase):
                 bridge.start_game({"player_ids": PLAYERS_5, "chef_cursor": bad})
 
     def test_every_preset_starts_and_plays_its_first_round(self) -> None:
-        for count in range(4, 12):
+        for count in range(3, 12):
             with self.subTest(players=count):
                 bridge = EngineBridge()
                 players = [f"p{index}" for index in range(count)]
@@ -212,9 +212,20 @@ class StartGameValidationTests(unittest.TestCase):
                 self.assertEqual(round_state["mission_count"], 2 * (count // 2 + 1) - 1)
                 bridge.propose_team({"team": players[: round_state["required_team_size"]]})
 
-    def test_fewer_than_four_players_cannot_play(self) -> None:
+    def test_fewer_than_three_players_cannot_play(self) -> None:
         with self.assertRaisesRegex(ValueError, "ruleset_preset"):
-            EngineBridge().start_game({"player_ids": ["a", "b", "c"], "chef_cursor": 0, "ruleset_preset": "PRESET_3J"})
+            EngineBridge().start_game({"player_ids": ["a", "b"], "chef_cursor": 0, "ruleset_preset": "PRESET_2J"})
+
+    def test_three_player_game_is_short_and_either_side_can_win(self) -> None:
+        players = ["a", "b", "c"]
+        for nazi_wins in (False, True):
+            with self.subTest(nazi_wins=nazi_wins):
+                bridge = EngineBridge()
+                start(bridge, players, ruleset_preset="PRESET_3J")
+                self.assertEqual(list(roles(bridge, players).values()).count("nazi"), 1)
+                play_mission(bridge, players, nazi_wins=nazi_wins)
+                result = play_mission(bridge, players, nazi_wins=nazi_wins)
+                self.assertEqual(result["game_winner"], "nazi" if nazi_wins else "communist")
 
     def test_preset_4j_is_available(self) -> None:
         bridge = EngineBridge()

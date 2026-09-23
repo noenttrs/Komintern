@@ -113,7 +113,7 @@ export const fr = {
     public: "Publique",
     publicLoginHint: "Connecte-toi pour créer une partie publique, ouverte à tous.",
     rules: "Regles",
-    rulesDefault: "Standard (de 4 à 11 joueurs)",
+    rulesDefault: "Standard (de 3 à 11 joueurs)",
     rulesPreset: "Nombre de joueurs fixe",
     rulesCustom: "Règles personnalisées",
     presetPlayers: "{count} joueurs",
@@ -519,9 +519,9 @@ export const fr = {
     mission:
       "<b>Mission</b> — chaque membre de l'équipe vote en secret. Un seul vote nazi suffit à faire échouer la mission ; les communistes ne peuvent voter que communiste.",
     win: "Le premier camp à remporter 3 missions gagne. Le rôle de chef tourne à chaque nouvelle manche.",
-    playersTitle: "De 4 à 11 joueurs",
+    playersTitle: "De 3 à 11 joueurs",
     players:
-      "Il faut remporter (joueurs ÷ 2) + 1 missions : 3 à 4-5 joueurs, 4 à 6-7, 5 à 8-9, 6 à 10-11. À 5 joueurs : 2 nazis, 3 communistes, 5 missions avec des équipes de 2, 3, 2, 3 et 3 joueurs. Une équipe ne dépasse jamais le nombre de communistes : une équipe sans nazi est toujours possible.",
+      "Il faut remporter (joueurs ÷ 2) + 1 missions : 2 à 3 joueurs, 3 à 4-5, 4 à 6-7, 5 à 8-9, 6 à 10-11. À 3 joueurs, un seul nazi et des équipes de 2 : une partie courte, tout au bluff. À 5 joueurs : 2 nazis, 3 communistes, 5 missions avec des équipes de 2, 3, 2, 3 et 3 joueurs. Une équipe ne dépasse jamais le nombre de communistes : une équipe sans nazi est toujours possible.",
     accountTitle: "Compte facultatif",
     account:
       "On joue sans inscription. Un compte permet de garder ses statistiques (victoires, défaites, parties jouées dans chaque camp), d'ajouter des amis, de voir s'ils sont en ligne et de les inviter dans sa room.",

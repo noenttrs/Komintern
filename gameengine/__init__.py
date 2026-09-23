@@ -5,6 +5,7 @@ from .constants import (
 	MISSION_SIZES,
 	NAZI_COUNT,
 	PLAYER_COUNT,
+	PRESET_3J,
 	PRESET_4J,
 	PRESET_5J,
 	PRESET_6J,

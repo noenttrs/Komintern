@@ -211,3 +211,20 @@ test("malformed payloads are rejected without crashing the server", async () => 
   socket.emit("create_room", { playerUid: "uid-alive-00000000000" });
   await alive;
 });
+
+test("a 3-player game starts with the real engine: one Nazi, teams of 2", { timeout: 15_000 }, async () => {
+  const host = await join("create_room", { code: "TRIO", pseudo: "A" }, "uid-trio-a-0000000000");
+  const players = [host];
+  for (const name of ["B", "C"]) players.push(await join("join_room", { code: "TRIO", pseudo: name }, `uid-trio-${name.toLowerCase()}-0000000000`));
+  host.socket.emit("start_game", {});
+  const started = await next<{ missionCount: number }>(host.socket, "game_started");
+  assert.equal(started.missionCount, 3);
+  for (const player of players) player.socket.emit("table_order_tap");
+  await next(host.socket, "table_order_updated", (payload: { completed?: boolean }) => payload.completed === true);
+  const roleEvents = players.map((player) => next<{ role: string }>(player.socket, "role_assigned"));
+  for (const player of players) player.socket.emit("table_order_confirmed");
+  const roles = await Promise.all(roleEvents);
+  assert.equal(roles.filter((role) => role.role === "nazi").length, 1);
+  const proposal = await everyone(players, "role_confirmed", "proposal_phase");
+  assert.equal(proposal.missionSize, 2);
+});

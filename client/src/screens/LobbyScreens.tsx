@@ -140,7 +140,7 @@ export function CreateRoomScreen(): JSX.Element {
             <input
               type="number"
               value={customPlayerCount}
-              min={4}
+              min={3}
               max={11}
               onChange={(event) => setCustomPlayerCount(Number(event.target.value))}
               placeholder="player_count"

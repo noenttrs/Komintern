@@ -4,12 +4,13 @@
 
 ## Vue d'ensemble
 
-Jeu de déduction sociale pour **4 à 11 joueurs**, opposant deux factions secrètes sur une série de missions. La première faction à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne la partie. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
+Jeu de déduction sociale pour **3 à 11 joueurs**, opposant deux factions secrètes sur une série de missions. La première faction à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne la partie. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
 
 ### Formats
 
 | Joueurs | Nazis | Communistes | Victoires pour gagner | Missions (taille des équipes) |
 |---|---|---|---|---|
+| 3 | 1 | 2 | 2 | 2 · 2 · 2 |
 | 4 | 1 | 3 | 3 | 2 · 3 · 2 · 3 · 3 |
 | 5 | 2 | 3 | 3 | 2 · 3 · 2 · 3 · 3 |
 | 6 | 2 | 4 | 4 | 2 · 3 · 3 · 4 · 3 · 4 · 4 |
@@ -24,13 +25,13 @@ Principes de calibrage :
 - **Ouverture avec une petite équipe**, pour installer la confiance, puis alternance de petites et grandes équipes pour faire monter la tension.
 - **Une équipe ne dépasse jamais le nombre de communistes** : une équipe sans nazi reste toujours possible.
 
-À moins de 4 joueurs, le jeu n'est pas jouable.
+À 3 joueurs, la partie est courte et repose sur le bluff : après un sabotage, le chef sait qui est le nazi, mais le troisième joueur doit choisir qui croire, et c'est lui qui départage les votes de confiance. À moins de 3 joueurs, le jeu n'est pas jouable.
 
 ---
 
 ## Les factions
 
-### Les Nazis — une minorité (2 à 5 joueurs)
+### Les Nazis — une minorité (1 à 4 joueurs)
 - Reçoivent **la liste complète des rôles de tous les joueurs** de la partie
 - Peuvent voter **Nazi ou Communist** lors des missions
 - Objectif : faire échouer les missions en glissant des votes Nazi
@@ -104,5 +105,5 @@ La partie se termine dès qu'une faction atteint le **nombre de victoires requis
 
 ---
 
-> **Version** : 0.2 (formats de 4 à 11 joueurs)
+> **Version** : 0.3 (formats de 3 à 11 joueurs)
 > **Statut** : Base de travail pour le game engine

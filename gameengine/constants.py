@@ -2,10 +2,23 @@ from __future__ import annotations
 
 from .types import InfoMode, Ruleset
 
-# Formats de 4 à 11 joueurs (voir docs/regles.md) :
+# Formats de 3 à 11 joueurs (voir docs/regles.md) :
 # - un camp gagne à (joueurs // 2) + 1 missions, donc 2 × seuil - 1 missions au plus ;
 # - on commence par de petites équipes puis on alterne pour faire monter la tension ;
 # - une équipe ne dépasse jamais le nombre de communistes (une équipe sans nazi reste possible).
+
+# À 3 : un nazi, deux communistes et des équipes de 2. Après un sabotage, le chef sait qui
+# est le nazi, mais le troisième joueur doit choisir qui croire : partie courte, tout au bluff.
+PRESET_3J = Ruleset(
+	player_count=3,
+	nazi_count=1,
+	communist_count=2,
+	mission_sizes=[2, 2, 2],
+	mission_count=3,
+	win_threshold=2,
+	info_mode=InfoMode.FULL,
+	experimental=False,
+)
 
 PRESET_4J = Ruleset(
 	player_count=4,
@@ -96,7 +109,7 @@ PRESET_11J = Ruleset(
 )
 
 PRESETS: dict[int, Ruleset] = {preset.player_count: preset for preset in (
-	PRESET_4J, PRESET_5J, PRESET_6J, PRESET_7J, PRESET_8J, PRESET_9J, PRESET_10J, PRESET_11J,
+	PRESET_3J, PRESET_4J, PRESET_5J, PRESET_6J, PRESET_7J, PRESET_8J, PRESET_9J, PRESET_10J, PRESET_11J,
 )}
 
 # Alias historiques du format de base à 5 joueurs.

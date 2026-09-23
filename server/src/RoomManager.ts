@@ -65,7 +65,7 @@ type RoomRecord = {
   status: RoomStatus;
   playerIds: string[];
   hostPlayerId: string | null;
-  /** Règles libres : de 4 à 11 joueurs. Preset ou règles perso : nombre exact. */
+  /** Règles libres : de 3 à 11 joueurs. Preset ou règles perso : nombre exact. */
   minPlayers: number;
   maxPlayers: number;
   socketByPlayer: Map<string, string>;

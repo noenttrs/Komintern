@@ -47,8 +47,8 @@ class Ruleset:
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
                 raise ValueError(f"invalid ruleset: {field_name} must be an integer")
-        if self.player_count < 4:
-            raise ValueError("invalid ruleset: player_count must be >= 4")
+        if self.player_count < 3:
+            raise ValueError("invalid ruleset: player_count must be >= 3")
         if self.nazi_count < 1 or self.communist_count < 1:
             raise ValueError("invalid ruleset: each faction needs at least one player")
         if self.mission_count < 1:

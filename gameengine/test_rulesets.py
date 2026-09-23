@@ -8,7 +8,7 @@ from gameengine.types import InfoMode, Ruleset
 
 class PresetTests(unittest.TestCase):
     def test_presets_cover_4_to_11_players(self) -> None:
-        self.assertEqual(sorted(PRESETS), list(range(4, 12)))
+        self.assertEqual(sorted(PRESETS), list(range(3, 12)))
 
     def test_every_preset_follows_the_design_rules(self) -> None:
         for count, preset in PRESETS.items():
@@ -48,7 +48,7 @@ class RulesetValidationTests(unittest.TestCase):
             "mission count alignment": {"mission_sizes": [2, 3]},
             "threshold above missions": {"win_threshold": 8},
             "blind without experimental": {"info_mode": InfoMode.BLIND},
-            "fewer than 4 players": {"player_count": 3, "nazi_count": 1, "communist_count": 2},
+            "fewer than 3 players": {"player_count": 2, "nazi_count": 1, "communist_count": 1, "mission_sizes": [1, 1, 1], "mission_count": 3, "win_threshold": 2},
         }
         for name, overrides in cases.items():
             with self.subTest(name), self.assertRaises(ValueError):

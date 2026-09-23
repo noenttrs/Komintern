@@ -21,8 +21,9 @@ export type UIPhase =
   | "replay_waiting";
 
 // Seuls les presets dont les tailles de mission sont définies sont jouables.
-// Formats de 4 à 11 joueurs (voir docs/regles.md).
+// Formats de 3 à 11 joueurs (voir docs/regles.md).
 export const PLAYABLE_PRESETS = [
+  "PRESET_3J",
   "PRESET_4J",
   "PRESET_5J",
   "PRESET_6J",
