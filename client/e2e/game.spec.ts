@@ -20,7 +20,11 @@ async function openPlayers(browser: Browser, size: { width: number; height: numb
     const page = await context.newPage();
     const name = `Testeur${index + 1}`;
     await page.goto("/");
-    await page.evaluate((pseudo) => window.localStorage.setItem("komintern.pseudo", pseudo), name);
+    await page.evaluate((pseudo) => {
+      window.localStorage.setItem("komintern.pseudo", pseudo);
+      // Joueur 1 garde les astuces de première partie (testées), les autres les ont déjà vues.
+      if (pseudo !== "Testeur1") window.localStorage.setItem("komintern.tips_seen", JSON.stringify(["*"]));
+    }, name);
     await page.reload();
     players.push({ page, name });
   }
@@ -30,6 +34,7 @@ async function openPlayers(browser: Browser, size: { width: number; height: numb
 /** Vérifie la mise en page de l'écran courant et fait une capture. */
 async function check(page: Page, file: string): Promise<void> {
   await page.waitForTimeout(250);
+  await dismissTip(page);
   const problems = await page.evaluate(() => {
     const found: string[] = [];
     if (document.documentElement.scrollWidth > window.innerWidth + 1) {
@@ -65,7 +70,14 @@ async function check(page: Page, file: string): Promise<void> {
   expect(problems, file).toEqual([]);
 }
 
+/** Ferme l'astuce de première partie si elle est affichée (joueur 1 uniquement). */
+async function dismissTip(page: Page): Promise<void> {
+  const tip = page.getByRole("button", { name: "Compris" });
+  if (await tip.isVisible().catch(() => false)) await tip.click();
+}
+
 async function tapCard(page: Page): Promise<void> {
+  await dismissTip(page);
   const box = await page.locator(".card-zone").boundingBox();
   if (box === null) throw new Error("no card on screen");
   // Zone de texte au tiers supérieur de la carte, loin des boutons d'action.
@@ -136,6 +148,7 @@ for (const device of DEVICES) {
     // Révélation des rôles (appui long)
     for (const [index, player] of players.entries()) {
       await expect(player.page.getByText("Maintenez pour voir votre role")).toBeVisible();
+      await dismissTip(player.page);
       const box = (await player.page.locator(".card-zone").boundingBox())!;
       await player.page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.35);
       await player.page.mouse.down();
@@ -157,6 +170,7 @@ for (const device of DEVICES) {
         }
         return false;
       }).toBe(true);
+      await dismissTip(chef!.page);
       const teamSize = Number((await chef!.page.getByText(/Choisir equipe/).innerText()).match(/\d+/)?.[0]);
       if (round === 1) await check(chef!.page, tag("05-proposition-chef"));
       const chips = chef!.page.locator(".team-grid .chip");
@@ -164,8 +178,9 @@ for (const device of DEVICES) {
       await chef!.page.getByRole("button", { name: "Proposer equipe" }).first().click();
 
       for (const [index, player] of players.entries()) {
-        await expect(player.page.getByRole("heading", { name: "Vote de confiance" })).toBeVisible();
+        await expect(player.page.getByRole("heading", { name: "Vote de confiance" }).first()).toBeVisible();
         if (round === 1 && index === 0) await check(player.page, tag("06-vote-confiance"));
+        await dismissTip(player.page);
         await player.page.getByRole("button", { name: "✓" }).first().click();
       }
       for (const [index, player] of players.entries()) {
@@ -185,6 +200,7 @@ for (const device of DEVICES) {
             .or(player.page.getByText(/Victoire (Nazi|Communiste)/))
             .first(),
         ).toBeVisible();
+        await dismissTip(player.page);
         const communist = player.page.locator('.vote-stack button:has(svg[viewBox="0 0 24 24"])').first();
         if (await communist.isVisible().catch(() => false)) {
           if (round === 1) await check(player.page, tag(`08-mission-vote-${index}`));

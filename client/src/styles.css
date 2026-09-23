@@ -1372,3 +1372,61 @@ textarea {
 .lobby-player {
   min-height: 2.2rem;
 }
+
+/* Règles : tableau des formats */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.rules-table th,
+.rules-table td {
+  border: 1px solid var(--line-soft);
+  padding: 0.3rem 0.4rem;
+  text-align: left;
+  color: var(--ink);
+}
+
+.rules-table td:last-child {
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.rules-table__current td {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* Tutoriel : une astuce par écran, la première fois */
+.tip-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: grid;
+  place-items: center;
+  padding: var(--screen-gap);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.tip-card {
+  width: min(100%, 22rem);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  padding: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tip-card h2 {
+  text-align: left;
+}
+
+.tip-card .link-button {
+  justify-self: center;
+  font-size: 0.85rem;
+}

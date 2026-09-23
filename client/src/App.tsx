@@ -15,6 +15,8 @@ import { FriendsPage } from "./pages/FriendsPage";
 import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RoomInvite } from "./components/RoomInvite";
+import { Tutorial } from "./components/Tutorial";
+import { RulesPage } from "./pages/RulesPage";
 import { joinCodeFromPath, navigate as goTo, useRoute } from "./router";
 import { socket } from "./socket";
 
@@ -271,6 +273,10 @@ function StatusBanners({
       ) : null}
     </div>
   );
+}
+
+function isGamePhaseUi(phase: UIPhase): boolean {
+  return !["pseudo_entry", "landing", "create_room", "join_room", "waiting_room"].includes(phase);
 }
 
 /** Étape de validation correspondant à un écran, pour restaurer « déjà validé » au resync. */
@@ -1538,6 +1544,8 @@ export default function App(): JSX.Element {
       <ContactPage defaultEmail={account.user?.email ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
     ) : route.page === "support" ? (
       <SupportPage donationUrl={account.config?.donationUrl ?? ""} />
+    ) : route.page === "rules" ? (
+      <RulesPage playerCount={isGamePhaseUi(phase) ? players.length : null} />
     ) : route.page === "admin" ? (
       <AdminPage isAdmin={account.user?.isAdmin === true} />
     ) : null;
@@ -1579,6 +1587,7 @@ export default function App(): JSX.Element {
           }}
         />
       ) : null}
+      {route.page === "game" ? <Tutorial phase={phase} /> : null}
       {page}
     </>
   );

@@ -79,6 +79,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
       >
         <p className="mono">{signedIn ? displayName ?? "Compte" : "Invité"}</p>
         <button type="button" onClick={() => go("/")} tabIndex={open ? 0 : -1}>Jouer</button>
+        <button type="button" onClick={() => go("/regles")} tabIndex={open ? 0 : -1}>Règles du jeu</button>
         {signedIn ? (
           <>
             <button type="button" onClick={() => go("/profil")} tabIndex={open ? 0 : -1}>Profil</button>
