@@ -943,7 +943,8 @@ main.game-screen {
   color: var(--ink-soft);
 }
 
-.prose a {
+/* Les liens-boutons gardent leurs propres couleurs (sinon texte noir sur fond noir). */
+.prose a:not(.button-link) {
   color: var(--ink);
 }
 

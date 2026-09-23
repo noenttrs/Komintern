@@ -594,7 +594,7 @@ export const fr = {
     intro: "<b>Nazi Communiste</b> est gratuit, sans publicité et sans revente de données. Il est développé et hébergé bénévolement.",
     helps: "Un don, même petit, aide à :",
     help1: "payer le domaine, l'envoi des emails et l'hébergement ;",
-    help2: "ajouter de nouveaux modes (7 à 11 joueurs), des variantes de règles et des statistiques plus poussées ;",
+    help2: "ajouter de nouveaux modes, des variantes de règles et des statistiques plus poussées ;",
     help3: "améliorer l'accessibilité et la modération pour que les parties restent agréables.",
     donate: "Faire un don sur Ko-fi ↗",
     soon: "Les dons ouvrent bientôt.",

@@ -595,7 +595,7 @@ export const en: Dictionary = {
     intro: "<b>Nazi Communiste</b> is free, ad-free and never sells your data. It's developed and hosted by volunteers.",
     helps: "A donation, even a small one, helps to:",
     help1: "pay for the domain, email sending and hosting;",
-    help2: "add new modes (7 to 11 players), rule variants and more detailed stats;",
+    help2: "add new modes, rule variants and more detailed stats;",
     help3: "improve accessibility and moderation so games stay fun.",
     donate: "Donate on Ko-fi ↗",
     soon: "Donations open soon.",
