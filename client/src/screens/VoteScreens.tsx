@@ -75,7 +75,7 @@ export function ProposalScreen(): JSX.Element {
         back={showFullHistory ? expandedBackContent : defaultBackContent}
         overlay={roleOverlay}
         actions={
-          iAmChef ? (
+          iAmChef && waitingValidationStep !== "proposal" ? (
             <button
               type="button"
               className="inline-action"

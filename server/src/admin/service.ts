@@ -5,11 +5,43 @@ import { verifyTotp } from "../auth/totp";
 import type { ContactStore } from "../store/contact";
 import type { GameLogStore } from "../store/gamelog";
 import type { Kv } from "../store/kv";
-import type { UserStore } from "../store/users";
+import crypto from "crypto";
+
+import type { AccountWarning, User, UserStore } from "../store/users";
 
 export type LiveStats = { rooms: number; players: number; connectedPlayers: number; gamesInProgress: number };
 
 const ADMIN_SESSION_TTL_SECONDS = 12 * 3600;
+
+/** Compte vu par l'administration (modération) : jamais le mot de passe ni le secret TOTP. */
+export type AdminUserView = {
+  id: string;
+  displayName: string | null;
+  email: string | null;
+  createdAt: string;
+  bannedUntil: string | null;
+  banReason: string | null;
+  warnings: Array<{ id: string; at: string; reason: string; seen: boolean }>;
+  gamesPlayed: number;
+};
+
+function adminUserView(user: User): AdminUserView {
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    email: user.email,
+    createdAt: user.createdAt.toISOString(),
+    bannedUntil: user.bannedUntil !== null && user.bannedUntil > new Date() ? user.bannedUntil.toISOString() : null,
+    banReason: user.bannedUntil !== null && user.bannedUntil > new Date() ? user.banReason : null,
+    warnings: user.warnings.map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason, seen: warning.seenAt !== null })),
+    gamesPlayed: user.stats.wins + user.stats.losses,
+  };
+}
+
+function parseReason(raw: unknown, fallback: string): string {
+  const reason = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim().slice(0, 300) : "";
+  return reason === "" ? fallback : reason;
+}
 
 
 /**
@@ -25,6 +57,8 @@ export class AdminService {
     private readonly liveStats: () => LiveStats,
     /** Bannissement : fermer les sessions et couper les connexions en cours du compte. */
     private readonly onBan: (userId: string) => Promise<void> = async () => undefined,
+    /** Avertissement : prévenir le joueur tout de suite s'il est en ligne. */
+    private readonly onWarn: (userId: string) => void = () => undefined,
   ) {}
 
   public async isAdmin(userId: string | undefined): Promise<boolean> {
@@ -89,16 +123,55 @@ export class AdminService {
     await this.gameLogs.audit({ caseId: id, action: "resolve", at: new Date(), detail: note });
   }
 
-  public async ban(userId: string, rawDays: unknown): Promise<Date | null> {
+  public async ban(userId: string, rawDays: unknown, rawReason?: unknown): Promise<Date | null> {
     const days = Number(rawDays);
     if (!Number.isFinite(days) || days < 0 || days > 3650) throw new ApiError(400, "invalid_input");
+    const target = await this.requireTarget(userId);
+    const until = days === 0 ? null : new Date(Date.now() + days * 24 * 3600 * 1000);
+    const reason = until === null ? null : parseReason(rawReason, "bannissement");
+    await this.users.update(userId, { bannedUntil: until, banReason: reason });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: until === null ? "unban" : "ban", at: new Date(), detail: until === null ? undefined : `${days} j · ${reason}` });
+    if (until !== null) await this.onBan(userId);
+    return until;
+  }
+
+  public async warn(userId: string, rawReason: unknown): Promise<AccountWarning> {
+    const target = await this.requireTarget(userId);
+    const warning: AccountWarning = { id: `w_${crypto.randomBytes(6).toString("hex")}`, at: new Date(), reason: parseReason(rawReason, "") , seenAt: null };
+    if (warning.reason === "") throw new ApiError(400, "invalid_input");
+    await this.users.update(userId, { warnings: [...target.warnings, warning].slice(-50) });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "warn", at: warning.at, detail: warning.reason });
+    this.onWarn(userId);
+    return warning;
+  }
+
+  public async removeWarning(userId: string, warningId: string): Promise<void> {
+    const target = await this.requireTarget(userId);
+    if (!target.warnings.some((warning) => warning.id === warningId)) throw new ApiError(404, "not_found");
+    await this.users.update(userId, { warnings: target.warnings.filter((warning) => warning.id !== warningId) });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "remove_warning", at: new Date(), detail: warningId });
+  }
+
+  public async searchUsers(rawQuery: unknown): Promise<AdminUserView[]> {
+    const query = typeof rawQuery === "string" ? rawQuery.trim() : "";
+    if (query.length < 2 || query.length > 100) return [];
+    return (await this.users.search(query, 30)).map(adminUserView);
+  }
+
+  public async sanctionedUsers(): Promise<AdminUserView[]> {
+    return (await this.users.listSanctioned(new Date(), 200)).map(adminUserView);
+  }
+
+  public async recentGames(rawBefore: unknown): Promise<unknown[]> {
+    const before = typeof rawBefore === "string" && !Number.isNaN(Date.parse(rawBefore)) ? new Date(rawBefore) : undefined;
+    return this.gameLogs.recentGames(50, before);
+  }
+
+  private async requireTarget(userId: string): Promise<User> {
     const target = await this.users.findById(userId);
     if (target === null) throw new ApiError(404, "not_found");
     if (target.role === "admin") throw new ApiError(400, "invalid_input");
-    const until = days === 0 ? null : new Date(Date.now() + days * 24 * 3600 * 1000);
-    await this.users.update(userId, { bannedUntil: until });
-    if (until !== null) await this.onBan(userId);
-    return until;
+    return target;
   }
 
   public listContact() {

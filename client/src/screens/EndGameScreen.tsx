@@ -91,6 +91,7 @@ export function EndGameScreen(): JSX.Element {
           </div>
         }
         actions={
+          waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game" ? undefined : (
           <div className="vote-stack">
             <button
               type="button"
@@ -109,6 +110,7 @@ export function EndGameScreen(): JSX.Element {
               {t("endGame.quit")}
             </button>
           </div>
+          )
         }
       />
     </main>

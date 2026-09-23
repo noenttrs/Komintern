@@ -33,6 +33,7 @@ test("duel à 2 joueurs, puis revanche", async ({ browser }) => {
       await page.mouse.down();
       await expect(page.locator(".card-overlay")).toContainText("Duel : tu ne sais pas si l'autre est communiste ou nazi");
       await page.mouse.up();
+      await page.waitForTimeout(400); // garde anti-mauvais clic après l'appui long
       await page.getByRole("button", { name: "C'est bon" }).first().click();
     }
     await expect(first.getByRole("heading", { name: "Duel2 est-il nazi ?" })).toBeVisible();

@@ -62,3 +62,16 @@ test("moderation cases are pseudonymized and identities are stored apart", async
   const identities = await store.getIdentities(id);
   assert.deepEqual(identities.map((i) => [i.pseudonym, i.userId]), [["Joueur A", "u_rosa"], ["Joueur B", null]]);
 });
+
+test("the admin game list is anonymous: no pseudo, account or message", async () => {
+  const store = new MemoryGameLogStore();
+  await store.insertGame({ ...game("g1", new Date("2026-01-02T10:05:00Z")), startedAt: new Date("2026-01-02T10:00:00Z"), ruleset: { ruleset_preset: "PRESET_5J" } });
+  await store.insertGame({ ...game("g2", new Date("2026-01-03T10:00:00Z")), ruleset: { mode: "duel" }, duel: { winners: ["p1", "p2"], reason: "mutual_trust" } });
+  const rows = await store.recentGames(10);
+  assert.deepEqual(rows.map((row) => row.id), ["g2", "g1"]);
+  assert.deepEqual([rows[1]?.format, rows[1]?.durationSeconds, rows[1]?.accounts, rows[1]?.chatMessages], ["5J", 300, 1, 1]);
+  assert.deepEqual([rows[0]?.mode, rows[0]?.duelWinners], ["duel", 2]);
+  const text = JSON.stringify(rows);
+  for (const secret of ["Rosa", "Karl", "u_rosa", "salut", "p1"]) assert.equal(text.includes(secret), false, secret);
+  assert.deepEqual((await store.recentGames(10, new Date("2026-01-03T00:00:00Z"))).map((row) => row.id), ["g1"]);
+});

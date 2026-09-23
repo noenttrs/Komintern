@@ -32,7 +32,7 @@ Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`doc
 ## Fonctionnalités
 
 - **Parties en temps réel** de 3 à 11 joueurs via WebSocket, et un **duel à 2** (chacun ne connaît que son rôle, puis vote en secret « confiance » ou « nazi ! »), avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
-- **Rejoindre en un scan** : lien d'invitation `/r/CODE` et QR code plein écran ; **rooms publiques** pour jouer avec des inconnus.
+- **Rejoindre en un scan** : lien d'invitation `/r/CODE`, QR code plein écran, et scan du QR code directement dans l'app (sans passer par l'appareil photo ni Safari) ; **rooms publiques** pour jouer avec des inconnus.
 - **Sur place ou à distance** : sans chat autour d'une table, avec chat à distance. L'hôte peut exclure un joueur, transférer son rôle ou changer de mode.
 - **Jouable sans compte.** Le compte est facultatif : email + mot de passe avec code de validation, ou Google.
 - **Profil et statistiques** : victoires, défaites, taux de victoire, détail par camp, succès, historique des parties.
@@ -41,7 +41,7 @@ Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`doc
 - **Prise en main** : règles consultables en pleine partie, astuces de première partie, vibration et son quand c'est son tour.
 - **Notifications Web Push** (même écran verrouillé, iPhone compris en web app) : ton tour, et un avertissement 20 s avant d'être compté absent. Quand un joueur se déconnecte, les autres peuvent choisir de l'attendre ; il est prévenu et retrouve sa place en touchant la notification.
 - **Chat de room repliable** pour jouer à distance, avec **modération** : filtre de termes et signalements, puis dossiers pseudonymisés avec levée d'anonymat tracée.
-- **Administration** protégée par une double authentification (TOTP) : statistiques globales, audience, signalements, messages de contact.
+- **Administration** protégée par une double authentification (TOTP) : statistiques globales, audience, parties anonymes, signalements, avertissements et bannissements, messages de contact.
 - **Mesure d'audience anonyme**, sans cookie ni service tiers (empreinte hachée avec un sel quotidien jamais conservé).
 - **Web app installable** (PWA) et **responsive**, du 320 px au grand écran, dans une direction artistique monochrome.
 - **Pages pour les agents IA** : [`llms.txt`](https://fascismwontget.me/llms.txt) et [`agents.html`](https://fascismwontget.me/agents.html).

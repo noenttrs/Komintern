@@ -123,6 +123,7 @@ export function DuelResultScreen(): JSX.Element {
         back={<DuelRulesPanel />}
         overlay={roleOverlay}
         actions={
+          waiting ? undefined : (
           <div className="vote-stack">
             <button
               type="button"
@@ -139,6 +140,7 @@ export function DuelResultScreen(): JSX.Element {
               {t("endGame.quit")}
             </button>
           </div>
+          )
         }
       />
     </main>

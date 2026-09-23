@@ -86,6 +86,7 @@ export type Account = {
   hasGoogle?: boolean;
   isAdmin?: boolean;
   totpEnabled?: boolean;
+  pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
 };
 
 export type PublicConfig = {

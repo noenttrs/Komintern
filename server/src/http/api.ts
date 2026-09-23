@@ -245,6 +245,17 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.json({ user: user === null ? null : accountView(user, true) });
   }));
 
+  /** Le joueur a lu ses avertissements de modération. */
+  router.post("/me/warnings/seen", route(async (request, response) => {
+    const userId = requireUser(request);
+    const user = await services.users.findById(userId);
+    if (user !== null && user.warnings.some((warning) => warning.seenAt === null)) {
+      const now = new Date();
+      await services.users.update(userId, { warnings: user.warnings.map((warning) => (warning.seenAt === null ? { ...warning, seenAt: now } : warning)) });
+    }
+    response.status(204).end();
+  }));
+
   router.get("/me/games", route(async (request, response) => {
     response.json({ games: await services.gameLogs.gamesForUser(requireUser(request), 30) });
   }));
@@ -372,7 +383,24 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
   router.post("/admin/users/:id/ban", route(async (request, response) => {
     await requireElevated(request);
-    response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days) });
+    response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days, request.body?.reason) });
+  }));
+  router.post("/admin/users/:id/warn", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ warning: await admin.warn(String(request.params.id), request.body?.reason) });
+  }));
+  router.delete("/admin/users/:id/warnings/:warningId", route(async (request, response) => {
+    await requireElevated(request);
+    await admin.removeWarning(String(request.params.id), String(request.params.warningId));
+    response.status(204).end();
+  }));
+  router.get("/admin/users", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ users: request.query.sanctioned === "1" ? await admin.sanctionedUsers() : await admin.searchUsers(request.query.q) });
+  }));
+  router.get("/admin/games", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ games: await admin.recentGames(request.query.before) });
   }));
   router.get("/admin/contact", route(async (request, response) => {
     await requireElevated(request);

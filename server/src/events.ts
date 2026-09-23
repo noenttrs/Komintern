@@ -63,5 +63,7 @@ export const SERVER_EVENTS = {
   FRIEND_PRESENCE: "friend_presence",
   ROOM_INVITE: "room_invite",
   KICKED: "kicked",
+  /** Avertissement de modération : le client recharge le compte pour l'afficher. */
+  ACCOUNT_WARNING: "account_warning",
   ERROR: "error",
 } as const;

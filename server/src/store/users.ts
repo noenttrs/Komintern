@@ -24,15 +24,21 @@ export type User = {
   createdAt: Date;
   stats: UserStats;
   bannedUntil: Date | null;
+  /** Motif du bannissement, visible par l'administration seulement. */
+  banReason: string | null;
+  /** Avertissements de modération ; le joueur les voit à sa prochaine visite (seenAt). */
+  warnings: AccountWarning[];
   /** Rôle attribué uniquement en ligne de commande côté serveur, jamais depuis le site. */
   role: "admin" | null;
   /** Secret TOTP (base32) de la double authentification, obligatoire pour les admins. */
   totpSecret: string | null;
 };
 
+export type AccountWarning = { id: string; at: Date; reason: string; seenAt: Date | null };
+
 export type NewUser = Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName">;
 export type UserPatch = Partial<
-  Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil" | "role" | "totpSecret">
+  Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil" | "banReason" | "warnings" | "role" | "totpSecret">
 >;
 
 /** Violation d'unicité (email, pseudo ou compte Google déjà utilisé). */
@@ -54,6 +60,14 @@ export interface UserStore {
   recordGameResult(id: string, result: { won: boolean; faction: Faction }): Promise<void>;
   delete(id: string): Promise<void>;
   countAll(): Promise<{ total: number; verified: number }>;
+  /** Administration : recherche par début d'email ou de pseudo (insensible à la casse). */
+  search(query: string, limit: number): Promise<User[]>;
+  /** Administration : comptes bannis en ce moment ou ayant reçu des avertissements. */
+  listSanctioned(now: Date, limit: number): Promise<User[]>;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 const EMPTY_STATS: UserStats = { wins: 0, losses: 0, gamesNazi: 0, gamesCommunist: 0, winsNazi: 0, winsCommunist: 0 };
@@ -86,6 +100,8 @@ function fromDoc(doc: UserDoc): User {
     createdAt: doc.createdAt,
     stats: { ...EMPTY_STATS, ...doc.stats },
     bannedUntil: doc.bannedUntil ?? null,
+    banReason: doc.banReason ?? null,
+    warnings: (doc.warnings ?? []).map((warning) => ({ ...warning })),
     role: doc.role ?? null,
     totpSecret: doc.totpSecret ?? null,
   };
@@ -116,6 +132,8 @@ export class MongoUserStore implements UserStore {
       createdAt: new Date(),
       stats: { ...EMPTY_STATS },
       bannedUntil: null,
+      banReason: null,
+      warnings: [],
       role: null,
       totpSecret: null,
     };
@@ -192,6 +210,15 @@ export class MongoUserStore implements UserStore {
     const [total, verified] = await Promise.all([this.users.countDocuments(), this.users.countDocuments({ emailVerified: true })]);
     return { total, verified };
   }
+
+  public async search(query: string, limit: number): Promise<User[]> {
+    const prefix = new RegExp(`^${escapeRegex(query.toLowerCase())}`);
+    return (await this.users.find({ $or: [{ email: prefix }, { displayNameLower: prefix }] }).limit(limit).toArray()).map(fromDoc);
+  }
+
+  public async listSanctioned(now: Date, limit: number): Promise<User[]> {
+    return (await this.users.find({ $or: [{ bannedUntil: { $gt: now } }, { "warnings.0": { $exists: true } }] }).limit(limit).toArray()).map(fromDoc);
+  }
 }
 
 function translateDuplicate(error: unknown): unknown {
@@ -221,7 +248,7 @@ export class MemoryUserStore implements UserStore {
 
   public async create(input: NewUser): Promise<User> {
     this.checkUnique(input);
-    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null, role: null, totpSecret: null };
+    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null, banReason: null, warnings: [], role: null, totpSecret: null };
     this.users.set(user.id, user);
     return { ...user };
   }
@@ -272,4 +299,19 @@ export class MemoryUserStore implements UserStore {
     const all = [...this.users.values()];
     return { total: all.length, verified: all.filter((user) => user.emailVerified).length };
   }
+  public async search(query: string, limit: number): Promise<User[]> {
+    const prefix = query.toLowerCase();
+    return [...this.users.values()]
+      .filter((user) => (user.email ?? "").startsWith(prefix) || (user.displayName ?? "").toLowerCase().startsWith(prefix))
+      .slice(0, limit)
+      .map((user) => ({ ...user }));
+  }
+
+  public async listSanctioned(now: Date, limit: number): Promise<User[]> {
+    return [...this.users.values()]
+      .filter((user) => (user.bannedUntil !== null && user.bannedUntil > now) || user.warnings.length > 0)
+      .slice(0, limit)
+      .map((user) => ({ ...user }));
+  }
+
 }

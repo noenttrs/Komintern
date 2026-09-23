@@ -55,6 +55,7 @@ export const SERVER_EVENTS = {
   REPORT_RECEIVED: "report_received",
   ROOM_INVITE: "room_invite",
   KICKED: "kicked",
+  ACCOUNT_WARNING: "account_warning",
   FRIEND_REQUEST: "friend_request",
   FRIENDS_CHANGED: "friends_changed",
   FRIEND_PRESENCE: "friend_presence",

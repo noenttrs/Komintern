@@ -1688,3 +1688,135 @@ textarea {
   text-align: left;
   font-size: 0.9rem;
 }
+
+/* Scan du QR code d'une room, plein écran, dans l'app. */
+.qr-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 0.8rem;
+  padding: calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.qr-scanner__title {
+  font-weight: 600;
+  text-align: center;
+}
+
+.qr-scanner__frame {
+  position: relative;
+  min-height: 0;
+  border: 2px solid var(--line);
+  overflow: hidden;
+  background: #000;
+}
+
+.qr-scanner__frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qr-scanner__hint {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Administration : pleine largeur sur ordinateur. */
+.page--wide {
+  width: min(100%, 72rem);
+}
+
+.admin-users {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-user {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line-soft);
+}
+
+.admin-user__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  align-items: baseline;
+}
+
+.admin-user__ban {
+  font-weight: 600;
+}
+
+.admin-user__warnings {
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.admin-user__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-user__actions button {
+  width: auto;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .page--wide .admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .page--wide .admin-tabs button {
+    width: auto;
+    padding: 0.6rem 1.1rem;
+  }
+
+  .page--wide .admin-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-users {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.warning-layer {
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: var(--screen-gap);
+}
+
+.warning-card {
+  width: min(100%, 26rem);
+  display: grid;
+  gap: 0.8rem;
+}

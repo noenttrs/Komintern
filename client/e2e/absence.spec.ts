@@ -48,6 +48,7 @@ test("attendre un joueur déconnecté, puis il revient à sa place", async ({ br
     await page.mouse.down();
     await expect(page.locator(".card-overlay")).toBeVisible();
     await page.mouse.up();
+    await page.waitForTimeout(400); // garde anti-mauvais clic après l'appui long
     await page.getByRole("button", { name: "C'est bon" }).first().click();
   }
 

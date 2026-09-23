@@ -6,6 +6,7 @@ import { formatMissionVotes, isGamePhaseUi, stepForPhase } from "./components/ga
 import { StatusBanners } from "./components/game/StatusBanners";
 import { AbsencePrompt } from "./components/AbsencePrompt";
 import { Menu } from "./components/Menu";
+import { WarningNotice } from "./components/WarningNotice";
 import { useAccount } from "./hooks/useAccount";
 import { useFriends } from "./hooks/useFriends";
 import { useGameSocket } from "./hooks/useGameSocket";
@@ -31,6 +32,7 @@ import { type InfoMode, type RulesMode, type ScreenContextValue, ScreenProvider 
 import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
 import { DuelResultScreen, DuelVoteScreen } from "./screens/DuelScreens";
 import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
+import { SERVER_EVENTS } from "./events";
 import { socket } from "./socket";
 import { availableStorage, recordFinishedGame } from "./supportBanner";
 
@@ -127,6 +129,15 @@ export default function App(): JSX.Element {
     chatEnabled,
   } = game;
   const account = useAccount();
+  const refreshAccount = account.refresh;
+  // Avertissement de la modération reçu en direct : on recharge le compte pour l'afficher.
+  useEffect(() => {
+    const onWarning = (): void => void refreshAccount();
+    socket.on(SERVER_EVENTS.ACCOUNT_WARNING, onWarning);
+    return () => {
+      socket.off(SERVER_EVENTS.ACCOUNT_WARNING, onWarning);
+    };
+  }, [refreshAccount]);
   const route = useRoute();
   useEffect(() => {
     recordPageView(window.location.pathname);
@@ -705,6 +716,7 @@ export default function App(): JSX.Element {
         install={install}
         pushPublicKey={account.config?.pushPublicKey ?? null}
       />
+      <WarningNotice warnings={account.user?.pendingWarnings ?? []} onSeen={() => void account.refresh()} />
       <StatusBanners
         error={error}
         onDismiss={dismissError}

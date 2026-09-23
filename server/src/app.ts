@@ -136,7 +136,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
   const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats(), async (userId) => {
     await services.sessions.destroyAll(userId);
     io.in(`user:${userId}`).disconnectSockets(true);
-  });
+  }, (userId) => notify(userId, SERVER_EVENTS.ACCOUNT_WARNING, {}));
   expressApp.use("/api", createApi(services, admin, () => roomManager.listPublicRooms()));
   const userBySocket = new Map<string, SocketUser>();
 

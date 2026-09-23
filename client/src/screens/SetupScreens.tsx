@@ -162,7 +162,8 @@ export function RoleRevealScreen(): JSX.Element {
           }
         }}
         actions={
-          hasRevealedRoleOnce ? (
+          // Le bouton disparaît une fois utilisé : rien à re-cliquer par erreur.
+          hasRevealedRoleOnce && waitingValidationStep !== "role_reveal" ? (
             <button
               type="button"
               className="inline-action"

@@ -1,4 +1,7 @@
+import { useCallback, useState } from "react";
+
 import { PublicRooms } from "../components/PublicRooms";
+import { QrScanner } from "../components/QrScanner";
 import { RoomInvite } from "../components/RoomInvite";
 import { SupportBanner } from "../components/SupportBanner";
 import { useI18n } from "../i18n";
@@ -232,10 +235,21 @@ export function CreateRoomScreen(): JSX.Element {
 export function JoinRoomScreen(): JSX.Element {
   const { account, navigate, joinRoom, joinCodeDraft, setJoinCodeDraft } = useScreen();
   const { t } = useI18n();
+  const [scanning, setScanning] = useState(false);
+  const onScanned = useCallback(
+    (code: string) => {
+      setScanning(false);
+      setJoinCodeDraft(code);
+      joinRoom(code);
+    },
+    [joinRoom, setJoinCodeDraft],
+  );
   return (
     <main className="screen">
+      {scanning ? <QrScanner onCode={onScanned} onClose={() => setScanning(false)} /> : null}
       <section className="panel panel--scroll">
         <h1>{t("joinRoom.title")}</h1>
+        <button type="button" onClick={() => setScanning(true)}>{t("scanner.open")}</button>
         <input
           value={joinCodeDraft}
           onChange={(event) => setJoinCodeDraft(event.target.value.toUpperCase())}

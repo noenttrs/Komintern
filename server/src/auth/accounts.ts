@@ -52,6 +52,8 @@ export type AccountView = {
   hasGoogle?: boolean;
   isAdmin?: boolean;
   totpEnabled?: boolean;
+  /** Avertissements de modération pas encore lus (visibles par le joueur lui-même). */
+  pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
 };
 
 const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -93,7 +95,15 @@ function parseCode(raw: unknown): string {
 export function accountView(user: User, self: boolean): AccountView {
   const base: AccountView = { id: user.id, displayName: user.displayName, createdAt: user.createdAt.toISOString(), stats: { ...user.stats } };
   return self
-    ? { ...base, email: user.email, hasPassword: user.passwordHash !== null, hasGoogle: user.googleSub !== null, isAdmin: user.role === "admin", totpEnabled: user.totpSecret !== null }
+    ? {
+        ...base,
+        email: user.email,
+        hasPassword: user.passwordHash !== null,
+        hasGoogle: user.googleSub !== null,
+        isAdmin: user.role === "admin",
+        totpEnabled: user.totpSecret !== null,
+        pendingWarnings: user.warnings.filter((warning) => warning.seenAt === null).map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason })),
+      }
     : base;
 }
 

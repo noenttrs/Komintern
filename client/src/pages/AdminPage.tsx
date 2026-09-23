@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiRequestError } from "../api";
 import { PageShell } from "../components/PageShell";
 import { translate, useI18n } from "../i18n";
+import { GamesTab, UsersTab } from "./AdminModeration";
 
 type Stats = {
   users: { total: number; verified: number };
@@ -36,7 +37,10 @@ type Identity = { pseudonym: string; playerId: string; userId: string | null; ps
 
 type ContactMessage = { id: string; createdAt: string; email: string; subject: string; message: string; userId: string | null; read: boolean };
 
-type Tab = "stats" | "audience" | "reports" | "contact";
+type Tab = "stats" | "audience" | "games" | "reports" | "users" | "contact";
+
+const TABS: Tab[] = ["stats", "audience", "games", "reports", "users", "contact"];
+const TAB_LABELS = { stats: "admin.tabStats", audience: "admin.tabAudience", games: "admin.tabGames", reports: "admin.tabReports", users: "admin.tabUsers", contact: "admin.tabContact" } as const;
 
 const fmt = (date: string, locale: string): string => new Date(date).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 
@@ -88,15 +92,15 @@ export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
   }
 
   return (
-    <PageShell title={t("admin.title")}>
+    <PageShell title={t("admin.title")} wide>
       <div className="admin-tabs" role="tablist">
-        {(["stats", "audience", "reports", "contact"] as const).map((entry) => (
+        {TABS.map((entry) => (
           <button key={entry} type="button" role="tab" aria-selected={tab === entry} className={tab === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
-            {entry === "stats" ? t("admin.tabStats") : entry === "audience" ? t("admin.tabAudience") : entry === "reports" ? t("admin.tabReports") : t("admin.tabContact")}
+            {t(TAB_LABELS[entry])}
           </button>
         ))}
       </div>
-      {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "reports" ? <ReportsTab /> : <ContactTab />}
+      {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab /> : tab === "users" ? <UsersTab /> : <ContactTab />}
     </PageShell>
   );
 }

@@ -101,7 +101,56 @@ export type GameLogStats = {
   totalCases: number;
 };
 
+/**
+ * Partie vue par l'administration : uniquement des données anonymes (ni pseudo, ni compte,
+ * ni message). L'identité des joueurs ne se consulte que via un dossier de modération, tracé.
+ */
+export type AdminGameRow = {
+  id: string;
+  startedAt: Date;
+  endedAt: Date;
+  durationSeconds: number;
+  playerCount: number;
+  /** Nombre de joueurs connectés à un compte (sans dire lesquels). */
+  accounts: number;
+  mode: "missions" | "duel";
+  /** « 5J », « perso » ou « duel ». */
+  format: string;
+  outcome: GameLog["outcome"];
+  winner: Faction | null;
+  reason: GameLog["reason"] | "duel";
+  duelWinners: number | null;
+  missions: Faction[];
+  chatMessages: number;
+  moderated: boolean;
+};
+
+export function toAdminGameRow(log: GameLog, moderatedGameIds: Set<string>): AdminGameRow {
+  const ruleset = (log.ruleset ?? {}) as { ruleset_preset?: unknown; ruleset?: unknown; mode?: unknown };
+  const duel = log.duel != null || ruleset.mode === "duel";
+  const preset = typeof ruleset.ruleset_preset === "string" ? ruleset.ruleset_preset.replace("PRESET_", "") : null;
+  return {
+    id: log.id,
+    startedAt: log.startedAt,
+    endedAt: log.endedAt,
+    durationSeconds: Math.max(0, Math.round((new Date(log.endedAt).getTime() - new Date(log.startedAt).getTime()) / 1000)),
+    playerCount: log.players.length,
+    accounts: log.players.filter((player) => player.userId !== null).length,
+    mode: duel ? "duel" : "missions",
+    format: duel ? "duel" : (preset ?? (ruleset.ruleset !== undefined ? "perso" : `${log.players.length}J`)),
+    outcome: log.outcome,
+    winner: log.winner,
+    reason: duel ? (log.reason === "forfeit" ? "forfeit" : "duel") : log.reason,
+    duelWinners: log.duel != null ? log.duel.winners.length : null,
+    missions: log.missionHistory.map((mission) => mission.result),
+    chatMessages: log.chat.length,
+    moderated: moderatedGameIds.has(log.id),
+  };
+}
+
 export interface GameLogStore {
+  /** Administration : dernières parties, anonymes, les plus récentes d'abord. */
+  recentGames(limit: number, before?: Date): Promise<AdminGameRow[]>;
   insertGame(log: GameLog): Promise<void>;
   /** Remplace pseudos et comptes par « Joueur A, B… » ; renvoie le nombre de parties traitées. */
   anonymizeGamesBefore(before: Date, keepGameIds: string[]): Promise<number>;
@@ -237,6 +286,17 @@ export class MongoGameLogStore implements GameLogStore {
     return docs.map((doc) => toPlayedGame(fromDoc<GameLog>(doc), userId)).filter((game): game is PlayedGame => game !== null);
   }
 
+  public async recentGames(limit: number, before?: Date): Promise<AdminGameRow[]> {
+    const docs = await this.games
+      .find(before === undefined ? {} : { endedAt: { $lt: before } })
+      .sort({ endedAt: -1 })
+      .limit(limit)
+      .toArray();
+    const logs = docs.map((doc) => fromDoc<GameLog>(doc));
+    const moderated = new Set(((await this.cases.distinct("gameId", { gameId: { $in: logs.map((log) => log.id) } })) as string[]));
+    return logs.map((log) => toAdminGameRow(log, moderated));
+  }
+
   public async stats(now = new Date()): Promise<GameLogStats> {
     const day = new Date(now.getTime() - 24 * 3600 * 1000);
     const week = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
@@ -287,6 +347,15 @@ export class MemoryGameLogStore implements GameLogStore {
   public async createCase(moderationCase: ModerationCase, identities: ModerationIdentity[]): Promise<void> {
     this.cases.set(moderationCase.id, structuredClone(moderationCase));
     this.identities.set(moderationCase.id, structuredClone(identities));
+  }
+
+  public async recentGames(limit: number, before?: Date): Promise<AdminGameRow[]> {
+    const moderated = new Set([...this.cases.values()].map((c) => c.gameId).filter((id): id is string => id !== null));
+    return [...this.games.values()]
+      .filter((log) => before === undefined || log.endedAt < before)
+      .sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime())
+      .slice(0, limit)
+      .map((log) => toAdminGameRow(log, moderated));
   }
 
   public async listCases(status?: ModerationCase["status"]): Promise<ModerationCase[]> {

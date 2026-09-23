@@ -104,7 +104,25 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
   const messages = (await api("/admin/contact", { cookie: login.cookie })).body.messages;
   assert.equal(messages[0].subject, "Bug");
   assert.equal((await api(`/admin/contact/${messages[0].id}/read`, { body: { read: true }, cookie: login.cookie })).status, 204);
-  const banned = await api(`/admin/users/${player.id}/ban`, { body: { days: 7 }, cookie: login.cookie });
+  // Avertissement : vu par le joueur à sa prochaine visite, puis marqué lu
+  assert.equal((await api("/admin/users?q=pl", { cookie: login.cookie })).body.users[0].displayName, "Player");
+  assert.equal((await api("/admin/users?q=p", { cookie: login.cookie })).body.users.length, 0, "at least 2 characters");
+  const warned = await api(`/admin/users/${player.id}/warn`, { body: { reason: "Propos insultants dans le chat" }, cookie: login.cookie });
+  assert.equal(warned.status, 200);
+  const me = (await api("/me", { cookie: playerLogin.cookie })).body.user;
+  assert.deepEqual(me.pendingWarnings.map((warning: { reason: string }) => warning.reason), ["Propos insultants dans le chat"]);
+  assert.equal((await api("/me/warnings/seen", { body: {}, cookie: playerLogin.cookie })).status, 204);
+  assert.deepEqual((await api("/me", { cookie: playerLogin.cookie })).body.user.pendingWarnings, []);
+  const sanctioned = (await api("/admin/users?sanctioned=1", { cookie: login.cookie })).body.users;
+  assert.deepEqual(sanctioned.map((user: { warnings: Array<{ seen: boolean }> }) => user.warnings.map((warning) => warning.seen)), [[true]]);
+  assert.equal(JSON.stringify(sanctioned).includes("passwordHash"), false);
+
+  // Parties vues par l'admin : anonymes (ni pseudo, ni compte, ni message)
+  const games = await api("/admin/games", { cookie: login.cookie });
+  assert.equal(games.status, 200);
+  assert.ok(Array.isArray(games.body.games));
+
+  const banned = await api(`/admin/users/${player.id}/ban`, { body: { days: 7, reason: "Récidive" }, cookie: login.cookie });
   assert.ok(new Date(banned.body.bannedUntil) > new Date());
   assert.equal((await api("/auth/login", { body: { email: "p@example.org", password: "player password 1" } })).body.error.code, "banned");
 
