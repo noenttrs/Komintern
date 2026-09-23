@@ -29,6 +29,7 @@ import { CreateRoomScreen, JoinRoomScreen, LandingScreen, PseudoEntryScreen, Wai
 import { MissionResultScreen, MissionScreen } from "./screens/MissionScreens";
 import { type InfoMode, type RulesMode, type ScreenContextValue, ScreenProvider } from "./screens/ScreenContext";
 import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
+import { DuelResultScreen, DuelVoteScreen } from "./screens/DuelScreens";
 import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
 import { socket } from "./socket";
 import { availableStorage, recordFinishedGame } from "./supportBanner";
@@ -65,6 +66,10 @@ function renderScreen(phase: UIPhase): JSX.Element {
     case "end_game":
     case "replay_waiting":
       return <EndGameScreen />;
+    case "duel_vote":
+      return <DuelVoteScreen />;
+    case "duel_result":
+      return <DuelResultScreen />;
     default:
       return (
         <main className="screen">
@@ -139,7 +144,9 @@ export default function App(): JSX.Element {
           ? `vote-${proposal.missionIndex ?? 0}-${confidenceHistory.length}`
           : phase === "mission_execution" && mission.team.includes(myId)
             ? `mission-${proposal.missionIndex ?? 0}`
-            : null;
+            : phase === "duel_vote" && game.duel.myVote === null && !game.duel.votedPlayerIds.includes(myId)
+              ? `duel-${gameMeta.startedAt ?? 0}`
+              : null;
   const [alertSettings, setAlertSettings] = useTurnAlerts(turnKey);
 
   // Connecté : le pseudo du compte remplace le pseudo saisi, et le socket reste ouvert
@@ -284,7 +291,9 @@ export default function App(): JSX.Element {
   const roleOverlay = (
     <div>
       <h2><FactionIcon faction={role.faction} /> {roleLabel}</h2>
-      {role.faction === "nazi" ? (
+      {gameMeta.mode === "duel" ? (
+        <p>{role.faction === "nazi" ? t("duel.roleNazi") : t("duel.roleCommunist")}</p>
+      ) : role.faction === "nazi" ? (
         <p>{t("role.allies", { names: naziAllies.length > 0 ? naziAllies.join(", ") : t("common.none") })}</p>
       ) : (
         <p>{t("role.onlyYou")}</p>

@@ -159,6 +159,7 @@ export function uiPhaseFromServer(value: unknown): UIPhase | null {
     mission_result: "mission_result",
     end_game: "end_game",
     replay_waiting: "replay_waiting",
+    duel_vote: "duel_vote",
   };
   return typeof value === "string" ? mapping[value] ?? null : null;
 }

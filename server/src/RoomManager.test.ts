@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { DuelSession } from "./DuelSession";
 import { RoomManager } from "./RoomManager";
 import type { RoomManagerOptions } from "./RoomManager";
 import { FakeBridge, createIoRecorder, tick } from "./test-utils/fakes";
@@ -172,10 +173,10 @@ test("a room created for in-person play refuses chat messages", () => {
   assert.equal(manager.getRoomPayload(remote).chatEnabled, true);
 });
 
-test("free rules rooms accept 3 to 11 players, preset rooms an exact count", async () => {
+test("free rules rooms accept 2 (duel) to 11 players, preset rooms an exact count", async () => {
   const { manager } = setup();
   const free = manager.createRoom();
-  assert.deepEqual([manager.getRoomPayload(free).minPlayers, manager.getRoomPayload(free).maxPlayers], [3, 11]);
+  assert.deepEqual([manager.getRoomPayload(free).minPlayers, manager.getRoomPayload(free).maxPlayers], [2, 11]);
   const players = Array.from({ length: 11 }, (_, index) => manager.joinRoom(free, `f${index}`).playerId);
   assert.throws(() => manager.joinRoom(free, "f-extra"), /room is full/);
   await manager.startGame(free, players[0] as string);
@@ -374,4 +375,67 @@ test("turn notifications only go to players who are not looking at the game", as
   const chef = (session as unknown as { round: { chefId: string } }).round.chefId;
   const expected = chef === looking ? [] : [[chef, "proposal"]];
   assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), expected, "only the chef, and only if their screen is hidden");
+});
+
+// ---------------------------------------------------------------- duel à 2 joueurs
+
+function duelBridge(roles: Record<string, "nazi" | "communist">, winners: (ids: string[]) => string[]) {
+  const bridge = new FakeBridge({});
+  let ids: string[] = [];
+  bridge.override("duel_start", (args) => {
+    ids = args.player_ids as string[];
+    return { roles: Object.fromEntries(ids.map((id, index) => [id, Object.values(roles)[index]])) };
+  });
+  bridge.override("duel_resolve", () => ({ winners: winners(ids), reason: "nazi_accepted" }));
+  return bridge;
+}
+
+test("two players in a free room play a duel: own role only, secret votes, per-player result", async () => {
+  const recorded: Array<{ duel: unknown; outcome: string }> = [];
+  const { manager, events } = setup({
+    bridgeFactory: () => duelBridge({ a: "communist", b: "nazi" }, (ids) => [ids[1] as string]),
+    hooks: { onGameRecorded: (game) => void recorded.push({ duel: game.summary.duel, outcome: game.outcome }) },
+  });
+  const code = manager.createRoom();
+  const [first, second] = fill(manager, code, 2) as [string, string];
+  assert.equal(manager.getRoomPayload(code).minPlayers, 2);
+  const session = await manager.startAnyGame(code, first);
+  assert.equal(session instanceof DuelSession, true);
+  const duel = session as DuelSession;
+
+  const roles = events.filter((entry) => entry.event === "role_assigned").map((entry) => entry.payload as Record<string, unknown>);
+  assert.equal(roles.length, 2);
+  assert.ok(roles.every((payload) => payload.roleMap === undefined), "nobody sees the other's role, not even the Nazi");
+
+  await assert.rejects(duel.handleDuelVote(first, "trust"), /not allowed/, "no vote before both saw their role");
+  await duel.confirmRoleReveal(first);
+  await duel.confirmRoleReveal(second);
+  assert.ok(events.some((entry) => entry.event === "duel_phase"));
+  await duel.handleDuelVote(first, "trust");
+  await assert.rejects(duel.handleDuelVote(first, "accuse"), /already voted/);
+  const progress = events.filter((entry) => entry.event === "duel_progress").at(-1)?.payload as { votedPlayerIds: string[] };
+  assert.deepEqual(progress, { votedPlayerIds: [first] }, "who voted, never what");
+  await duel.handleDuelVote(second, "trust");
+
+  const result = events.find((entry) => entry.event === "duel_result")?.payload as { winners: string[]; votes: Record<string, string>; roleMap: Record<string, string> };
+  assert.deepEqual(result.winners, [second]);
+  assert.deepEqual(result.votes, { [first]: "trust", [second]: "trust" });
+  assert.deepEqual(result.roleMap, { [first]: "communist", [second]: "nazi" });
+  assert.equal(manager.getStatus(code), "finished");
+  assert.deepEqual(recorded, [{ duel: { winners: [second], reason: "nazi_accepted", votes: { [first]: "trust", [second]: "trust" } }, outcome: "finished" }]);
+
+  await manager.requestReplay(code, first);
+  await manager.requestReplay(code, second);
+  assert.equal(manager.getSession(code) instanceof DuelSession, true, "replay starts a new duel");
+});
+
+test("a duel player who stays away loses the duel", async () => {
+  const { manager, events } = setup({ afkTimeoutMs: 20, absenceWarningMs: 10, bridgeFactory: () => duelBridge({ a: "nazi", b: "nazi" }, () => []) });
+  const code = manager.createRoom();
+  const [first, second] = fill(manager, code, 2) as [string, string];
+  await manager.startAnyGame(code, first);
+  manager.handleDisconnect(code, second, "s2");
+  await tick(60);
+  const result = events.find((entry) => entry.event === "duel_result")?.payload as { winners: string[]; reason: string; forfeitedBy: string };
+  assert.deepEqual([result.winners, result.reason, result.forfeitedBy], [[first], "forfeit", second]);
 });

@@ -23,6 +23,8 @@ export type GameLog = {
   winner: Faction | null;
   reason: "missions" | "forfeit" | null;
   forfeitedBy: string | null;
+  /** Duel à 2 : gagnants et raison (absent pour une partie à missions). */
+  duel?: { winners: string[]; reason: string } | null;
   chat: LoggedChatMessage[];
   anonymizedAt: Date | null;
 };
@@ -55,6 +57,8 @@ export type PlayedGame = {
   winner: Faction | null;
   won: boolean | null;
   reason: "missions" | "forfeit" | null;
+  mode: "missions" | "duel";
+  duelReason: string | null;
   scores: Scores;
   missions: Array<{ missionIndex: number; result: Faction; naziVotes: number; teamSize: number }>;
   teammates: string[];
@@ -69,8 +73,10 @@ export function toPlayedGame(log: GameLog, userId: string): PlayedGame | null {
     playerCount: log.players.length,
     faction: me.faction,
     winner: log.winner,
-    won: log.winner === null || me.faction === null ? null : log.winner === me.faction,
+    won: log.duel != null ? log.duel.winners.includes(me.playerId) : log.winner === null || me.faction === null ? null : log.winner === me.faction,
     reason: log.reason,
+    mode: log.duel != null ? "duel" : "missions",
+    duelReason: log.duel?.reason ?? null,
     scores: log.scores,
     missions: log.missionHistory.map((mission) => ({
       missionIndex: mission.missionIndex,

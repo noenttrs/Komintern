@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any
 
 from gameengine.constants import PRESET_5J, PRESETS
+from gameengine.duel import DuelVote, draw_duel_roles, resolve_duel
 from gameengine.game_manager import GameManager
 from gameengine.round_manager import RoundManager
 from gameengine.utils import make_rng
@@ -65,10 +66,14 @@ class EngineBridge:
         self._game_winner: Faction | None = None
         self._finished = False
         self._rng = make_rng()
+        self._duel_roles: dict[str, Faction] | None = None
+        self._duel_resolved = False
 
     def dispatch(self, command: str, args: dict[str, Any]) -> Any:
         handlers: dict[str, Any] = {
             "start_game": self.start_game,
+            "duel_start": self.duel_start,
+            "duel_resolve": self.duel_resolve,
             "get_player_view": self.get_player_view,
             "get_game_state": self.get_game_state,
             "set_turn_order": self.set_turn_order,
@@ -117,6 +122,34 @@ class EngineBridge:
         self._game_winner = None
         self._finished = False
         return {"status": "ok", "round": self._round_payload()}
+
+    def duel_start(self, args: dict[str, Any]) -> dict[str, Any]:
+        player_ids = args.get("player_ids")
+        seed = args.get("seed")
+        if not isinstance(player_ids, list) or not all(isinstance(player_id, str) for player_id in player_ids):
+            raise ValueError("player_ids must be a list of strings")
+        if seed is not None and not _is_int(seed):
+            raise ValueError("seed must be an integer")
+        self._duel_roles = draw_duel_roles(player_ids, make_rng(seed))
+        self._duel_resolved = False
+        return {"roles": {player_id: _enum_name(faction) for player_id, faction in self._duel_roles.items()}}
+
+    def duel_resolve(self, args: dict[str, Any]) -> dict[str, Any]:
+        if self._duel_roles is None:
+            raise ValueError("no duel in progress")
+        if self._duel_resolved:
+            raise ValueError("the duel is already over")
+        raw_votes = args.get("votes")
+        if not isinstance(raw_votes, dict):
+            raise ValueError("votes must be an object")
+        votes: dict[str, DuelVote] = {}
+        for player_id, raw_vote in raw_votes.items():
+            if not isinstance(raw_vote, str) or raw_vote.upper() not in DuelVote.__members__:
+                raise ValueError("each vote must be TRUST or ACCUSE")
+            votes[player_id] = DuelVote[raw_vote.upper()]
+        outcome = resolve_duel(self._duel_roles, votes)
+        self._duel_resolved = True
+        return {"winners": outcome.winners, "reason": outcome.reason}
 
     def get_player_view(self, args: dict[str, Any]) -> dict[str, str]:
         game_manager, game_state = self._require_game()

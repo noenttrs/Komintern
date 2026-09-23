@@ -14,7 +14,8 @@ export type FlowPhase =
   | "mission_vote"
   | "mission_result"
   | "end_game"
-  | "replay_waiting";
+  | "replay_waiting"
+  | "duel_vote";
 
 export type RoleMap = Record<string, Faction>;
 
@@ -100,4 +101,7 @@ export interface ResyncPayload {
   confidenceHistory: ConfidenceHistoryEntry[];
   missionHistory: MissionHistoryEntry[];
   gameOver: { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string } | null;
+  /** Duel à 2 joueurs : qui a déjà voté (jamais le vote lui-même avant le résultat). */
+  mode?: "duel";
+  duel?: { votedPlayerIds: string[]; hasVoted: boolean };
 }

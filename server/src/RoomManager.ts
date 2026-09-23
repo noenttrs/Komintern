@@ -3,6 +3,7 @@ import crypto from "crypto";
 import type { Server } from "socket.io";
 
 import { SERVER_EVENTS } from "./events";
+import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
 import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
@@ -60,6 +61,11 @@ type Absence = {
 
 const CHAT_HISTORY_LIMIT = 100;
 
+/** À 2 joueurs, une room sans règles imposées joue un duel (gameengine/duel.py). */
+export const DUEL_PLAYERS = 2;
+
+export type AnySession = GameSession | DuelSession;
+
 type RoomRecord = {
   code: string;
   status: RoomStatus;
@@ -89,7 +95,7 @@ type RoomRecord = {
   configuredPreset?: RulesetPreset;
   configuredRuleset?: unknown;
   nextChefId: string | null;
-  session?: GameSession;
+  session?: AnySession;
   starting: boolean;
   emptyTimer?: NodeJS.Timeout;
 };
@@ -108,6 +114,8 @@ export type RoomManagerOptions = {
   revealPauseMs?: number;
   /** Tests : remplace le process Python. */
   bridgeFactory?: () => BridgeLike;
+  /** Tests : tirage des rôles du duel reproductible. */
+  duelSeed?: number;
   randomIndexProvider?: (length: number) => number;
   hooks?: RoomHooks;
 };
@@ -162,7 +170,7 @@ export class RoomManager {
       throw new Error("room code already exists");
     }
 
-    let minPlayers = MIN_PLAYERS;
+    let minPlayers = DUEL_PLAYERS;
     let maxPlayers = MAX_PLAYERS;
     let configuredPreset: RulesetPreset | undefined;
     let configuredRuleset: unknown;
@@ -397,6 +405,15 @@ export class RoomManager {
     playerId: string,
     options: { allowNonHost?: boolean; rulesetPreset?: unknown; ruleset?: unknown } = {},
   ): Promise<GameSession> {
+    // Les tests des missions manipulent directement la session renvoyée.
+    return (await this.startAnyGame(code, playerId, options)) as GameSession;
+  }
+
+  public async startAnyGame(
+    code: string,
+    playerId: string,
+    options: { allowNonHost?: boolean; rulesetPreset?: unknown; ruleset?: unknown } = {},
+  ): Promise<AnySession> {
     const room = this.requireRoom(code);
     if (!options.allowNonHost && room.hostPlayerId !== playerId) {
       throw new Error("only the host can start the game");
@@ -409,6 +426,9 @@ export class RoomManager {
       ? parsePreset(options.rulesetPreset)
       : room.configuredPreset;
     const ruleset = options.ruleset ?? room.configuredRuleset;
+    if (room.playerIds.length === DUEL_PLAYERS && preset === undefined && ruleset === undefined) {
+      return this.startDuel(room);
+    }
     const resolved = resolveRulesetForPlayerCount(room.playerIds.length, ruleset === undefined ? preset : undefined, ruleset);
 
     room.starting = true;
@@ -471,6 +491,60 @@ export class RoomManager {
     }
   }
 
+  private async startDuel(room: RoomRecord): Promise<DuelSession> {
+    room.starting = true;
+    const previousStatus = room.status;
+    const session = new DuelSession(room.code, room.playerIds, room.socketByPlayer, this.io, {
+      getActivePlayerIds: () => room.playerIds.filter((id) => !room.afkPlayers.has(id)),
+      getRoomPayload: () => this.getRoomPayload(room.code),
+      onRevealComplete: () => {
+        room.status = "playing";
+        this.emitRoomUpdated(room);
+      },
+      onGameDecided: (summary) => {
+        if (room.session === session) this.recordGame(room, "finished", summary);
+      },
+      onGameFinished: (nextChefId, summary) => this.onGameFinished(room, session, nextChefId, summary),
+      onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
+      onTurn: (playerIds, kind) => this.notifyAway(room, playerIds, { kind }),
+      bridge: this.options.bridgeFactory?.(),
+      pythonPath: this.options.pythonPath,
+      enginePath: this.options.enginePath,
+      engineTimeoutMs: this.options.engineTimeoutMs,
+      seed: this.options.duelSeed,
+    });
+    try {
+      room.replayRequests.clear();
+      room.session = session;
+      room.status = "table_order";
+      room.currentGame = {
+        id: `g_${crypto.randomBytes(8).toString("hex")}`,
+        startedAt: new Date(),
+        players: room.playerIds.map((playerId) => ({
+          playerId,
+          userId: room.userIdByPlayer.get(playerId) ?? null,
+          pseudo: room.pseudoByPlayer.get(playerId) ?? playerId,
+        })),
+        chat: [],
+        ruleset: { mode: "duel" },
+      };
+      this.notifyUsersInGame(room, true);
+      await session.start();
+      this.emitRoomUpdated(room);
+      log.info("duel started", { code: room.code });
+      return session;
+    } catch (error) {
+      session.dispose();
+      room.session = undefined;
+      room.currentGame = undefined;
+      room.status = previousStatus;
+      this.notifyUsersInGame(room, false);
+      throw error;
+    } finally {
+      room.starting = false;
+    }
+  }
+
   /** Choix « rejouer » en fin de partie ; démarre quand tous les joueurs connectés ont choisi. */
   public async requestReplay(code: string, playerId: string): Promise<void> {
     const room = this.requireRoom(code);
@@ -485,7 +559,7 @@ export class RoomManager {
     await this.maybeStartReplay(room);
   }
 
-  public getSession(code: string): GameSession | undefined {
+  public getSession(code: string): AnySession | undefined {
     return this.rooms.get(code)?.session;
   }
 
@@ -636,7 +710,7 @@ export class RoomManager {
 
   // ---------------------------------------------------------------- interne
 
-  private onGameFinished(room: RoomRecord, session: GameSession, nextChefId: string | null, summary: GameSummary): void {
+  private onGameFinished(room: RoomRecord, session: AnySession, nextChefId: string | null, summary: GameSummary): void {
     if (room.session !== session) {
       return;
     }
@@ -654,7 +728,7 @@ export class RoomManager {
     }
   }
 
-  private onGameAborted(room: RoomRecord, session: GameSession, summary: GameSummary): void {
+  private onGameAborted(room: RoomRecord, session: AnySession, summary: GameSummary): void {
     if (room.session !== session) {
       return;
     }
@@ -684,7 +758,7 @@ export class RoomManager {
     }
 
     try {
-      await this.startGame(room.code, connected[0] as string, { allowNonHost: true });
+      await this.startAnyGame(room.code, connected[0] as string, { allowNonHost: true });
     } catch (error) {
       // Nombre de joueurs incompatible avec les règles : retour au salon pour compléter.
       log.info("replay falls back to lobby", { code: room.code, reason: error instanceof Error ? error.message : String(error) });
@@ -936,7 +1010,7 @@ export class RoomManager {
     }
   }
 
-  private runSessionTask(room: RoomRecord, task: (session: GameSession) => Promise<void>): void {
+  private runSessionTask(room: RoomRecord, task: (session: AnySession) => Promise<void>): void {
     const session = room.session;
     if (session === undefined) {
       return;

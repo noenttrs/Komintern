@@ -7,7 +7,7 @@ import { PUSH_CHANGED_EVENT, currentSubscription } from "../push";
 import type { GameState } from "../gameState";
 import { ROOM_CODE_PATTERN, normalizeRoomCode, stringValue, toRecord } from "../protocol";
 import { socket } from "../socket";
-import type { ConfidenceVote, Faction, MissionVote, StartGameVariantConfig, UIPhase } from "../types";
+import type { ConfidenceVote, DuelVote, Faction, MissionVote, StartGameVariantConfig, UIPhase } from "../types";
 
 const PSEUDO_STORAGE_KEY = "komintern.pseudo";
 // Par onglet (sessionStorage) : un onglet = un joueur, et un rechargement garde sa place.
@@ -114,6 +114,7 @@ export interface GameActions {
   transferHost: (playerId: string) => void;
   setChatMode: (enabled: boolean) => void;
   setPublicRoom: (isPublic: boolean) => void;
+  sendDuelVote: (vote: DuelVote) => void;
   holdForPlayer: (playerId: string) => void;
   releaseHold: (playerId: string) => void;
 }
@@ -353,6 +354,10 @@ export function useGameSocket(): UseGameSocketResult {
       transferHost: (playerId) => emitAction(CLIENT_EVENTS.TRANSFER_HOST, { playerId }),
       setChatMode: (enabled) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { chatEnabled: enabled }),
       setPublicRoom: (isPublic) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { isPublic }),
+      sendDuelVote: (vote) => {
+        dispatch({ type: "duel_voted", vote });
+        emitAction(CLIENT_EVENTS.DUEL_VOTE, { vote });
+      },
       holdForPlayer: (playerId) => emitAction(CLIENT_EVENTS.HOLD_PLAYER, { playerId }),
       releaseHold: (playerId) => emitAction(CLIENT_EVENTS.RELEASE_HOLD, { playerId }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),

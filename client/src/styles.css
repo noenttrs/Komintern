@@ -1678,3 +1678,13 @@ textarea {
   padding: 0.5rem;
   font-size: 0.9rem;
 }
+
+/* Duel : rôles et votes révélés à la fin. */
+.duel-roles {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  text-align: left;
+  font-size: 0.9rem;
+}

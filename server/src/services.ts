@@ -128,19 +128,23 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
       scores: game.summary.scores,
       winner,
       reason: game.summary.gameOver?.reason ?? null,
-      forfeitedBy: game.summary.gameOver?.forfeitedBy ?? null,
+      forfeitedBy: game.summary.gameOver?.forfeitedBy ?? game.summary.duel?.forfeitedBy ?? null,
+      duel: game.summary.duel == null ? null : { winners: game.summary.duel.winners, reason: game.summary.duel.reason },
       chat: game.chat,
       anonymizedAt: null,
     };
     await stores.gameLogs.insertGame(entry);
 
     // Seules les parties menées à leur terme comptent dans les stats des comptes.
-    if (game.outcome !== "finished" || winner === null) {
+    const duel = game.summary.duel ?? null;
+    if (game.outcome !== "finished" || (winner === null && duel === null)) {
       return;
     }
     for (const player of players) {
       if (player.userId !== null && player.faction !== null) {
-        await stores.users.recordGameResult(player.userId, { won: player.faction === winner, faction: player.faction });
+        // Duel : chacun gagne ou perd pour son compte (0, 1 ou 2 gagnants).
+        const won = duel !== null ? duel.winners.includes(player.playerId) : player.faction === winner;
+        await stores.users.recordGameResult(player.userId, { won, faction: player.faction });
       }
     }
   };

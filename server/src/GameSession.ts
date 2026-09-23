@@ -73,7 +73,13 @@ type MissionOutcome = MissionHistoryEntry & { scores: Scores; gameWinner: Factio
 type GameOverInfo = { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string };
 
 /** Ce que la partie laisse derrière elle : log de partie et statistiques des comptes. */
+/** Duel à 2 : gagnants (0, 1 ou 2), raison et votes. */
+export type DuelSummary = { winners: string[]; reason: string; votes: Record<string, DuelVote>; forfeitedBy?: string };
+
+export type DuelVote = "trust" | "accuse";
+
 export type GameSummary = {
+  duel?: DuelSummary | null;
   turnOrder: string[];
   roleMap: RoleMap;
   confidenceHistory: ConfidenceHistoryEntry[];

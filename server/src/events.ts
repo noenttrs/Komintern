@@ -26,6 +26,7 @@ export const CLIENT_EVENTS = {
   RELEASE_HOLD: "release_hold",
   VISIBILITY: "visibility",
   PUSH_SUBSCRIBE: "push_subscribe",
+  DUEL_VOTE: "duel_vote",
 } as const;
 
 export const SERVER_EVENTS = {
@@ -46,6 +47,12 @@ export const SERVER_EVENTS = {
   MISSION_REVEALED: "mission_revealed",
   GAME_OVER: "game_over",
   ROLES_REVEALED: "roles_revealed",
+  /** Duel à 2 : le vote est ouvert. */
+  DUEL_PHASE: "duel_phase",
+  /** Duel : qui a déjà voté (sans le vote). */
+  DUEL_PROGRESS: "duel_progress",
+  /** Duel : gagnants, raison, votes et rôles. */
+  DUEL_RESULT: "duel_result",
   PLAYER_AFK: "player_afk",
   RESYNC: "resync",
   CHAT_MESSAGE: "chat_message",

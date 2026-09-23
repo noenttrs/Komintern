@@ -10,6 +10,7 @@ type PlayedGame = {
   faction: "nazi" | "communist" | null;
   won: boolean | null;
   reason: "missions" | "forfeit" | null;
+  mode?: "missions" | "duel";
   scores: { nazi: number; communist: number };
   missions: Array<{ missionIndex: number; result: "nazi" | "communist"; naziVotes: number; teamSize: number }>;
   teammates: string[];
@@ -39,12 +40,14 @@ export function GameHistory(): JSX.Element {
               <strong>{game.won === null ? t("gameHistory.game") : game.won ? t("gameHistory.win") : t("gameHistory.loss")}</strong>
               <span>{game.faction === "nazi" ? t("gameHistory.asNazi") : t("gameHistory.asCommunist")}</span>
               <span className="mono">
-                {t("gameHistory.summary", {
-                  communist: game.scores.communist,
-                  nazi: game.scores.nazi,
-                  players: game.playerCount,
-                  date: new Date(game.endedAt).toLocaleDateString(locale),
-                })}
+                {game.mode === "duel"
+                  ? t("gameHistory.duelSummary", { date: new Date(game.endedAt).toLocaleDateString(locale) })
+                  : t("gameHistory.summary", {
+                      communist: game.scores.communist,
+                      nazi: game.scores.nazi,
+                      players: game.playerCount,
+                      date: new Date(game.endedAt).toLocaleDateString(locale),
+                    })}
               </span>
             </button>
             <span className="history-missions" aria-label={t("gameHistory.missions")}>

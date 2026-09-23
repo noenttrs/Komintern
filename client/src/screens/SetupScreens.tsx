@@ -2,6 +2,7 @@ import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { WaitingCard } from "../components/game/WaitingCard";
 import { useI18n } from "../i18n";
+import { DuelHeader, DuelRulesPanel } from "./DuelScreens";
 import { useScreen } from "./ScreenContext";
 
 // Début de partie : ordre de table puis révélation du rôle.
@@ -131,16 +132,18 @@ export function RoleRevealScreen(): JSX.Element {
     setHasRevealedRoleOnce,
     setWaitingValidationStep,
     confirmRole,
+    gameMeta,
   } = useScreen();
   const { t } = useI18n();
+  const duel = gameMeta.mode === "duel";
   return (
     <main className="game-screen">
       <CardSurface
-        scoreLeft={scoreChip("communist", score.communist)}
-        scoreRight={scoreChip("nazi", score.nazi)}
-        scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-        meta={frontMeta}
-        footer={frontFooter}
+        scoreLeft={duel ? <DuelHeader /> : scoreChip("communist", score.communist)}
+        scoreRight={duel ? <span className="score-chip">{t("duel.players")}</span> : scoreChip("nazi", score.nazi)}
+        scoreCenter={duel ? undefined : orderReference.length > 0 ? orderLegend : "..."}
+        meta={duel ? <div><p>{t("duel.intro")}</p></div> : frontMeta}
+        footer={duel ? undefined : frontFooter}
         front={
           waitingValidationStep === "role_reveal" ? (
             <WaitingCard message={t("roleReveal.waiting")} />
@@ -151,7 +154,7 @@ export function RoleRevealScreen(): JSX.Element {
             </div>
           )
         }
-        back={showFullHistory ? expandedBackContent : defaultBackContent}
+        back={duel ? <DuelRulesPanel /> : showFullHistory ? expandedBackContent : defaultBackContent}
         overlay={roleOverlay}
         onOverlayShown={() => {
           if (!hasRevealedRoleOnce) {

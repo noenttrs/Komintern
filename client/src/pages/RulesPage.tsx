@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 
 // Formats officiels (docs/regles.md) : [joueurs, nazis, communistes, victoires, tailles d'équipe].
 const FORMATS: Array<[number, number, number, number, string]> = [
+  [3, 1, 2, 2, "2 · 2 · 2"],
   [4, 1, 3, 3, "2 · 3 · 2 · 3 · 3"],
   [5, 2, 3, 3, "2 · 3 · 2 · 3 · 3"],
   [6, 2, 4, 4, "2 · 3 · 3 · 4 · 3 · 4 · 4"],
@@ -43,7 +44,14 @@ export function RulesPage({ playerCount }: { playerCount: number | null }): JSX.
             </tbody>
           </table>
         </div>
-        {playerCount !== null ? <p className="mono">{t("rules.yourGame", { count: playerCount })}</p> : null}
+        {playerCount !== null && playerCount > 2 ? <p className="mono">{t("rules.yourGame", { count: playerCount })}</p> : null}
+        <h2>{t("duel.rulesTitle")}</h2>
+        <p>{t("rules.duelIntro")}</p>
+        <ul>
+          <li>{t("duel.rulesCommunists")}</li>
+          <li>{t("duel.rulesMixed")}</li>
+          <li>{t("duel.rulesNazis")}</li>
+        </ul>
         <h2>{t("rules.tipsTitle")}</h2>
         <ul>
           <li>{t("rules.tip1")}</li>

@@ -18,7 +18,9 @@ export type UIPhase =
   | "mission_execution"
   | "mission_result"
   | "end_game"
-  | "replay_waiting";
+  | "replay_waiting"
+  | "duel_vote"
+  | "duel_result";
 
 // Seuls les presets dont les tailles de mission sont définies sont jouables.
 // Formats de 3 à 11 joueurs (voir docs/regles.md).
@@ -99,6 +101,26 @@ export interface MissionState {
 
 export interface GameMetaState {
   missionCount: number;
+  /** Duel à 2 joueurs : vote secret « confiance » ou « nazi ! », pas de missions. */
+  mode?: "missions" | "duel";
+  /** Date locale du début de la partie (distingue deux duels successifs). */
+  startedAt?: number;
+}
+
+export type DuelVote = "trust" | "accuse";
+
+export interface DuelResult {
+  winners: string[];
+  reason: string;
+  votes: Record<string, DuelVote>;
+  roleMap: Record<string, Faction>;
+  forfeitedBy: string | null;
+}
+
+export interface DuelState {
+  votedPlayerIds: string[];
+  myVote: DuelVote | null;
+  result: DuelResult | null;
 }
 
 export interface ScoreState {

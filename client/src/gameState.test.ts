@@ -133,4 +133,35 @@ describe("gameReducer", () => {
     const state = run(initialGameState("Rosa", ""), ["room_joined", { playerId: "p1", ...room({ minPlayers: 4, maxPlayers: 11, targetPlayerCount: 11 }) }]);
     expect([state.minPlayers, state.targetPlayerCount]).toEqual([4, 11]);
   });
+
+  it("plays a duel: straight to the role, secret vote progress, per-player result", () => {
+    let state = run(joined(), ["game_started", { mode: "duel", missionCount: 0 }]);
+    expect(state.phase).toBe("role_reveal");
+    expect(state.gameMeta.mode).toBe("duel");
+    state = run(state, ["role_assigned", { playerId: "p2", role: "nazi", turnOrder: ["p1", "p2"] }]);
+    expect(state.role).toEqual({ faction: "nazi", roleMap: {} });
+    state = run(state, ["duel_phase", { votedPlayerIds: [] }]);
+    expect(state.phase).toBe("duel_vote");
+    state = gameReducer(state, { type: "duel_voted", vote: "accuse" });
+    state = run(state, ["duel_progress", { votedPlayerIds: ["p2"] }]);
+    expect(state.duel).toMatchObject({ myVote: "accuse", votedPlayerIds: ["p2"] });
+    state = run(state, ["duel_result", { winners: ["p2"], reason: "nazi_found", votes: { p1: "trust", p2: "accuse", p3: "maybe" }, roleMap: { p1: "nazi", p2: "nazi" }, forfeitedBy: null }]);
+    expect(state.phase).toBe("duel_result");
+    expect(state.duel.result).toEqual({ winners: ["p2"], reason: "nazi_found", votes: { p1: "trust", p2: "accuse" }, roleMap: { p1: "nazi", p2: "nazi" }, forfeitedBy: null });
+    // Revanche : nouveau duel, état remis à zéro.
+    state = run(state, ["game_started", { mode: "duel" }]);
+    expect(state.duel).toEqual({ votedPlayerIds: [], myVote: null, result: null });
+  });
+
+  it("restores a duel vote after a reload without ever learning the vote", () => {
+    const state = run(joined(), [
+      "resync",
+      { room: room({ status: "playing" }), phase: "duel_vote", mode: "duel", role: { role: "communist" }, turnOrder: ["p1", "p2"], duel: { votedPlayerIds: ["p2"], hasVoted: true } },
+    ]);
+    expect(state.phase).toBe("duel_vote");
+    expect(state.gameMeta.mode).toBe("duel");
+    expect(state.duel.votedPlayerIds).toEqual(["p2"]);
+    expect(state.duel.myVote).toBeNull();
+  });
 });
+

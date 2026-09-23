@@ -11,13 +11,14 @@ import { loadConfig } from "./config";
 import type { Config } from "./config";
 import { AdminService } from "./admin/service";
 import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
-import type { GameSession } from "./GameSession";
+import { DuelSession } from "./DuelSession";
+import { GameSession } from "./GameSession";
 import { createApi, sessionIdFrom } from "./http/api";
 import { log } from "./logger";
 import { filterMessage } from "./moderation/filter";
 import { EngineError } from "./PythonBridge";
 import { RoomManager } from "./RoomManager";
-import type { RoomManagerOptions } from "./RoomManager";
+import type { AnySession, RoomManagerOptions } from "./RoomManager";
 import { parsePushSubscription } from "./push/push";
 import { createServices, createStores } from "./services";
 import type { Services, Stores } from "./services";
@@ -159,13 +160,31 @@ export function createKominternApp(options: AppOptions): KominternApp {
     return context;
   }
 
-  function requireSession(roomId: string): GameSession {
+  function requireSession(roomId: string): AnySession {
     const session = roomManager.getSession(roomId);
     if (session === undefined) {
       throw new Error("no game is running in this room");
     }
     return session;
   }
+
+  /** Actions propres aux parties à missions (pas au duel). */
+  function requireMissions(roomId: string): GameSession {
+    const session = requireSession(roomId);
+    if (!(session instanceof GameSession)) {
+      throw new Error("action not allowed now");
+    }
+    return session;
+  }
+
+  function requireDuel(roomId: string): DuelSession {
+    const session = requireSession(roomId);
+    if (!(session instanceof DuelSession)) {
+      throw new Error("action not allowed now");
+    }
+    return session;
+  }
+
 
   function emitError(socket: Socket, code: string, error: unknown): void {
     const message = publicMessage(error);
@@ -425,22 +444,22 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     on(socket, CLIENT_EVENTS.TABLE_ORDER_TAP, "invalid_table_order_tap", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).handleTableOrderTap(context.playerId);
+      await requireMissions(context.roomId).handleTableOrderTap(context.playerId);
     });
 
     on(socket, CLIENT_EVENTS.TABLE_ORDER_ADJUST, "invalid_table_order_adjust", async (payload) => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).handleTableOrderAdjust(context.playerId, parsePosition(payload.position));
+      await requireMissions(context.roomId).handleTableOrderAdjust(context.playerId, parsePosition(payload.position));
     });
 
     on(socket, CLIENT_EVENTS.TABLE_ORDER_CONFIRMED, "invalid_table_order_confirmation", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).confirmTableOrder(context.playerId);
+      await requireMissions(context.roomId).confirmTableOrder(context.playerId);
     });
 
     on(socket, CLIENT_EVENTS.TABLE_ORDER_BACK, "invalid_table_order_back", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).resetTableOrder(context.playerId);
+      await requireMissions(context.roomId).resetTableOrder(context.playerId);
     });
 
     on(socket, CLIENT_EVENTS.ROLE_CONFIRMED, "invalid_role_confirmation", async () => {
@@ -450,32 +469,38 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     on(socket, CLIENT_EVENTS.PROPOSE_TEAM, "invalid_team_proposal", async (payload) => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).handleProposeTeam(context.playerId, parseTeam(payload.team));
+      await requireMissions(context.roomId).handleProposeTeam(context.playerId, parseTeam(payload.team));
     });
 
     on(socket, CLIENT_EVENTS.CONFIDENCE_VOTE, "invalid_confidence_vote", async (payload) => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).handleConfidenceVote(context.playerId, parseConfidenceVote(payload.vote));
+      await requireMissions(context.roomId).handleConfidenceVote(context.playerId, parseConfidenceVote(payload.vote));
     });
 
     on(socket, CLIENT_EVENTS.CONFIDENCE_RESULT_CONFIRMED, "invalid_confidence_result_confirmation", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).confirmConfidenceResult(context.playerId);
+      await requireMissions(context.roomId).confirmConfidenceResult(context.playerId);
     });
 
     on(socket, CLIENT_EVENTS.MISSION_VOTE, "invalid_mission_vote", async (payload) => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).handleMissionVote(context.playerId, parseMissionVote(payload.vote));
+      await requireMissions(context.roomId).handleMissionVote(context.playerId, parseMissionVote(payload.vote));
     });
 
     on(socket, CLIENT_EVENTS.MISSION_RESULT_CONFIRMED, "invalid_mission_result_confirmation", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).confirmMissionResult(context.playerId);
+      await requireMissions(context.roomId).confirmMissionResult(context.playerId);
+    });
+
+    on(socket, CLIENT_EVENTS.DUEL_VOTE, "invalid_duel_vote", async (payload) => {
+      const context = requireContext(socket);
+      if (payload.vote !== "trust" && payload.vote !== "accuse") throw new Error("vote must be trust or accuse");
+      await requireDuel(context.roomId).handleDuelVote(context.playerId, payload.vote);
     });
 
     on(socket, CLIENT_EVENTS.END_GAME_CONFIRMED, "invalid_end_game_confirmation", async () => {
       const context = requireContext(socket);
-      await requireSession(context.roomId).confirmEndGame(context.playerId);
+      await requireMissions(context.roomId).confirmEndGame(context.playerId);
     });
 
     on(socket, CLIENT_EVENTS.REPLAY_CHOICE, "invalid_replay_choice", async (payload) => {

@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Jeu de déduction sociale pour **3 à 11 joueurs**, opposant deux factions secrètes sur une série de missions. La première faction à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne la partie. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
+Jeu de déduction sociale pour **2 à 11 joueurs** (à 2, un duel : voir plus bas), opposant deux factions secrètes sur une série de missions. La première faction à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne la partie. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
 
 ### Formats
 
@@ -94,6 +94,28 @@ Le rôle de Chef suit un **roulement continu** qui persiste entre les parties :
 
 ---
 
+## Duel à 2 joueurs
+
+À 2, pas de missions. Chacun reçoit un rôle et **ne connaît que le sien, nazi compris**. Trois situations, aussi probables l'une que l'autre : deux communistes, un de chaque camp, deux nazis. Personne ne sait dans laquelle il est.
+
+On discute, puis chacun vote en secret et en même temps : **« Confiance »** ou **« Nazi ! »**.
+
+| Situation | Votes | Résultat |
+|---|---|---|
+| 2 communistes | confiance / confiance | les deux gagnent |
+| | l'un accuse | l'accusateur perd, l'autre gagne |
+| | les deux accusent | personne ne gagne |
+| 1 de chaque camp | le communiste accuse | le communiste gagne |
+| | le nazi accuse | le nazi se démasque : le communiste gagne |
+| | confiance / confiance | le nazi s'est fait accepter : le nazi gagne |
+| 2 nazis | les deux accusent | victoire commune |
+| | un seul accuse | celui qui a démasqué l'autre gagne |
+| | confiance / confiance | les deux perdent |
+
+Accuser a donc toujours un prix : on gagne en démasquant un nazi, on perd en accusant un communiste. Un joueur absent trop longtemps perd le duel.
+
+---
+
 ## Fin de partie
 
 La partie se termine dès qu'une faction atteint le **nombre de victoires requis** (3 à 5 joueurs, 4 à 6-7 joueurs, 5 à 8-9 joueurs, 6 à 10-11 joueurs) :
@@ -105,5 +127,5 @@ La partie se termine dès qu'une faction atteint le **nombre de victoires requis
 
 ---
 
-> **Version** : 0.3 (formats de 3 à 11 joueurs)
+> **Version** : 0.4 (formats de 3 à 11 joueurs, duel à 2)
 > **Statut** : Base de travail pour le game engine

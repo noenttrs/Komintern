@@ -22,6 +22,8 @@ import type {
   ConfidenceHistoryEntry,
   ConfidenceState,
   ConnectionStatus,
+  DuelState,
+  DuelVote,
   Faction,
   GameMetaState,
   GameOverState,
@@ -68,6 +70,7 @@ export interface GameState {
   score: ScoreState;
   gameOver: GameOverState | null;
   revealedRoles: Record<string, Faction>;
+  duel: DuelState;
   myProgress: MyProgress;
   chat: ChatMessage[];
   invite: RoomInvite | null;
@@ -84,7 +87,8 @@ export type GameAction =
   | { type: "notice"; message: string }
   | { type: "clear_notice" }
   | { type: "dismiss_invite" }
-  | { type: "left_room" };
+  | { type: "left_room" }
+  | { type: "duel_voted"; vote: DuelVote };
 
 const EMPTY_SCORE: ScoreState = { nazi: 0, communist: 0 };
 const EMPTY_MISSION: MissionState = { team: [], naziVoteCount: null, result: null, votesSubmitted: 0, votesRequired: 0, submittedPlayerIds: [] };
@@ -99,6 +103,8 @@ const GAME_PHASES: UIPhase[] = [
   "mission_result",
   "end_game",
   "replay_waiting",
+  "duel_vote",
+  "duel_result",
 ];
 
 let errorCounter = 0;
@@ -117,6 +123,7 @@ function gameReset(): Pick<
   | "score"
   | "gameOver"
   | "revealedRoles"
+  | "duel"
   | "myProgress"
 > {
   return {
@@ -132,6 +139,7 @@ function gameReset(): Pick<
     score: EMPTY_SCORE,
     gameOver: null,
     revealedRoles: {},
+    duel: { votedPlayerIds: [], myVote: null, result: null },
     myProgress: EMPTY_PROGRESS,
   };
 }
@@ -215,6 +223,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         minPlayers: 4,
         phase: state.pseudo.trim() === "" ? "pseudo_entry" : "landing",
       };
+    case "duel_voted":
+      return { ...state, duel: { ...state.duel, myVote: action.vote } };
     case "server":
       return applyServerEvent(state, action.event, action.payload);
     default:
@@ -259,16 +269,45 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
         : { ...state, players: state.players.map((player) => (player.id === playerId ? { ...player, isAfk: true } : player)) };
     }
 
-    case SERVER_EVENTS.GAME_STARTED:
+    case SERVER_EVENTS.GAME_STARTED: {
+      const duel = payload.mode === "duel";
+      // Duel : pas d'ordre de table, on passe directement à la révélation du rôle.
       return withPhase(
         {
           ...state,
           ...gameReset(),
           roomStatus: "table_order",
-          gameMeta: { missionCount: numberValue(payload.missionCount) ?? state.gameMeta.missionCount },
+          gameMeta: { missionCount: numberValue(payload.missionCount) ?? state.gameMeta.missionCount, mode: duel ? "duel" : "missions", startedAt: Date.now() },
         },
-        "table_order",
+        duel ? "role_reveal" : "table_order",
       );
+    }
+
+    case SERVER_EVENTS.DUEL_PHASE:
+      return withPhase({ ...state, duel: { votedPlayerIds: stringArray(payload.votedPlayerIds), myVote: null, result: null } }, "duel_vote");
+
+    case SERVER_EVENTS.DUEL_PROGRESS:
+      return { ...state, duel: { ...state.duel, votedPlayerIds: stringArray(payload.votedPlayerIds) } };
+
+    case SERVER_EVENTS.DUEL_RESULT: {
+      const votes: Record<string, DuelVote> = {};
+      for (const [id, vote] of Object.entries(toRecord(payload.votes))) {
+        if (vote === "trust" || vote === "accuse") votes[id] = vote;
+      }
+      const roleMap = factionMap(payload.roleMap);
+      return withPhase(
+        {
+          ...state,
+          roomStatus: "finished",
+          revealedRoles: roleMap,
+          duel: {
+            ...state.duel,
+            result: { winners: stringArray(payload.winners), reason: stringValue(payload.reason) ?? "unknown", votes, roleMap, forfeitedBy: stringValue(payload.forfeitedBy) },
+          },
+        },
+        "duel_result",
+      );
+    }
 
     case SERVER_EVENTS.GAME_ABORTED: {
       const next = withPhase({ ...state, ...gameReset(), roomStatus: "waiting" as const }, "waiting_room");
@@ -460,7 +499,16 @@ function applyResync(state: GameState, payload: Record<string, unknown>): GameSt
   return {
     ...base,
     phase,
-    gameMeta: { missionCount: numberValue(payload.missionCount) ?? base.gameMeta.missionCount },
+    gameMeta: { missionCount: numberValue(payload.missionCount) ?? base.gameMeta.missionCount, mode: payload.mode === "duel" ? "duel" : "missions" },
+    duel:
+      payload.mode === "duel"
+        ? {
+            votedPlayerIds: stringArray(toRecord(payload.duel).votedPlayerIds),
+            // Le vote lui-même n'est jamais renvoyé : on garde celui de cet onglet s'il existe.
+            myVote: toRecord(payload.duel).hasVoted === true ? base.duel.myVote : null,
+            result: null,
+          }
+        : base.duel,
     score: parseScores(payload.scores) ?? base.score,
     tableOrderCount: stringArray(payload.tableOrder).length,
     tableOrder: turnOrder.length > 0 && phase !== "table_order"

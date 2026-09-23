@@ -228,3 +228,27 @@ test("a 3-player game starts with the real engine: one Nazi, teams of 2", { time
   const proposal = await everyone(players, "role_confirmed", "proposal_phase");
   assert.equal(proposal.missionSize, 2);
 });
+
+test("a duel with the real engine: the result follows the rules table", { timeout: 15_000 }, async () => {
+  const first = await join("create_room", { code: "DUEL", pseudo: "A" }, "uid-duel-a-0000000000");
+  const second = await join("join_room", { code: "DUEL", pseudo: "B" }, "uid-duel-b-0000000000");
+  const players = [first, second];
+  const roleEvents = players.map((player) => next<{ role: string; roleMap?: unknown }>(player.socket, "role_assigned"));
+  first.socket.emit("start_game", {});
+  const started = await next<{ mode: string }>(first.socket, "game_started");
+  assert.equal(started.mode, "duel");
+  const roles = await Promise.all(roleEvents);
+  assert.ok(roles.every((role) => role.roleMap === undefined));
+  await everyone(players, "role_confirmed", "duel_phase");
+  const result = next<{ winners: string[]; reason: string; roleMap: Record<string, string> }>(first.socket, "duel_result");
+  first.socket.emit("duel_vote", { vote: "accuse" });
+  second.socket.emit("duel_vote", { vote: "trust" });
+  const { winners, reason, roleMap } = await result;
+  const [a, b] = [roleMap[first.playerId], roleMap[second.playerId]];
+  assert.equal(a, roles[0]!.role);
+  // A accuse, B fait confiance.
+  const expected =
+    b === "nazi" ? { winners: [first.playerId], reason: a === "nazi" ? "nazi_found" : "nazi_unmasked" } : a === "nazi" ? { winners: [second.playerId], reason: "nazi_gave_himself_away" } : { winners: [second.playerId], reason: "false_accusation" };
+  assert.deepEqual({ winners, reason }, expected);
+  assert.equal(app.roomManager.getStatus("DUEL"), "finished");
+});
