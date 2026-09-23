@@ -48,37 +48,21 @@ npm run build
 npm run preview
 ```
 
+## Scripts
+
+- `npm run dev` (proxies `/socket.io` to the server on :3000)
+- `npm test` (Vitest), `npm run lint` (ESLint + react-hooks), `npm run typecheck`
+
 ## Architecture
 
 - `src/socket.ts`: singleton socket instance (`autoConnect: false`)
-- `src/hooks/useGameSocket.ts`: owns all socket listeners, state, and actions
-- `src/components/*`: phase and screen components
+- `src/protocol.ts`: defensive parsing of server payloads, error translations
+- `src/gameState.ts`: pure reducer turning server events into UI state
+- `src/hooks/useGameSocket.ts`: connection, reconnection, per-tab identity, action queue
+- `src/App.tsx`: screens
 
-There is no REST API usage in this client. Game state is driven entirely by Socket.io events.
+Identity is per browser tab (sessionStorage): a reload keeps the seat, and several tabs can
+play as different players. Game actions sent while disconnected are queued and only emitted
+once the server has confirmed the seat (`room_joined`).
 
-## Events
-
-### Client -> Server
-
-- `join_room`
-- `propose_team`
-- `confidence_vote`
-- `mission_vote`
-
-### Server -> Client
-
-- `room_joined`
-- `game_started`
-- `round_started`
-- `team_proposed`
-- `confidence_result`
-- `mission_result`
-- `game_over`
-- `error`
-
-## Notes
-
-- Vote buttons are disabled immediately on click (one vote per phase UX).
-- The client shows only the local player's role information.
-- Socket listeners are cleaned up on unmount to prevent duplicate handlers.
-- The hook normalizes payload key casing for compatibility with current server emissions.
+The full event contract is documented in `../server/README.md`.
