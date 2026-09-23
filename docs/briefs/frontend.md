@@ -190,5 +190,5 @@ Le frontend écoute et émet les événements suivants. Ne pas modifier les noms
 
 ---
 
-> Référence règles : `regles_v0.1.md` — version 0.1
+> Référence règles : `docs/regles.md` — version 0.1
 > Référence architecture : `prompt_agent_gameengine.md`

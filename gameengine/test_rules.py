@@ -1,4 +1,4 @@
-"""Tests de règles et de protocole du moteur (regles_v0.1.md + décisions de l'audit).
+"""Tests de règles et de protocole du moteur (docs/regles.md + décisions de l'audit).
 
 Lancer depuis la racine du projet : python3 -m unittest discover -s gameengine -t .
 """

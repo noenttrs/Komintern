@@ -1,139 +1,103 @@
+<div align="center">
+
 # Nazi Communiste
 
-Jeu de déduction sociale en ligne : une minorité de nazis contre une majorité de communistes, chacun sur son téléphone.
-En ligne sur **https://fascismwontget.me**. Règles : [`regles_v0.1.md`](regles_v0.1.md).
+**Jeu de déduction sociale en temps réel : une minorité de nazis infiltrés contre une majorité de communistes.**
+Chacun joue sur son téléphone, autour d'une table ou à distance.
+
+[**Jouer →**](https://fascismwontget.me) · [Règles](docs/regles.md) · [Audit technique](docs/audit.md)
+
+</div>
+
+<p align="center">
+  <img src="docs/screenshots/game-375x667-01-salle-attente.png" width="160" alt="Salle d'attente" />
+  <img src="docs/screenshots/game-375x667-04-role-maintenu.png" width="160" alt="Révélation du rôle" />
+  <img src="docs/screenshots/game-375x667-06-vote-confiance.png" width="160" alt="Vote de confiance" />
+  <img src="docs/screenshots/game-375x667-08-mission-vote-0.png" width="160" alt="Vote de mission" />
+  <img src="docs/screenshots/game-375x667-09-resultat-mission.png" width="160" alt="Résultat de mission" />
+</p>
+
+## Le jeu
+
+3 à 6 joueurs (le format de référence est à 5 : 2 nazis, 3 communistes). Les nazis connaissent tous les rôles ; les communistes ne connaissent que le leur. Chaque manche :
+
+1. **Proposition** : le chef choisit une équipe.
+2. **Vote de confiance** : tout le monde vote publiquement. Il faut une majorité stricte, sinon le même chef repropose.
+3. **Mission** : l'équipe vote en secret. Un seul vote nazi fait échouer la mission.
+
+Le premier camp à 3 missions gagne. Règles complètes : [`docs/regles.md`](docs/regles.md).
+
+## Fonctionnalités
+
+- **Parties en temps réel** via WebSocket, avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
+- **Jouable sans compte.** Le compte est facultatif : email + mot de passe avec code de validation, ou Google.
+- **Profil et statistiques** : victoires, défaites, taux de victoire, détail par camp.
+- **Amis** : demandes, présence en ligne ou en partie, invitation dans sa room, profil visible uniquement par les amis.
+- **Chat de room repliable** pour jouer à distance, avec **modération** : filtre de termes et signalements, puis dossiers pseudonymisés avec levée d'anonymat tracée.
+- **Administration** protégée par une double authentification (TOTP) : statistiques globales, signalements, messages de contact.
+- **Web app installable** (PWA) et **responsive**, du 320 px au grand écran, dans une direction artistique monochrome.
+- **Pages pour les agents IA** : [`llms.txt`](https://fascismwontget.me/llms.txt) et [`agents.html`](https://fascismwontget.me/agents.html).
 
 ## Architecture
 
 ```
-navigateur ──HTTPS──▶ Cloudflare ──tunnel──▶ cloudflared ──▶ web (nginx, client React/PWA)
-                                                              ├─ /socket.io ─▶ server (Node, Socket.IO) ─▶ moteur Python (1 process / partie)
-                                                              └─ /api ───────▶ server (Express)
-                                                                                 ├─ MongoDB : comptes, amis, stats (utilisateur `app`)
-                                                                                 │            logs de parties, modération (utilisateur `logger`)
-                                                                                 └─ Redis   : sessions, codes email, présence, limites de débit
+navigateur ──HTTPS──▶ Cloudflare ──tunnel──▶ nginx (client React / PWA)
+                                              ├─ /socket.io ─▶ Node.js · Socket.IO ─▶ moteur de règles Python (1 process par partie)
+                                              └─ /api ───────▶ Node.js · Express
+                                                                 ├─ MongoDB : comptes, amis, stats · logs de parties (utilisateurs cloisonnés)
+                                                                 └─ Redis   : sessions, codes, présence, limites de débit
 ```
 
-- `gameengine/`, `gameengine_entry.py` : règles du jeu (Python, NDJSON sur stdin/stdout).
-- `server/` : parties en temps réel, API des comptes, modération. Voir [`server/README.md`](server/README.md).
-- `client/` : interface React (menu refermable, pages profil, amis, chat), installable en web app.
-- `infra/mongo-init.js` : création des deux utilisateurs Mongo cloisonnés, au premier démarrage.
-- Les parties en cours vivent en mémoire. Tout le reste est dans MongoDB, dans le volume Docker `mongo-data`.
+| Couche | Technologies |
+|---|---|
+| Client | React 18, TypeScript strict, Vite, Socket.IO client, vite-plugin-pwa |
+| Serveur | Node.js 24, TypeScript, Socket.IO, Express 5, argon2, jose (OIDC Google) |
+| Moteur de jeu | Python 3.12, bibliothèque standard uniquement, protocole NDJSON avec identifiants de requête |
+| Données | MongoDB 7 (deux utilisateurs séparés pour le jeu et les logs), Redis 7 |
+| Infra | Docker Compose, nginx, tunnel Cloudflare, redémarrage automatique |
 
-Une seule instance du serveur suffit pour plusieurs centaines de parties simultanées (`MAX_ROOMS`, 200 par défaut). Le jour où il en faudra plusieurs :
-- `SOCKET_REDIS_ADAPTER=true` partage les diffusions Socket.IO ;
-- il restera à router chaque room vers l'instance qui l'héberge, par exemple avec un routage collant par code de room.
+Quelques choix notables :
 
-## Mise en route
+- **Le moteur Python est la seule source de vérité des règles.** Le serveur orchestre, filtre ce que chaque joueur a le droit de voir et relaie. Chaque réponse du moteur est validée, avec un timeout et une reprise en cas de crash.
+- **Toutes les actions d'une même partie passent par une file sérialisée**, ce qui supprime les courses entre deux clics ou deux joueurs.
+- **Un siège ne se reprend qu'avec un secret propre à l'onglet**, jamais diffusé. Les identifiants de joueurs, eux, sont publics.
+- **Sécurité** :
+  - sessions opaques en cookie `HttpOnly; Secure; SameSite=Lax` et contrôle de l'`Origin` contre le CSRF ;
+  - Google en PKCE ;
+  - l'utilisateur Mongo du jeu n'a aucun accès aux logs, et celui des logs ne peut rien y supprimer ;
+  - aucun port de base de données exposé.
+- **Vie privée** : les logs de parties sont anonymisés au bout de 12 mois, et la suppression du compte est en libre-service.
+
+## Lancer le projet
 
 ```bash
-cp .env.example .env        # puis remplir : mots de passe (openssl rand -hex 24), PUBLIC_URL, etc.
+git clone https://github.com/noenttrs/Komintern.git && cd Komintern
+cp .env.example .env    # renseigner les mots de passe (openssl rand -hex 24) et PUBLIC_URL
 docker compose up -d --build
+# → http://localhost:8080
 ```
 
-Tous les conteneurs redémarrent automatiquement (`restart: always`). MongoDB et Redis ne publient aucun port sur l'hôte.
-
-### Emails (Resend)
-
-Sans clé, les codes de validation sont écrits dans les logs du serveur (`docker compose logs server`) : pratique pour tester, pas pour le public.
-
-1. Crée un compte sur https://resend.com, puis va dans **Domains** et clique sur **Add domain** : `fascismwontget.me`.
-2. Ajoute dans Cloudflare, onglet DNS, les enregistrements affichés par Resend (MX, SPF en TXT, DKIM en TXT), **en « DNS only »** (nuage gris).
-3. Une fois le domaine vérifié : dans **API Keys**, crée une clé (accès « Sending »), puis dans `.env` :
-   `RESEND_API_KEY=re_...` et `EMAIL_FROM="Nazi Communiste <noreply@fascismwontget.me>"`.
-4. `docker compose up -d server`
-
-### Connexion Google
-
-1. Sur https://console.cloud.google.com, crée un projet, puis va dans **APIs & Services** et **OAuth consent screen** : type « External », nom « Nazi Communiste », email de contact, scopes `openid`, `email`, `profile`.
-2. Toujours dans **APIs & Services**, ouvre **Credentials**, clique sur **Create credentials** puis **OAuth client ID** et choisis le type « Web application » :
-   - Authorized JavaScript origins : `https://fascismwontget.me`
-   - Authorized redirect URIs : `https://fascismwontget.me/api/auth/google/callback`
-3. Dans `.env` : `GOOGLE_CLIENT_ID=...` et `GOOGLE_CLIENT_SECRET=...`, puis `docker compose up -d server`.
-4. Publie l'écran de consentement (« Publish app ») pour ouvrir la connexion à tous.
-
-### Mentions légales
-
-Renseigne `LEGAL_EDITOR_NAME` et `LEGAL_CONTACT_EMAIL` dans `.env`. Tant qu'ils sont vides, la page `/mentions-legales` affiche un avertissement.
-
-### Boîte mail contact@fascismwontget.me (gratuit : Cloudflare Email Routing + Gmail)
-
-- **Réception** : Cloudflare Email Routing redirige `contact@` vers ta boîte Gmail.
-- **Envoi** : Gmail envoie « en tant que » `contact@` via le serveur SMTP de Resend.
-
-1. Dans Cloudflare, ouvre `fascismwontget.me`, puis **Email**, **Email Routing** et **Get started**. Cloudflare ajoute lui-même les enregistrements MX et SPF.
-2. Dans **Destination addresses**, ajoute ton adresse Gmail et valide le lien reçu par email.
-3. Dans **Routing rules**, crée `contact@fascismwontget.me` redirigé vers ton Gmail. Tu peux aussi ajouter `admin@`, ou une règle « catch-all ».
-4. Pour répondre en tant que `contact@` : dans Gmail, ouvre **Paramètres**, puis **Comptes et importation**, puis **Envoyer des e-mails en tant que** et **Ajouter une adresse** :
-   - adresse : `contact@fascismwontget.me` (décoche « Traiter comme un alias ») ;
-   - serveur SMTP : `smtp.resend.com`, port `465` (SSL) ;
-   - utilisateur : `resend`, mot de passe : ta clé API Resend ;
-   - Gmail envoie un code de confirmation à `contact@`, qui revient dans ta boîte grâce à la redirection.
-5. Les messages du formulaire `/contact` arrivent dans cette boîte, avec réponse directe à l'expéditeur. Ils restent aussi consultables dans la page admin.
-
-### Dons (Ko-fi)
-
-Crée ta page sur https://ko-fi.com, puis indique son adresse dans `.env` (`DONATION_URL=https://ko-fi.com/ton-nom`) et lance `docker compose up -d server`. Le bouton apparaît sur `/soutenir` et dans le menu.
-
-## Administration
-
-La page `/admin` affiche :
-- les statistiques globales ;
-- les signalements (conversation pseudonymisée, levée d'anonymat tracée, clôture, bannissement) ;
-- les messages de contact.
-
-Elle n'est accessible qu'à un compte portant le rôle admin, et seulement après une **double authentification TOTP**. Pour tout autre visiteur, `/api/admin/*` répond 404.
-
-Le rôle ne s'attribue qu'en ligne de commande, sur le serveur, à un **compte dédié**. Ce compte ne peut pas se connecter via Google, et son mot de passe est généré aléatoirement :
-
-```bash
-docker compose exec server node dist/admin/cli.js create admin@fascismwontget.me Komintern
-# affiche le mot de passe (une seule fois) et un QR code à scanner avec Aegis, Google Authenticator, 1Password…
-docker compose exec server node dist/admin/cli.js reset-totp admin@fascismwontget.me
-docker compose exec server node dist/admin/cli.js reset-password admin@fascismwontget.me
-docker compose exec server node dist/admin/cli.js revoke admin@fascismwontget.me
-```
-
-Pour se connecter : connexion normale sur le site, puis Menu, Administration, et le code à 6 chiffres. La session admin dure 12 h et chaque code ne sert qu'une fois.
-
-## Modération
-
-Deux déclencheurs ouvrent un dossier **pseudonymisé** (« Joueur A, B… ») :
-- un message du chat contenant un terme de `server/moderation/flagged-words.txt` (le message est diffusé masqué) ;
-- un signalement de joueur (⚑ sur un message).
-
-Le lien avec les personnes est stocké à part, et chaque consultation est tracée. Les dossiers se traitent en ligne de commande, uniquement depuis le serveur :
-
-```bash
-docker compose exec server node dist/moderation/cli.js list open
-docker compose exec server node dist/moderation/cli.js show <caseId>      # conversation pseudonymisée
-docker compose exec server node dist/moderation/cli.js reveal <caseId>    # identités (tracé)
-docker compose exec server node dist/moderation/cli.js resolve <caseId> avertissement envoyé
-docker compose exec server node dist/moderation/cli.js ban <userId> 7     # 0 = lever
-```
-
-Les logs de parties sont conservés sans limite de durée. Ils sont anonymisés au bout de 12 mois (`LOG_ANONYMIZE_AFTER_DAYS`), sauf ceux liés à un dossier ouvert.
-
-## Sauvegardes
-
-```bash
-scripts/backup.sh            # backups/mongo-AAAAMMJJ-HHMMSS.archive.gz (ignoré par git)
-```
-
-Pour restaurer :
-
-```bash
-docker compose exec -T mongo sh -c 'mongorestore --archive --gzip -u root -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin' < fichier
-```
+Sans clé Resend, les codes de validation s'affichent dans `docker compose logs server`. Sans identifiants Google, le bouton Google est masqué.
 
 ## Tests
 
 ```bash
-scripts/check.sh             # tout : lint, types, tests moteur, serveur, client, build Docker, intégration
-scripts/check.sh --no-docker # sans Docker
-scripts/integration.sh       # cloisonnement Mongo, Redis, ports (stack lancée)
-# Captures responsive et PWA contre le site en ligne (Playwright dans Docker, sans dépendances système) :
-cd client && docker run --rm --network host -v "$PWD":/work -w /work mcr.microsoft.com/playwright:v1.63.0-noble npx playwright test
+scripts/check.sh        # lint, types, tests moteur, serveur et client, build Docker, intégration des bases
 ```
 
-Les images Docker ne se construisent que si les tests passent.
+- **Moteur** : 41 tests (règles, validation, protocole).
+- **Serveur** : 63 tests, dont des parties complètes avec le vrai moteur, les comptes, les amis, le chat modéré et l'administration.
+- **Client** : 32 tests (reducer, hooks, écrans).
+- **Tests visuels Playwright** : parties à 5 joueurs dans 5 navigateurs mobiles, et contrôle de la mise en page de 320 à 1440 px.
+- **Images Docker** : elles ne se construisent que si les tests passent.
+
+## Structure
+
+```
+client/        interface React (écrans de jeu, menu, pages, PWA) et tests Playwright
+server/        Socket.IO, API, comptes, amis, modération, admin, CLI
+gameengine/    moteur de règles Python et tests
+infra/         initialisation MongoDB
+scripts/       vérification, intégration, sauvegarde
+docs/          règles, audit technique, briefs de conception
+```

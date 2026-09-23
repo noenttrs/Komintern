@@ -340,7 +340,7 @@ export class GameSession {
 
   /**
    * Un joueur est resté déconnecté trop longtemps. Une fois les rôles distribués, sa
-   * faction perd la partie (prompt_agent_backend.md) ; avant, on l'exclut des quorums.
+   * faction perd la partie (docs/briefs/backend.md) ; avant, on l'exclut des quorums.
    */
   public handlePlayerAfk(playerId: string): Promise<void> {
     return this.serial(async () => {

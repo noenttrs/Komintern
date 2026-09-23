@@ -6,11 +6,11 @@ Tu es en charge du rebuild de la couche serveur de **Cinquième Colonne**, un je
 
 Stack : **Node.js + Socket.io + Express**. Le serveur communique avec le game engine Python via bridge local. L'état des rooms est stocké dans **Redis**. Les comptes utilisateurs sont dans **PostgreSQL** — hors scope pour cette itération.
 
-Le document de référence absolu pour la logique du jeu est `regles_v0.1.md`. Le serveur ne réimplémente pas la logique métier — il orchestre le flux, filtre l'information, et relaie vers le game engine Python.
+Le document de référence absolu pour la logique du jeu est `docs/regles.md`. Le serveur ne réimplémente pas la logique métier — il orchestre le flux, filtre l'information, et relaie vers le game engine Python.
 
 ## Mode opératoire attendu
 
-- Lis d'abord `regles_v0.1.md`, `prompt_agent_frontend.md`, puis le code serveur existant avant de modifier quoi que ce soit.
+- Lis d'abord `docs/regles.md`, `docs/briefs/frontend.md`, puis le code serveur existant avant de modifier quoi que ce soit.
 - Considère ce document comme le contrat fonctionnel à respecter; si le code actuel diverge, aligne le code sur ce contrat.
 - Ne déplace pas la logique de jeu dans Node.js: toute décision métier reste côté game engine Python.
 - Ajoute ou actualise les tests unitaires sur la logique de session, de synchronisation groupe, de bridge et de reprise après déconnexion.
@@ -181,6 +181,6 @@ Toute action invalide (vote hors phase, proposition invalide, action non autoris
 
 ---
 
-> Référence règles : `regles_v0.1.md` — version 0.1
+> Référence règles : `docs/regles.md` — version 0.1
 > Référence game engine : `prompt_agent_gameengine.md`
-> Référence frontend : `prompt_agent_frontend.md`
+> Référence frontend : `docs/briefs/frontend.md`

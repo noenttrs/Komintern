@@ -11,3 +11,8 @@ client/e2e/screenshots/
 client/test-results/
 client/playwright-report/
 backups/
+
+# Local, hors dépôt public
+README.perso.md
+.agents/
+skills-lock.json
