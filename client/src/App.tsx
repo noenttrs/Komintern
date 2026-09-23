@@ -360,6 +360,7 @@ export default function App(): JSX.Element {
     dismissInvite,
     dismissNotice,
     roomStatus,
+    chatEnabled,
   } = useGameSocket();
   const account = useAccount();
   const route = useRoute();
@@ -402,6 +403,8 @@ export default function App(): JSX.Element {
 
   const [joinCodeDraft, setJoinCodeDraft] = useState("");
   const [roomNameDraft, setRoomNameDraft] = useState("");
+  // Par défaut, partie sur place : pas de chat qui encombre l'écran.
+  const [remotePlay, setRemotePlay] = useState(false);
   const [rulesMode, setRulesMode] = useState<"default" | "preset" | "custom">("default");
   const [presetDraft, setPresetDraft] = useState<RulesetPreset>("PRESET_5J");
   const [customPlayerCount, setCustomPlayerCount] = useState(5);
@@ -827,6 +830,17 @@ export default function App(): JSX.Element {
             placeholder="Nom de room (optionnel)"
           />
 
+          <span className="field-label" id="play-mode-label">Où jouez-vous ?</span>
+          <div className="segmented" role="radiogroup" aria-labelledby="play-mode-label">
+            <button type="button" role="radio" aria-checked={!remotePlay} className={remotePlay ? "secondary" : ""} onClick={() => setRemotePlay(false)}>
+              Sur place
+            </button>
+            <button type="button" role="radio" aria-checked={remotePlay} className={remotePlay ? "" : "secondary"} onClick={() => setRemotePlay(true)}>
+              À distance
+            </button>
+          </div>
+          <p className="field-hint">{remotePlay ? "Un chat est disponible pendant la partie." : "Pas de chat : tout se dit autour de la table."}</p>
+
           <label className="field-label">Regles</label>
           <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
             <option value="default">Default</option>
@@ -927,7 +941,7 @@ export default function App(): JSX.Element {
                       },
                     };
 
-              createRoom({ roomName: roomNameDraft, config });
+              createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay });
             }}
           >
             Creer
@@ -971,6 +985,7 @@ export default function App(): JSX.Element {
             Room {roomCode}
           </button>
           <h1>Salle d attente</h1>
+          <p className="mono">{chatEnabled ? "Partie à distance · chat activé" : "Partie sur place · sans chat"}</p>
           <ul className="plain-list">
             {players.map((player) => (
               <li key={player.id}>
@@ -1490,7 +1505,7 @@ export default function App(): JSX.Element {
         inRoom={roomCode !== ""}
       />
       {screen}
-      {roomCode !== "" && myId !== null && route.page === "game" ? (
+      {roomCode !== "" && myId !== null && chatEnabled && route.page === "game" ? (
         <ChatPanel
           messages={chat}
           myId={myId}

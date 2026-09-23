@@ -89,4 +89,22 @@ describe("App", () => {
     act(() => fake.socket.drop());
     expect(screen.getByText(/Connexion perdue/)).toBeTruthy();
   });
+
+  it("hides the chat in rooms created for in-person play", () => {
+    render(<App />);
+    act(() => fake.socket.serverEmit("room_joined", { playerId: "p1", ...room, chatEnabled: false }));
+    expect(screen.queryByRole("button", { name: "Ouvrir le chat" })).toBeNull();
+    expect(screen.getByText("Partie sur place · sans chat")).toBeTruthy();
+    act(() => fake.socket.serverEmit("room_updated", { ...room, chatEnabled: true }));
+    expect(screen.getByRole("button", { name: "Ouvrir le chat" })).toBeTruthy();
+  });
+
+  it("asks where the game is played and sends the choice when creating a room", () => {
+    render(<App />);
+    fireEvent.click(screen.getByText("Creer une room"));
+    expect(screen.getByRole("radio", { name: "Sur place" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "À distance" }));
+    fireEvent.click(screen.getByRole("button", { name: "Creer" }));
+    expect(fake.socket.emitted.find((entry) => entry.event === "create_room")?.payload).toMatchObject({ chatEnabled: true });
+  });
 });

@@ -62,6 +62,7 @@ export type RoomSnapshot = {
   hostId: string | null;
   targetPlayerCount: number | null;
   status: RoomStatus | null;
+  chatEnabled: boolean | null;
 };
 
 const ROOM_STATUSES: RoomStatus[] = ["waiting", "table_order", "playing", "finished"];
@@ -92,6 +93,7 @@ export function parseRoom(value: unknown): RoomSnapshot {
     hostId: stringValue(payload.hostPlayerId) ?? players.find((player) => player.isHost)?.id ?? null,
     targetPlayerCount: numberValue(payload.targetPlayerCount),
     status: status !== null && (ROOM_STATUSES as string[]).includes(status) ? (status as RoomStatus) : null,
+    chatEnabled: boolValue(payload.chatEnabled),
   };
 }
 

@@ -1263,3 +1263,15 @@ textarea {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+
+/* Choix sur place / à distance à la création de la room */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.field-hint {
+  font-size: 0.85rem;
+  margin-top: -0.3rem;
+}

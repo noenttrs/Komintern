@@ -335,7 +335,13 @@ export function createKominternApp(options: AppOptions): KominternApp {
       const code = parseOptionalRoomCode(payload.code ?? payload.room_name);
       const playerUid = parseOptionalPlayerUid(payload.playerUid);
       const pseudo = parseOptionalPseudo(payload.pseudo);
-      const roomId = roomManager.createRoom({ code, rulesetPreset: payload.ruleset_preset, ruleset: payload.ruleset });
+      const roomId = roomManager.createRoom({
+        code,
+        rulesetPreset: payload.ruleset_preset,
+        ruleset: payload.ruleset,
+        // Chat activé par défaut ; `chatEnabled: false` pour une partie jouée sur place.
+        chatEnabled: payload.chatEnabled !== false,
+      });
       await attach(socket, roomId, playerUid, pseudo);
     });
 

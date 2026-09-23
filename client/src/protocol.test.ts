@@ -16,6 +16,7 @@ describe("protocol", () => {
       hostId: "p2",
       targetPlayerCount: 5,
       status: "waiting",
+      chatEnabled: null,
       players: [{ id: "p1", pseudo: "Rosa", isHost: false, isAfk: false, isConnected: true }],
     });
     expect(parseRoom({ status: "hacked" }).status).toBeNull();

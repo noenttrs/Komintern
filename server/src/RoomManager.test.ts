@@ -162,6 +162,16 @@ test("the last player leaving deletes the room", () => {
   assert.equal(manager.hasRoom(code), false);
 });
 
+test("a room created for in-person play refuses chat messages", () => {
+  const { manager } = setup();
+  const code = manager.createRoom({ chatEnabled: false });
+  const [player] = fill(manager, code, 1);
+  assert.equal(manager.getRoomPayload(code).chatEnabled, false);
+  assert.throws(() => manager.addChatMessage(code, player as string, "salut", "salut", false), /chat is disabled/);
+  const remote = manager.createRoom();
+  assert.equal(manager.getRoomPayload(remote).chatEnabled, true);
+});
+
 test("room creation is capped", () => {
   const { manager } = setup({ maxRooms: 2 });
   manager.createRoom();

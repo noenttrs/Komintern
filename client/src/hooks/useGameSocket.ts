@@ -63,7 +63,7 @@ export interface GameActions {
   confirmPseudo: () => void;
   navigate: (phase: UIPhase) => void;
   dismissError: () => void;
-  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null }) => void;
+  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null; chatEnabled?: boolean }) => void;
   joinRoom: (code: string) => void;
   leaveRoom: () => void;
   startGame: () => void;
@@ -283,6 +283,7 @@ export function useGameSocket(): UseGameSocketResult {
           ...(code !== "" ? { code } : {}),
           ...(config?.ruleset_preset ? { ruleset_preset: config.ruleset_preset } : {}),
           ...(config?.ruleset ? { ruleset: config.ruleset } : {}),
+          chatEnabled: options?.chatEnabled !== false,
         });
       },
       joinRoom: (rawCode) => {

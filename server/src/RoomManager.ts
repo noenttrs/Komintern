@@ -53,6 +53,7 @@ type RoomRecord = {
   socketByPlayer: Map<string, string>;
   playerByUid: Map<string, string>;
   userIdByPlayer: Map<string, string>;
+  chatEnabled: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
   pseudoByPlayer: Map<string, string>;
@@ -85,6 +86,7 @@ export type CreateRoomOptions = {
   code?: string;
   rulesetPreset?: unknown;
   ruleset?: unknown;
+  chatEnabled?: boolean;
 };
 
 export type JoinResult = {
@@ -148,6 +150,7 @@ export class RoomManager {
       socketByPlayer: new Map(),
       playerByUid: new Map(),
       userIdByPlayer: new Map(),
+      chatEnabled: options.chatEnabled !== false,
       chat: [],
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
@@ -375,6 +378,7 @@ export class RoomManager {
       hostPlayerId: room.hostPlayerId,
       targetPlayerCount: room.targetPlayerCount,
       status: room.status,
+      chatEnabled: room.chatEnabled,
     };
   }
 
@@ -383,6 +387,9 @@ export class RoomManager {
   /** Ajoute un message au chat de la room et le diffuse (texte déjà filtré dans `text`). */
   public addChatMessage(code: string, playerId: string, text: string, original: string, flagged: boolean): ChatMessage {
     const room = this.requireRoom(code);
+    if (!room.chatEnabled) {
+      throw new Error("chat is disabled in this room");
+    }
     if (!room.playerIds.includes(playerId)) {
       throw new Error("unknown player for this room");
     }

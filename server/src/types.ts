@@ -36,6 +36,8 @@ export interface RoomUpdatedPayload {
   hostPlayerId: string | null;
   targetPlayerCount: number;
   status: RoomStatus;
+  /** Faux pour une partie jouée sur place : pas de chat. */
+  chatEnabled: boolean;
 }
 
 export interface Scores {

@@ -5,9 +5,10 @@ import type { Browser, Page } from "@playwright/test";
 // À chaque écran : captures, pas de débordement horizontal, et ni le bouton du menu ni celui
 // du chat ne recouvrent un bouton de jeu.
 
+// 375 px : partie à distance (chat) ; 320 px : partie sur place (sans chat).
 const DEVICES = [
-  { name: "375x667", width: 375, height: 667 },
-  { name: "320x568", width: 320, height: 568 },
+  { name: "375x667", width: 375, height: 667, remote: true },
+  { name: "320x568", width: 320, height: 568, remote: false },
 ];
 
 type Player = { page: Page; name: string };
@@ -78,6 +79,7 @@ for (const device of DEVICES) {
 
     // Salle d'attente
     await host.page.getByRole("button", { name: "Creer une room" }).click();
+    if (device.remote) await host.page.getByRole("radio", { name: "À distance" }).click();
     await host.page.getByRole("button", { name: "Creer", exact: true }).click();
     const code = (await host.page.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
     for (const guest of guests) {
@@ -89,12 +91,18 @@ for (const device of DEVICES) {
     await expect(host.page.getByRole("button", { name: "Demarrer" })).toBeEnabled();
     await check(host.page, tag("01-salle-attente"));
 
-    // Chat
-    await guests[0]!.page.getByRole("button", { name: "Ouvrir le chat" }).click();
-    await guests[0]!.page.getByLabel("Message").fill("On joue ?");
-    await guests[0]!.page.getByRole("button", { name: "Envoyer" }).click();
-    await expect(host.page.getByRole("button", { name: "Ouvrir le chat" })).toContainText("1");
-    await guests[0]!.page.getByRole("button", { name: "Replier le chat" }).click();
+    // Chat : présent à distance, absent sur place
+    if (device.remote) {
+      await guests[0]!.page.getByRole("button", { name: "Ouvrir le chat" }).click();
+      await guests[0]!.page.getByLabel("Message").fill("On joue ?");
+      await guests[0]!.page.getByRole("button", { name: "Envoyer" }).click();
+      await expect(host.page.getByRole("button", { name: "Ouvrir le chat" })).toContainText("1");
+      await guests[0]!.page.getByRole("button", { name: "Replier le chat" }).click();
+    } else {
+      for (const player of players) {
+        await expect(player.page.getByRole("button", { name: "Ouvrir le chat" })).toHaveCount(0);
+      }
+    }
 
     // Ordre de table
     await host.page.getByRole("button", { name: "Demarrer" }).click();
