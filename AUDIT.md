@@ -148,3 +148,28 @@ que si les tests passent.
   revanche), sans aucune erreur dans les logs.
 - Test dans un vrai navigateur (claude-in-chrome) non effectué : extension non connectée dans
   cette session.
+
+---
+
+# v2 — comptes, amis, logs, modération (2026-09-23)
+
+Nouvelles surfaces introduites et mesures prises :
+
+| Risque | Mesure |
+|---|---|
+| Vol de mots de passe | argon2id (paramètres OWASP), jamais stockés en clair ; temps de réponse identique pour un email inconnu. |
+| Brute force (connexion, codes) | Limites Redis par IP et par email ; codes à 6 chiffres stockés hachés, 15 min, 5 essais, renvoi limité à 1/min. |
+| Énumération des comptes | « Mot de passe oublié » répond toujours pareil. L'inscription indique un email déjà pris (compromis UX assumé). |
+| Vol de session | Id opaque de 256 bits, cookie `HttpOnly; Secure; SameSite=Lax`, expiration glissante de 30 jours, révocation globale au changement de mot de passe et à la suppression du compte. |
+| CSRF | SameSite=Lax + contrôle de l'`Origin` sur toute requête qui modifie des données. |
+| Prise de compte via Google | PKCE + `state` ; l'`id_token` est vérifié (signature JWKS, émetteur, audience, email vérifié). Un compte jamais validé qui porte le même email perd son mot de passe quand le vrai propriétaire se connecte. |
+| Fuite des logs | Deux utilisateurs Mongo cloisonnés : `app` n'a aucun accès aux logs, `logger` ne peut rien supprimer et ne voit pas les comptes. Aucune route n'expose les logs. Vérifié par `scripts/integration.sh`. |
+| Exposition des bases | Mongo et Redis sans port publié, authentification obligatoire, secrets dans `.env` (ignoré par git, droits 600). |
+| Vie privée des stats | Profil visible seulement par soi et ses amis acceptés ; l'email n'est jamais montré aux amis. |
+| Harcèlement dans le chat | Filtre de termes (masquage), signalements, dossiers pseudonymisés avec levée d'identité tracée, bannissement ; limites de débit sur le chat, les signalements et les invitations. |
+| XSS via le chat | Texte rendu comme texte React, caractères de contrôle et bidi retirés côté serveur, 200 caractères max. |
+| Rétention (RGPD) | Logs anonymisés à 12 mois (tâche quotidienne), suppression de compte en libre-service, politique décrite sur `/mentions-legales`. |
+| Indisponibilité de Mongo/Redis | Les parties invitées continuent ; l'API répond 503 et les comptes reviennent tout seuls avec la base. |
+| Adapter Redis de Socket.IO | Désactivé par défaut (`SOCKET_REDIS_ADAPTER`) : sans multi-instance, il n'apporte rien et une panne Redis ne doit jamais couper les parties. |
+
+Tests ajoutés : 15 unitaires côté serveur (comptes, filtre, logs, anonymisation, pseudonymisation), un e2e complet (API, cookies, amis, présence, invitation, chat modéré, signalement, partie avec des comptes, stats, suppression de compte), 7 côté client (menu, chat, pages, routeur), et des tests visuels Playwright en 6 tailles d'écran plus un test PWA.

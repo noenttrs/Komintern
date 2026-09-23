@@ -7,3 +7,7 @@ __pycache__/
 .env.*
 !.env.example
 coverage/
+client/e2e/screenshots/
+client/test-results/
+client/playwright-report/
+backups/

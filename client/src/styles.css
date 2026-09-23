@@ -991,7 +991,7 @@ main.game-screen {
   right: 0;
   bottom: 0;
   z-index: 35;
-  height: min(45vh, 24rem);
+  height: min(40vh, 22rem);
   width: min(100%, 27rem);
   margin: 0 auto;
   display: grid;

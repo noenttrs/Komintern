@@ -33,8 +33,8 @@ export function useAccount(): AccountState & AccountActions {
 
   const refresh = useCallback(async () => {
     try {
-      const { user } = await api<{ user: Account }>("/me");
-      setState((current) => ({ ...current, status: "user", user }));
+      const { user } = await api<{ user: Account | null }>("/me");
+      setState((current) => ({ ...current, status: user === null ? "guest" : "user", user }));
     } catch {
       setState((current) => ({ ...current, status: "guest", user: null }));
     }

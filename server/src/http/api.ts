@@ -169,12 +169,10 @@ export function createApi(services: Services): express.Router {
     }
   });
 
+  // Invité : 200 avec user null (pas d'erreur 401 dans la console du navigateur à chaque visite).
   router.get("/me", route(async (request, response) => {
-    const user = await services.users.findById(requireUser(request));
-    if (user === null) {
-      throw new ApiError(401, "unauthorized");
-    }
-    response.json({ user: accountView(user, true) });
+    const user = request.userId === undefined ? null : await services.users.findById(request.userId);
+    response.json({ user: user === null ? null : accountView(user, true) });
   }));
 
   router.patch("/me", route(async (request, response) => {

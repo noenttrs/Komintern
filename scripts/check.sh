@@ -25,6 +25,11 @@ step "Client : lint, types, tests"
 if [[ "${1:-}" != "--no-docker" ]]; then
   step "Docker : build des images (les tests y sont rejoués)"
   docker compose build
+
+  if docker compose ps --status running --services 2>/dev/null | grep -qx mongo; then
+    step "Intégration : bases réelles de la stack (cloisonnement Mongo, Redis)"
+    scripts/integration.sh
+  fi
 fi
 
 printf '\n\033[1;32mTout est vert.\033[0m\n'

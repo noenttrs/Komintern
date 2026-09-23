@@ -97,7 +97,7 @@ function next<T = any>(socket: Socket, event: string, predicate: (payload: T) =>
 test("accounts, friends, presence, invitations, moderated chat and stats", { timeout: 30_000 }, async () => {
   // --- API et sécurité
   assert.equal((await api("/auth/login", { body: { email: "x@example.org", password: "x" }, origin: null })).status, 403, "no Origin: rejected (CSRF)");
-  assert.equal((await api("/me")).status, 401);
+  assert.deepEqual((await api("/me")).body, { user: null });
   const [rosa, karl, ...others] = await Promise.all(["Rosa", "Karl", "Clara", "Leon", "Emma"].map(signUp)) as Account[];
   assert.equal((await api("/me", { cookie: rosa!.cookie })).body.user.displayName, "Rosa");
 
@@ -203,6 +203,6 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
 
   // --- Suppression de compte
   assert.equal((await api("/me", { method: "DELETE", cookie: karl!.cookie })).status, 204);
-  assert.equal((await api("/me", { cookie: karl!.cookie })).status, 401);
+  assert.deepEqual((await api("/me", { cookie: karl!.cookie })).body, { user: null });
   assert.equal([...logs.games.values()][0]?.players.some((p) => p.userId === karl!.id), false);
 });
