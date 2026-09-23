@@ -641,6 +641,7 @@ export const en: Dictionary = {
     quickIntro: "Chosen when creating a room without a fixed format: always 5 missions, first side to 3, with bigger teams when there are many of you. With 3 to 5 players it is the same as classic.",
     yourGame: "Your game: {count} players (highlighted row).",
     duelIntro: "With 2 players there are no missions: it's a duel. Each role is a coin flip (25% two Communists, 25% two Nazis, 50% one of each) and each player only knows their own, Nazis included. You talk, then each votes in secret “Trust” or “Nazi!”:",
+    license: "Rules © Komintern, licensed under <cc>CC BY-NC-SA 4.0</cc>.",
     tipsTitle: "Tips",
     tip1: "Role card: press and hold it to check your role discreetly.",
     tip2: "Swipe it to show the history of votes and missions.",

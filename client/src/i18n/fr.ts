@@ -640,6 +640,7 @@ export const fr = {
     quickIntro: "Au choix à la création d'une room sans format imposé : toujours 5 missions, premier camp à 3, avec des équipes plus grandes quand on est nombreux. De 3 à 5 joueurs, c'est identique au classique.",
     yourGame: "Votre partie : {count} joueurs (ligne surlignée).",
     duelIntro: "À 2 joueurs, pas de missions : un duel. Chaque rôle est tiré à pile ou face (25 % deux communistes, 25 % deux nazis, 50 % un de chaque) et chacun ne connaît que le sien, nazi compris. On discute, puis chacun vote en secret « Confiance » ou « Nazi ! » :",
+    license: "Règles © Komintern, sous licence <cc>CC BY-NC-SA 4.0</cc>.",
     tipsTitle: "Astuces",
     tip1: "Carte de rôle : maintenez-la appuyée pour revoir votre rôle en toute discrétion.",
     tip2: "Faites-la glisser pour afficher l'historique des votes et des missions.",

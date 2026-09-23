@@ -113,4 +113,5 @@ docs/          règles, audit technique, briefs de conception
 
 ## Licence
 
-[AGPL-3.0](LICENSE) : le code est libre. Toute version modifiée mise en ligne doit publier son code source sous la même licence.
+- **Code** : [AGPL-3.0](LICENSE). Le code est libre ; toute version modifiée mise en ligne doit publier son code source sous la même licence.
+- **Règles du jeu** ([`docs/REGLES.md`](docs/REGLES.md)) : © Komintern, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr). Partage et adaptation autorisés en citant l'auteur, sans usage commercial, et sous la même licence.

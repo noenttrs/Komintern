@@ -90,6 +90,15 @@ export function RulesPage({ playerCount }: { playerCount: number | null }): JSX.
           <li>{t("rules.tip2")}</li>
           <li>{t("rules.tip3")}</li>
         </ul>
+        <p className="mono">
+          {tr("rules.license", {
+            cc: (label: string) => (
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer license">
+                {label}
+              </a>
+            ),
+          })}
+        </p>
       </article>
     </PageShell>
   );
