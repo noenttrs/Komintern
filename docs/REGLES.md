@@ -1,4 +1,4 @@
-# Règles officielles — v0.5
+# Règles officielles — v0.6
 
 Référence des règles de **Nazi Communiste**. Le moteur Python (`gameengine/`) en est l'implémentation : en cas d'écart, c'est ce document qui fait foi et le moteur qui doit être corrigé.
 
@@ -129,12 +129,28 @@ Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. E
 
 ## Duel à 2 joueurs
 
-À 2, pas de missions. Chacun reçoit un rôle et **ne connaît que le sien, nazi compris**. Trois situations, aussi probables l'une que l'autre : deux communistes, un de chaque camp, deux nazis. Personne ne sait dans laquelle il est.
+À 2, pas de missions. **Chaque rôle est tiré indépendamment à pile ou face** : 25 % de chances d'avoir deux communistes, 25 % deux nazis, 50 % un de chaque. Chacun **ne connaît que son propre rôle, nazi compris**, et ce rôle ne dit rien de celui de l'autre.
 
 On discute, sans limite de temps, puis chacun vote **en secret et en même temps** : **« Confiance »** ou **« Nazi ! »**. On voit que l'autre a voté, jamais ce qu'il a voté avant le résultat.
 
-| Situation | Votes | Résultat |
+- **Un communiste gagne s'il juge juste** : confiance à un communiste, « Nazi ! » face à un nazi.
+- **Un nazi face à un communiste gagne s'il se fait accepter** (les deux font confiance). S'il accuse un communiste, il se démasque et perd.
+- **Deux nazis** : celui qui accuse a trouvé l'autre et gagne ; s'ils s'accusent ou se font confiance tous les deux, ils gagnent ensemble.
+
+| Situation (probabilité) | Votes | Résultat |
 |---|---|---|
+| 2 communistes (25 %) | confiance / confiance | les deux gagnent |
+| | l'un accuse | l'accusateur perd, l'autre gagne |
+| | les deux accusent | personne ne gagne |
+| 1 de chaque camp (50 %) | le communiste accuse | le communiste gagne |
+| | confiance / confiance | le nazi s'est fait accepter : le nazi gagne |
+| | le communiste fait confiance, le nazi accuse | le nazi se démasque, le communiste a mal jugé : personne ne gagne |
+| 2 nazis (25 %) | un seul accuse | celui qui accuse gagne |
+| | les deux accusent, ou les deux font confiance | victoire commune |
+
+**Aucun vote n'est gagnant d'avance.** Pour un communiste, « Confiance » et « Nazi ! » ont exactement les mêmes chances (l'autre est nazi une fois sur deux) : tout se joue à la lecture de l'autre. Pour un nazi, accuser assure la victoire face à un autre nazi mais le fait perdre face à un communiste ; faire confiance parie sur la crédulité de l'autre. Chacun gagne ou perd pour son compte (0, 1 ou 2 gagnants). À la fin, les deux rôles et les deux votes sont révélés.
+
+---|---|---|
 | 2 communistes | confiance / confiance | les deux gagnent |
 | | l'un accuse | l'accusateur perd, l'autre gagne |
 | | les deux accusent | personne ne gagne |
@@ -153,6 +169,7 @@ Accuser a toujours un prix : on gagne en démasquant un nazi, on perd en accusan
 
 | Version | Changements |
 |---|---|
+| 0.6 | Duel : rôles tirés indépendamment à pile ou face (25 / 50 / 25 %) ; un communiste gagne s'il juge juste ; deux nazis qui se font confiance gagnent ensemble. Plus aucun vote gagnant d'avance. |
 | 0.5 | Document refondu (`docs/REGLES.md`) : ordre de table, premier chef, votes mélangés, règles d'absence (attente jusqu'à 5 min, annulation si l'absent part avant la distribution des rôles), rejouer. |
 | 0.4 | Duel à 2 joueurs. |
 | 0.3 | Retour du format à 3 joueurs (1 nazi, équipes de 2, premier à 2). |
@@ -162,5 +179,5 @@ Accuser a toujours un prix : on gagne en démasquant un nazi, on perd en accusan
 
 ---
 
-> **Version** : 0.5
+> **Version** : 0.6
 > **Statut** : référence du moteur (`gameengine/`), de la page Règles du site et des pages pour les agents IA.

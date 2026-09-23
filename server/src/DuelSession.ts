@@ -36,7 +36,7 @@ const DUEL_REASONS = new Set([
   "nazi_accepted",
   "nazis_found_each_other",
   "nazi_found",
-  "nazis_fooled_each_other",
+  "nazis_trusted_each_other",
 ]);
 
 export class DuelSession {

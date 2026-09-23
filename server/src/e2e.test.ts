@@ -248,7 +248,7 @@ test("a duel with the real engine: the result follows the rules table", { timeou
   assert.equal(a, roles[0]!.role);
   // A accuse, B fait confiance.
   const expected =
-    b === "nazi" ? { winners: [first.playerId], reason: a === "nazi" ? "nazi_found" : "nazi_unmasked" } : a === "nazi" ? { winners: [second.playerId], reason: "nazi_gave_himself_away" } : { winners: [second.playerId], reason: "false_accusation" };
+    b === "nazi" ? { winners: [first.playerId], reason: a === "nazi" ? "nazi_found" : "nazi_unmasked" } : a === "nazi" ? { winners: [], reason: "nazi_gave_himself_away" } : { winners: [second.playerId], reason: "false_accusation" };
   assert.deepEqual({ winners, reason }, expected);
   assert.equal(app.roomManager.getStatus("DUEL"), "finished");
 });

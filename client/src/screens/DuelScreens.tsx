@@ -83,7 +83,7 @@ export function duelExplanation(result: DuelResult, nameById: (id: string) => st
     accuser: accuser === undefined ? "?" : nameById(accuser),
     name: result.forfeitedBy === null ? "?" : nameById(result.forfeitedBy),
   };
-  const known = ["mutual_trust", "false_accusation", "mutual_accusation", "nazi_unmasked", "nazi_gave_himself_away", "nazi_accepted", "nazis_found_each_other", "nazi_found", "nazis_fooled_each_other", "forfeit"];
+  const known = ["mutual_trust", "false_accusation", "mutual_accusation", "nazi_unmasked", "nazi_gave_himself_away", "nazi_accepted", "nazis_found_each_other", "nazi_found", "nazis_trusted_each_other", "forfeit"];
   return known.includes(result.reason) ? t(`duel.reason.${result.reason}` as TranslationKey, vars) : "";
 }
 
