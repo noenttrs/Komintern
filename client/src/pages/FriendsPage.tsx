@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { FriendsView, PresenceStatus, Stats } from "../api";
 import { PageShell } from "../components/PageShell";
+import { type TranslationKey, useI18n } from "../i18n";
 import { navigate } from "../router";
 
 type FriendsPageProps = {
@@ -17,6 +18,7 @@ type LeaderboardEntry = { userId: string; displayName: string; stats: Stats; sel
 
 /** Classement : soi-même et ses amis, par victoires. */
 function Leaderboard({ version }: { version: number }): JSX.Element | null {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   useEffect(() => {
     api<{ leaderboard: LeaderboardEntry[] }>("/friends/leaderboard")
@@ -26,15 +28,21 @@ function Leaderboard({ version }: { version: number }): JSX.Element | null {
   if (entries === null || entries.length < 2) return null;
   return (
     <section className="friends-section">
-      <h3 className="field-label">Classement</h3>
+      <h3 className="field-label">{t("friends.leaderboard")}</h3>
       <ol className="leaderboard">
         {entries.map((entry, index) => {
           const played = entry.stats.wins + entry.stats.losses;
           return (
             <li key={entry.userId} className={entry.self ? "leaderboard__row leaderboard__row--self" : "leaderboard__row"}>
               <span className="leaderboard__rank">{index + 1}</span>
-              <span className="leaderboard__name">{entry.displayName}{entry.self ? " (toi)" : ""}</span>
-              <span className="mono">{entry.stats.wins} V · {played} P · {played === 0 ? "—" : `${Math.round((entry.stats.wins / played) * 100)} %`}</span>
+              <span className="leaderboard__name">{entry.displayName}{entry.self ? t("friends.you") : ""}</span>
+              <span className="mono">
+                {t("friends.leaderboardLine", {
+                  wins: entry.stats.wins,
+                  played,
+                  rate: played === 0 ? "—" : t("common.percent", { value: Math.round((entry.stats.wins / played) * 100) }),
+                })}
+              </span>
             </li>
           );
         })}
@@ -43,18 +51,19 @@ function Leaderboard({ version }: { version: number }): JSX.Element | null {
   );
 }
 
-const STATUS_LABEL: Record<PresenceStatus, string> = { online: "en ligne", in_game: "en partie", offline: "hors ligne" };
+const STATUS_LABEL: Record<PresenceStatus, TranslationKey> = { online: "friends.online", in_game: "friends.inGame", offline: "friends.offline" };
 
 export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: FriendsPageProps): JSX.Element {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   if (!signedIn) {
     return (
-      <PageShell title="Amis">
+      <PageShell title={t("friends.title")}>
         <div className="panel page-panel">
-          <p>Connecte-toi pour ajouter des amis, voir qui est en ligne et les inviter dans ta room.</p>
-          <button type="button" onClick={() => navigate("/connexion")}>Se connecter</button>
+          <p>{t("friends.guestHint")}</p>
+          <button type="button" onClick={() => navigate("/connexion")}>{t("common.login")}</button>
         </div>
       </PageShell>
     );
@@ -67,12 +76,12 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
       if (success !== undefined) setMessage({ text: success, error: false });
       await refresh();
     } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : "Erreur", error: true });
+      setMessage({ text: error instanceof Error ? error.message : t("common.error"), error: true });
     }
   };
 
   return (
-    <PageShell title="Amis">
+    <PageShell title={t("friends.title")}>
       <div className="panel page-panel">
         {message !== null ? <p className={message.error ? "form-message form-message--error" : "form-message"} role="alert">{message.text}</p> : null}
         <form
@@ -82,23 +91,23 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
             void act(async () => {
               const { status } = await api<{ status: string }>("/friends/requests", { body: { displayName: name } });
               setName("");
-              setMessage({ text: status === "accepted" ? "Vous êtes maintenant amis." : "Demande envoyée.", error: false });
+              setMessage({ text: status === "accepted" ? t("friends.nowFriends") : t("friends.requestSent"), error: false });
             });
           }}
         >
-          <input required minLength={3} maxLength={20} value={name} onChange={(event) => setName(event.target.value)} placeholder="Pseudo d'un joueur" aria-label="Pseudo à ajouter" />
-          <button type="submit">Ajouter</button>
+          <input required minLength={3} maxLength={20} value={name} onChange={(event) => setName(event.target.value)} placeholder={t("friends.placeholder")} aria-label={t("friends.addLabel")} />
+          <button type="submit">{t("friends.add")}</button>
         </form>
 
         {view.incoming.length > 0 ? (
           <section className="friends-section">
-            <h3 className="field-label">Demandes reçues</h3>
+            <h3 className="field-label">{t("friends.incoming")}</h3>
             <ul className="friend-list">
               {view.incoming.map((request) => (
                 <li key={request.userId} className="friend-row">
                   <span className="friend-row__name">{request.displayName}</span>
-                  <button type="button" onClick={() => void act(() => api(`/friends/${request.userId}/accept`, { body: {} }))}>Accepter</button>
-                  <button type="button" className="secondary" onClick={() => void act(() => api(`/friends/${request.userId}`, { method: "DELETE" }))}>Refuser</button>
+                  <button type="button" onClick={() => void act(() => api(`/friends/${request.userId}/accept`, { body: {} }))}>{t("friends.accept")}</button>
+                  <button type="button" className="secondary" onClick={() => void act(() => api(`/friends/${request.userId}`, { method: "DELETE" }))}>{t("friends.decline")}</button>
                 </li>
               ))}
             </ul>
@@ -106,8 +115,8 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
         ) : null}
 
         <section className="friends-section">
-          <h3 className="field-label">Amis ({view.friends.length})</h3>
-          {view.friends.length === 0 ? <p>Pas encore d'amis. Ajoute-les avec leur pseudo.</p> : null}
+          <h3 className="field-label">{t("friends.count", { count: view.friends.length })}</h3>
+          {view.friends.length === 0 ? <p>{t("friends.empty")}</p> : null}
           <ul className="friend-list">
             {view.friends.map((friend) => (
               <li key={friend.userId} className="friend-row">
@@ -115,16 +124,16 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
                 <button type="button" className="link-button friend-row__name" onClick={() => navigate(`/profil/${friend.userId}`)}>
                   {friend.displayName}
                 </button>
-                <span className="mono">{STATUS_LABEL[friend.status]}</span>
+                <span className="mono">{t(STATUS_LABEL[friend.status])}</span>
                 {canInvite && friend.status === "online" ? (
-                  <button type="button" onClick={() => onInvite(friend.userId)}>Inviter</button>
+                  <button type="button" onClick={() => onInvite(friend.userId)}>{t("friends.invite")}</button>
                 ) : null}
                 <button
                   type="button"
                   className="secondary friend-row__remove"
-                  aria-label={`Retirer ${friend.displayName}`}
+                  aria-label={t("friends.removeLabel", { name: friend.displayName })}
                   onClick={() => {
-                    if (window.confirm(`Retirer ${friend.displayName} de tes amis ?`)) {
+                    if (window.confirm(t("friends.removeConfirm", { name: friend.displayName }))) {
                       void act(() => api(`/friends/${friend.userId}`, { method: "DELETE" }));
                     }
                   }}
@@ -138,19 +147,19 @@ export function FriendsPage({ signedIn, view, refresh, canInvite, onInvite }: Fr
 
         {view.outgoing.length > 0 ? (
           <section className="friends-section">
-            <h3 className="field-label">Demandes envoyées</h3>
+            <h3 className="field-label">{t("friends.outgoing")}</h3>
             <ul className="friend-list">
               {view.outgoing.map((request) => (
                 <li key={request.userId} className="friend-row">
                   <span className="friend-row__name">{request.displayName}</span>
-                  <button type="button" className="secondary" onClick={() => void act(() => api(`/friends/${request.userId}`, { method: "DELETE" }))}>Annuler</button>
+                  <button type="button" className="secondary" onClick={() => void act(() => api(`/friends/${request.userId}`, { method: "DELETE" }))}>{t("common.cancel")}</button>
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
         <Leaderboard version={view.friends.length} />
-        {!canInvite ? <p className="mono">Pour inviter un ami, crée ou rejoins d'abord une room.</p> : null}
+        {!canInvite ? <p className="mono">{t("friends.inviteHint")}</p> : null}
       </div>
     </PageShell>
   );

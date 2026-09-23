@@ -1,4 +1,5 @@
 // Parsing défensif des payloads serveur : tout ce qui arrive du socket est `unknown`.
+import { translate, type TranslationKey } from "./i18n";
 import type {
   ChatMessage,
   ConfidenceHistoryEntry,
@@ -166,28 +167,28 @@ export function normalizeRoomCode(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, "-");
 }
 
-const ERROR_TRANSLATIONS: Array<[RegExp, string]> = [
-  [/room not found/, "Cette room n'existe pas (ou plus)."],
-  [/room code already exists/, "Ce nom de room est déjà pris."],
-  [/room is full/, "La room est complète."],
-  [/already started/, "La partie a déjà commencé dans cette room."],
-  [/only the host/, "Seul l'hôte peut faire ça."],
-  [/only the current chef/, "Seul le chef peut proposer une équipe."],
-  [/room code must/, "Code de room invalide : 3 à 24 caractères parmi A-Z, 0-9, _ et -."],
-  [/pseudo must be at most/, "Pseudo trop long (20 caractères max)."],
-  [/too many actions/, "Trop d'actions, ralentissez."],
-  [/engine stopped unexpectedly/, "Le moteur de jeu a planté : retour au salon."],
-  [/please vote again/, "Le vote n'a pas pu être compté, votez à nouveau."],
-  [/could not start the game/, "La partie n'a pas pu démarrer, confirmez à nouveau."],
-  [/opened in another tab/, "Cette place a été ouverte dans un autre onglet."],
-  [/server is full/, "Serveur plein, réessayez plus tard."],
-  [/no playable ruleset|requires \d+ players/, "Nombre de joueurs incompatible avec les règles choisies."],
+const ERROR_TRANSLATIONS: Array<[RegExp, TranslationKey]> = [
+  [/room not found/, "errors.roomNotFound"],
+  [/room code already exists/, "errors.roomCodeTaken"],
+  [/room is full/, "errors.roomFull"],
+  [/already started/, "errors.alreadyStarted"],
+  [/only the host/, "errors.onlyHost"],
+  [/only the current chef/, "errors.onlyChef"],
+  [/room code must/, "errors.invalidRoomCode"],
+  [/pseudo must be at most/, "errors.pseudoTooLong"],
+  [/too many actions/, "errors.tooManyActions"],
+  [/engine stopped unexpectedly/, "errors.engineStopped"],
+  [/please vote again/, "errors.voteAgain"],
+  [/could not start the game/, "errors.couldNotStart"],
+  [/opened in another tab/, "errors.otherTab"],
+  [/server is full/, "errors.serverFull"],
+  [/no playable ruleset|requires \d+ players/, "errors.playerCount"],
 ];
 
 export function translateError(message: string): string {
   for (const [pattern, translation] of ERROR_TRANSLATIONS) {
     if (pattern.test(message)) {
-      return translation;
+      return translate(translation);
     }
   }
   return message;
@@ -206,20 +207,20 @@ export function parseChatMessage(value: unknown): ChatMessage | null {
 
 // Messages d'erreur du chat, des signalements et des invitations.
 ERROR_TRANSLATIONS.push(
-  [/message must be 1-/, "Message vide ou trop long (200 caractères max)."],
-  [/too many messages/, "Tu envoies trop de messages, ralentis."],
-  [/banned from the chat/, "Ton compte ne peut plus écrire dans le chat."],
-  [/too many reports/, "Trop de signalements, réessaie plus tard."],
-  [/only invite your friends/, "Tu ne peux inviter que tes amis."],
-  [/only possible from the lobby/, "Les invitations se font depuis le salon d'attente."],
-  [/friend is offline/, "Cet ami n'est pas en ligne."],
-  [/log in to invite/, "Connecte-toi pour inviter tes amis."],
-  [/removed from this room/, "L'hôte t'a retiré de cette room."],
-  [/only the host can do that/, "Seul l'hôte peut faire ça."],
-  [/only possible in the waiting room/, "Possible uniquement dans la salle d'attente."],
-  [/chat is disabled/, "Le chat est désactivé dans cette room (partie sur place)."],
-  [/log in to join public rooms/, "Connecte-toi pour rejoindre une partie publique."],
-  [/log in to create a public room/, "Connecte-toi pour créer une partie publique."],
-  [/public rooms always have chat/, "Une partie publique se joue à distance : le chat reste activé."],
-  [/needs an account to make the room public/, "Tous les joueurs doivent avoir un compte pour rendre la partie publique."],
+  [/message must be 1-/, "errors.messageLength"],
+  [/too many messages/, "errors.tooManyMessages"],
+  [/banned from the chat/, "errors.chatBanned"],
+  [/too many reports/, "errors.tooManyReports"],
+  [/only invite your friends/, "errors.inviteFriendsOnly"],
+  [/only possible from the lobby/, "errors.inviteFromLobby"],
+  [/friend is offline/, "errors.friendOffline"],
+  [/log in to invite/, "errors.loginToInvite"],
+  [/removed from this room/, "errors.removedFromRoom"],
+  [/only the host can do that/, "errors.onlyHost"],
+  [/only possible in the waiting room/, "errors.waitingRoomOnly"],
+  [/chat is disabled/, "errors.chatDisabled"],
+  [/log in to join public rooms/, "errors.loginToJoinPublic"],
+  [/log in to create a public room/, "errors.loginToCreatePublic"],
+  [/public rooms always have chat/, "errors.publicAlwaysChat"],
+  [/needs an account to make the room public/, "errors.publicNeedsAccounts"],
 );

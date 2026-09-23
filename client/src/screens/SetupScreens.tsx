@@ -1,6 +1,7 @@
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { WaitingCard } from "../components/game/WaitingCard";
+import { useI18n } from "../i18n";
 import { useScreen } from "./ScreenContext";
 
 // Début de partie : ordre de table puis révélation du rôle.
@@ -27,6 +28,7 @@ export function TableOrderScreen(): JSX.Element {
     adjustTableOrder,
     resetTableOrder,
   } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="game-screen">
       <CardSurface
@@ -37,19 +39,19 @@ export function TableOrderScreen(): JSX.Element {
         footer={frontFooter}
         front={
           waitingValidationStep === "table_order" ? (
-            <WaitingCard message="En attente des autres joueurs pour confirmer l'ordre de table." />
+            <WaitingCard message={t("tableOrder.waitingConfirm")} />
           ) : (
             <>
               <h2>
                 {myOrderIndex === -1
-                  ? "Tap pour prendre votre numero d'ordre"
-                  : `Votre numero d'ordre: ${myOrderIndex + 1}`}
+                  ? t("tableOrder.tap")
+                  : t("tableOrder.yourNumber", { number: myOrderIndex + 1 })}
               </h2>
-              <p>Progression: {orderReference.length > 0 ? orderLegend : "..."}</p>
+              <p>{t("tableOrder.progress")} {orderReference.length > 0 ? orderLegend : "..."}</p>
               <p>
                 {allOrderChosen
-                  ? "Tap pour passer a la suite (confirmation collective)"
-                  : "En attente des joueurs selon l'ordre de table."}
+                  ? t("tableOrder.allChosen")
+                  : t("tableOrder.waitingOrder")}
               </p>
             </>
           )
@@ -68,7 +70,7 @@ export function TableOrderScreen(): JSX.Element {
                     setShowOrderAdjustInput((current) => !current);
                   }}
                 >
-                  J'ai rate pardon
+                  {t("tableOrder.missed")}
                 </button>
               ) : null}
               {allOrderChosen && showOrderAdjustInput ? (
@@ -89,7 +91,7 @@ export function TableOrderScreen(): JSX.Element {
                       setShowOrderAdjustInput(false);
                     }}
                   >
-                    Valider correction
+                    {t("tableOrder.validateFix")}
                   </button>
                 </>
               ) : null}
@@ -102,7 +104,7 @@ export function TableOrderScreen(): JSX.Element {
                     resetTableOrder();
                   }}
                 >
-                  Revenir en arriere
+                  {t("tableOrder.undo")}
                 </button>
               ) : null}
             </div>
@@ -130,6 +132,7 @@ export function RoleRevealScreen(): JSX.Element {
     setWaitingValidationStep,
     confirmRole,
   } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="game-screen">
       <CardSurface
@@ -140,11 +143,11 @@ export function RoleRevealScreen(): JSX.Element {
         footer={frontFooter}
         front={
           waitingValidationStep === "role_reveal" ? (
-            <WaitingCard message="En attente des autres joueurs." />
+            <WaitingCard message={t("roleReveal.waiting")} />
           ) : (
             <div>
-              <h2>Maintenez pour voir votre role</h2>
-              <p>Puis appuyez sur "C'est bon".</p>
+              <h2>{t("roleReveal.hold")}</h2>
+              <p>{t("roleReveal.then")}</p>
             </div>
           )
         }
@@ -165,7 +168,7 @@ export function RoleRevealScreen(): JSX.Element {
                 confirmRole();
               }}
             >
-              C'est bon
+              {t("roleReveal.ok")}
             </button>
           ) : undefined
         }

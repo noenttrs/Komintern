@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AlertSettings } from "../hooks/useTurnAlerts";
+import { useI18n } from "../i18n";
 import { navigate } from "../router";
 
 type MenuProps = {
@@ -14,6 +15,7 @@ type MenuProps = {
 
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
 export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, alerts, install }: MenuProps): JSX.Element {
+  const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -59,7 +61,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
         ref={toggleRef}
         type="button"
         className="menu-toggle"
-        aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+        aria-label={open ? t("menu.close") : t("menu.open")}
         aria-expanded={open}
         aria-controls="main-menu"
         onClick={(event) => {
@@ -75,25 +77,25 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
         id="main-menu"
         ref={drawerRef}
         className={open ? "menu-drawer menu-drawer--open" : "menu-drawer"}
-        aria-label="Menu principal"
+        aria-label={t("menu.label")}
         aria-hidden={!open}
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="mono">{signedIn ? displayName ?? "Compte" : "Invité"}</p>
-        <button type="button" onClick={() => go("/")} tabIndex={open ? 0 : -1}>Jouer</button>
-        <button type="button" onClick={() => go("/regles")} tabIndex={open ? 0 : -1}>Règles du jeu</button>
+        <p className="mono">{signedIn ? displayName ?? t("menu.account") : t("menu.guest")}</p>
+        <button type="button" onClick={() => go("/")} tabIndex={open ? 0 : -1}>{t("menu.play")}</button>
+        <button type="button" onClick={() => go("/regles")} tabIndex={open ? 0 : -1}>{t("menu.rules")}</button>
         {signedIn ? (
           <>
-            <button type="button" onClick={() => go("/profil")} tabIndex={open ? 0 : -1}>Profil</button>
+            <button type="button" onClick={() => go("/profil")} tabIndex={open ? 0 : -1}>{t("menu.profile")}</button>
             <button type="button" onClick={() => go("/amis")} tabIndex={open ? 0 : -1}>
-              Amis{pendingRequests > 0 ? ` (${pendingRequests})` : ""}
+              {t("menu.friends")}{pendingRequests > 0 ? ` (${pendingRequests})` : ""}
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>Se connecter</button>
+          <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>{t("menu.login")}</button>
         )}
-        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>Administration</button> : null}
-        <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>♥ Soutenir le projet</button>
+        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{t("menu.admin")}</button> : null}
+        <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>{t("menu.support")}</button>
         {!install.installed && (install.canPrompt || install.isIos) ? (
           <button
             type="button"
@@ -101,10 +103,10 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
             tabIndex={open ? 0 : -1}
             onClick={() => (install.canPrompt ? void install.install() : setShowIosHelp((current) => !current))}
           >
-            Installer l'application
+            {t("menu.install")}
           </button>
         ) : null}
-        {showIosHelp ? <p className="menu-help">Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p> : null}
+        {showIosHelp ? <p className="menu-help">{t("menu.iosHelp")}</p> : null}
         {alerts !== undefined ? (
           <div className="menu-toggles">
             <label className="checkbox-row">
@@ -114,7 +116,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
                 checked={alerts.settings.vibration}
                 onChange={(event) => alerts.update({ ...alerts.settings, vibration: event.target.checked })}
               />
-              Vibrer quand c'est mon tour
+              {t("menu.vibration")}
             </label>
             <label className="checkbox-row">
               <input
@@ -123,14 +125,29 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
                 checked={alerts.settings.sound}
                 onChange={(event) => alerts.update({ ...alerts.settings, sound: event.target.checked })}
               />
-              Son quand c'est mon tour
+              {t("menu.sound")}
             </label>
           </div>
         ) : null}
+        <div className="segmented menu-lang" role="group" aria-label={t("menu.language")}>
+          {(["fr", "en"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              lang={entry}
+              className={lang === entry ? "" : "secondary"}
+              aria-pressed={lang === entry}
+              tabIndex={open ? 0 : -1}
+              onClick={() => setLang(entry)}
+            >
+              {entry.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <div className="menu-footer">
-          <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>À propos</button>
-          <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>Contact</button>
-          <button type="button" className="secondary" onClick={() => go("/mentions-legales")} tabIndex={open ? 0 : -1}>Mentions légales</button>
+          <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>{t("menu.about")}</button>
+          <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>{t("menu.contact")}</button>
+          <button type="button" className="secondary" onClick={() => go("/mentions-legales")} tabIndex={open ? 0 : -1}>{t("menu.legal")}</button>
         </div>
       </nav>
     </>

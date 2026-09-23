@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChatPanel } from "./components/ChatPanel";
 import { FactionIcon } from "./components/game/FactionIcon";
@@ -10,6 +10,7 @@ import { useFriends } from "./hooks/useFriends";
 import { useGameSocket } from "./hooks/useGameSocket";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { useTurnAlerts } from "./hooks/useTurnAlerts";
+import { translate, useI18n } from "./i18n";
 import { AboutPage } from "./pages/AboutPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ContactPage } from "./pages/ContactPage";
@@ -29,6 +30,7 @@ import { type InfoMode, type RulesMode, type ScreenContextValue, ScreenProvider 
 import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
 import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
 import { socket } from "./socket";
+import { availableStorage, recordFinishedGame } from "./supportBanner";
 
 import type { ConfidenceVote, MissionVote, RulesetPreset, UIPhase } from "./types";
 
@@ -66,7 +68,7 @@ function renderScreen(phase: UIPhase): JSX.Element {
       return (
         <main className="screen">
           <section className="panel">
-            <h1>Etat de jeu inconnu</h1>
+            <h1>{translate("app.unknownState")}</h1>
           </section>
         </main>
       );
@@ -74,6 +76,7 @@ function renderScreen(phase: UIPhase): JSX.Element {
 }
 
 export default function App(): JSX.Element {
+  const { t } = useI18n();
   const game = useGameSocket();
   const {
     pseudo,
@@ -185,7 +188,7 @@ export default function App(): JSX.Element {
     if (auth === "ok") {
       void account.refresh();
     } else {
-      window.alert(auth === "banned" ? "Ce compte est suspendu." : "La connexion avec Google a échoué.");
+      window.alert(auth === "banned" ? t("app.googleBanned") : t("app.googleFailed"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -235,7 +238,7 @@ export default function App(): JSX.Element {
   const orderReference = tableOrder.order.length > 0 ? tableOrder.order : players.map((entry) => entry.id);
   const orderValidatedIds = phase === "table_order" ? tableOrder.order : tableOrder.confirmed.length > 0 ? tableOrder.confirmed : tableOrder.order;
   const orderLegend = (
-    <span className="progress-dots progress-dots--compact" aria-label="progression de table">
+    <span className="progress-dots progress-dots--compact" aria-label={t("app.tableProgress")}>
       {orderReference.map((id) => (
         <span key={id} className={orderValidatedIds.includes(id) ? "dot dot--full" : "dot"} />
       ))}
@@ -276,14 +279,14 @@ export default function App(): JSX.Element {
       window.removeEventListener("orientationchange", update);
     };
   }, []);
-  const roleLabel = role.faction === "nazi" ? "Nazi" : role.faction === "communist" ? "Communist" : "Inconnu";
+  const roleLabel = role.faction === "nazi" ? t("role.nazi") : role.faction === "communist" ? t("role.communist") : t("role.unknown");
   const roleOverlay = (
     <div>
       <h2><FactionIcon faction={role.faction} /> {roleLabel}</h2>
       {role.faction === "nazi" ? (
-        <p>Allies: {naziAllies.length > 0 ? naziAllies.join(", ") : "aucun"}</p>
+        <p>{t("role.allies", { names: naziAllies.length > 0 ? naziAllies.join(", ") : t("common.none") })}</p>
       ) : (
-        <p>Role visible uniquement pour vous.</p>
+        <p>{t("role.onlyYou")}</p>
       )}
     </div>
   );
@@ -299,6 +302,17 @@ export default function App(): JSX.Element {
       setHasRevealedRoleOnce(false);
     }
   }, [phase, proposal.chefId, proposal.missionIndex]);
+
+  // Bannière de soutien : une partie compte quand on arrive en fin de partie depuis la partie elle-même
+  // (pas après un rechargement qui reprend directement sur l'écran de fin).
+  const previousPhaseRef = useRef<UIPhase>(phase);
+  useEffect(() => {
+    const previous = previousPhaseRef.current;
+    previousPhaseRef.current = phase;
+    if (phase === "end_game" && previous !== "end_game" && isGamePhaseUi(previous)) {
+      recordFinishedGame(availableStorage());
+    }
+  }, [phase]);
 
   // Après un rechargement, le serveur indique ce que ce joueur a déjà validé.
   useEffect(() => {
@@ -329,7 +343,7 @@ export default function App(): JSX.Element {
   const lastConfidenceVotes = lastConfidence
     ? Object.entries(lastConfidence.votes).map(([id, vote]) => ({
         playerName: nameById(id),
-        voteLabel: vote === "yes" ? "Pour" : "Contre",
+        voteLabel: vote === "yes" ? t("game.yes") : t("game.no"),
       }))
     : [];
   const missionSummaryEntries = missionHistory.map((entry) => ({
@@ -340,7 +354,7 @@ export default function App(): JSX.Element {
 
   const renderNamesWithPipes = (names: string[]): JSX.Element => {
     if (names.length === 0) {
-      return <span className="back-empty">Aucun joueur</span>;
+      return <span className="back-empty">{t("history.noPlayers")}</span>;
     }
 
     return (
@@ -356,7 +370,7 @@ export default function App(): JSX.Element {
   };
 
   const confirmLeaveGame = (): void => {
-    if (window.confirm("Quitter maintenant fait perdre votre camp. Quitter la partie ?")) {
+    if (window.confirm(t("history.confirmLeave"))) {
       leaveRoom();
     }
   };
@@ -364,22 +378,22 @@ export default function App(): JSX.Element {
   const defaultBackContent = (
     <div className="back-panel">
       <header className="back-panel__header">
-        <h2>Historique</h2>
-        <p>Resume rapide du tour</p>
+        <h2>{t("history.title")}</h2>
+        <p>{t("history.subtitle")}</p>
       </header>
 
       <div className="back-panel__body">
         <section className="back-block">
-          <h3>Equipe proposee</h3>
+          <h3>{t("history.proposedTeam")}</h3>
           <p className="back-block__value">{renderNamesWithPipes(proposedTeamNames)}</p>
         </section>
 
         <section className="back-block">
-          <h3>Dernier vote confiance</h3>
+          <h3>{t("history.lastVote")}</h3>
           {lastConfidenceVotes.length > 0 ? (
             <>
               <p className="back-meta-line">
-                Proposes: {renderNamesWithPipes(lastConfidenceProposedNames)}
+                {t("history.proposed")} {renderNamesWithPipes(lastConfidenceProposedNames)}
               </p>
               <ul className="back-list">
                 {lastConfidenceVotes.map((entry) => (
@@ -392,12 +406,12 @@ export default function App(): JSX.Element {
               </ul>
             </>
           ) : (
-            <p className="back-empty">Aucun vote de confiance enregistre.</p>
+            <p className="back-empty">{t("history.noLastVote")}</p>
           )}
         </section>
 
         <section className="back-block">
-          <h3>Missions</h3>
+          <h3>{t("history.missions")}</h3>
           {missionSummaryEntries.length > 0 ? (
             <ul className="back-list">
               {missionSummaryEntries.slice(-3).map((entry) => (
@@ -411,17 +425,17 @@ export default function App(): JSX.Element {
               ))}
             </ul>
           ) : (
-            <p className="back-empty">Aucune mission enregistree.</p>
+            <p className="back-empty">{t("history.noMissions")}</p>
           )}
         </section>
       </div>
 
       <div className="back-actions">
         <button type="button" className="secondary" onClick={() => setShowFullHistory(true)}>
-          Voir plus
+          {t("history.more")}
         </button>
         <button type="button" className="secondary" onClick={confirmLeaveGame}>
-          Quitter la partie
+          {t("history.leave")}
         </button>
       </div>
     </div>
@@ -430,26 +444,26 @@ export default function App(): JSX.Element {
   const expandedBackContent = (
     <div className="back-panel">
       <header className="back-panel__header">
-        <h2>Historique complet</h2>
-        <p>Tous les votes et resultats</p>
+        <h2>{t("history.fullTitle")}</h2>
+        <p>{t("history.fullSubtitle")}</p>
       </header>
 
       <div className="back-panel__body">
         <section className="back-block">
-          <h3>Votes confiance</h3>
+          <h3>{t("history.votes")}</h3>
           {confidenceHistory.length > 0 ? (
             <ul className="back-list">
               {confidenceHistory.map((entry) => (
                 <li key={`confidence-${entry.missionIndex}-${entry.team.join("-")}`}>
                   <strong className="back-index">{entry.missionIndex}</strong>
                   <strong className="back-sep"> | </strong>
-                  <span>Proposes: {renderNamesWithPipes(entry.team.map(nameById))}</span>
+                  <span>{t("history.proposed")} {renderNamesWithPipes(entry.team.map(nameById))}</span>
                   <strong className="back-sep"> | </strong>
                   {Object.entries(entry.votes).map(([id, vote], voteIndex, list) => (
                     <span key={`vote-${entry.missionIndex}-${id}`}>
                       <strong className="back-name">{nameById(id)}</strong>
                       <strong className="back-sep"> | </strong>
-                      <span className="back-vote">{vote === "yes" ? "Pour" : "Contre"}</span>
+                      <span className="back-vote">{vote === "yes" ? t("game.yes") : t("game.no")}</span>
                       {voteIndex < list.length - 1 ? <strong className="back-sep"> | </strong> : null}
                     </span>
                   ))}
@@ -457,12 +471,12 @@ export default function App(): JSX.Element {
               ))}
             </ul>
           ) : (
-            <p className="back-empty">Aucun vote confiance enregistre.</p>
+            <p className="back-empty">{t("history.noVotes")}</p>
           )}
         </section>
 
         <section className="back-block">
-          <h3>Historique des missions</h3>
+          <h3>{t("history.missionHistory")}</h3>
           {missionSummaryEntries.length > 0 ? (
             <ul className="back-list">
               {missionSummaryEntries.map((entry) => (
@@ -476,17 +490,17 @@ export default function App(): JSX.Element {
               ))}
             </ul>
           ) : (
-            <p className="back-empty">Aucune mission enregistree.</p>
+            <p className="back-empty">{t("history.noMissions")}</p>
           )}
         </section>
       </div>
 
       <div className="back-actions">
         <button type="button" className="secondary" onClick={() => setShowFullHistory(false)}>
-          Voir moins
+          {t("history.less")}
         </button>
         <button type="button" className="secondary" onClick={confirmLeaveGame}>
-          Quitter la partie
+          {t("history.leave")}
         </button>
       </div>
     </div>
@@ -494,15 +508,15 @@ export default function App(): JSX.Element {
 
   const frontMeta = (
     <div>
-      <p>Chef du tour: {proposal.chefId ? nameById(proposal.chefId) : "-"}</p>
+      <p>{t("game.chef", { name: proposal.chefId ? nameById(proposal.chefId) : "-" })}</p>
     </div>
   );
 
   const missionProgressNumber = proposal.missionIndex ?? Math.max(1, missionHistory.length + 1);
   const missionProgressTotal = gameMeta.missionCount > 0 ? gameMeta.missionCount : missionProgressNumber;
-  const missionProgressLabel = `Mission ${missionProgressNumber} / ${missionProgressTotal}`;
+  const missionProgressLabel = t("game.missionProgress", { number: missionProgressNumber, total: missionProgressTotal });
 
-  const frontFooter = <div><p>Mission en cours</p></div>;
+  const frontFooter = <div><p>{t("game.missionOngoing")}</p></div>;
 
   useEffect(() => {
     const handleGlobalTap = (event: MouseEvent): void => {
@@ -571,8 +585,8 @@ export default function App(): JSX.Element {
     return (
       <main className="screen">
         <section className="panel">
-          <h1>Format vertical requis</h1>
-          <p>Tournez votre telephone en mode portrait pour continuer.</p>
+          <h1>{t("app.portraitTitle")}</h1>
+          <p>{t("app.portraitText")}</p>
         </section>
       </main>
     );
@@ -701,7 +715,7 @@ export default function App(): JSX.Element {
           myId={myId}
           onSend={sendChat}
           onReport={(message) => {
-            const reason = window.prompt(`Signaler le message de ${message.pseudo} ? Raison (facultatif) :`, "");
+            const reason = window.prompt(t("chat.reportPrompt", { name: message.pseudo }), "");
             if (reason !== null) {
               report({ messageId: message.id }, reason);
             }

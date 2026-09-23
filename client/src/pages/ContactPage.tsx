@@ -2,8 +2,10 @@ import { useState } from "react";
 
 import { api } from "../api";
 import { PageShell } from "../components/PageShell";
+import { useI18n } from "../i18n";
 
 export function ContactPage({ defaultEmail, contactEmail }: { defaultEmail: string; contactEmail: string }): JSX.Element {
+  const { t, tr } = useI18n();
   const [email, setEmail] = useState(defaultEmail);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -11,10 +13,12 @@ export function ContactPage({ defaultEmail, contactEmail }: { defaultEmail: stri
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
 
   return (
-    <PageShell title="Contact">
+    <PageShell title={t("contact.title")}>
       <div className="panel page-panel">
         <p>
-          Une question, un bug, une idée ou un signalement ? Écris ici{contactEmail !== "" ? <> ou directement à <a href={`mailto:${contactEmail}`}>{contactEmail}</a></> : null}.
+          {tr("contact.intro", {
+            direct: contactEmail !== "" ? tr("contact.direct", { email: <a href={`mailto:${contactEmail}`}>{contactEmail}</a> }) : "",
+          })}
         </p>
         {status !== null ? <p className={status.error ? "form-message form-message--error" : "form-message"} role="alert">{status.text}</p> : null}
         <form
@@ -27,25 +31,25 @@ export function ContactPage({ defaultEmail, contactEmail }: { defaultEmail: stri
               .then(() => {
                 setSubject("");
                 setMessage("");
-                setStatus({ text: "Message envoyé, merci ! Tu recevras une réponse par email.", error: false });
+                setStatus({ text: t("contact.sent"), error: false });
               })
-              .catch((error: unknown) => setStatus({ text: error instanceof Error ? error.message : "Erreur", error: true }))
+              .catch((error: unknown) => setStatus({ text: error instanceof Error ? error.message : t("common.error"), error: true }))
               .finally(() => setBusy(false));
           }}
         >
           <label className="field">
-            <span className="field-label">Ton email (pour te répondre)</span>
+            <span className="field-label">{t("contact.email")}</span>
             <input type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <label className="field">
-            <span className="field-label">Sujet</span>
+            <span className="field-label">{t("contact.subject")}</span>
             <input required maxLength={120} value={subject} onChange={(event) => setSubject(event.target.value)} />
           </label>
           <label className="field">
-            <span className="field-label">Message</span>
+            <span className="field-label">{t("contact.message")}</span>
             <textarea required minLength={10} maxLength={5000} rows={7} value={message} onChange={(event) => setMessage(event.target.value)} />
           </label>
-          <button type="submit" disabled={busy}>Envoyer</button>
+          <button type="submit" disabled={busy}>{t("common.send")}</button>
         </form>
       </div>
     </PageShell>

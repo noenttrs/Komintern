@@ -1,5 +1,6 @@
 // État de jeu côté client : un reducer pur, alimenté par les événements serveur.
 import { SERVER_EVENTS } from "./events";
+import { translate } from "./i18n";
 import {
   factionMap,
   parseChatMessage,
@@ -399,14 +400,14 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
       if (code === null || code === state.roomCode) {
         return state;
       }
-      return { ...state, invite: { id: ++errorCounter, code, fromName: stringValue(toRecord(payload.from).displayName) ?? "Un ami" } };
+      return { ...state, invite: { id: ++errorCounter, code, fromName: stringValue(toRecord(payload.from).displayName) ?? translate("notices.friendFallback") } };
     }
 
     case SERVER_EVENTS.REPORT_RECEIVED:
-      return { ...state, notice: { message: "Signalement envoyé. Merci, il sera examiné.", id: ++errorCounter } };
+      return { ...state, notice: { message: translate("notices.reportSent"), id: ++errorCounter } };
 
     case SERVER_EVENTS.ERROR: {
-      const message = stringValue(payload.message) ?? "Erreur serveur";
+      const message = stringValue(payload.message) ?? translate("errors.server");
       return { ...state, error: { message: translateError(message), code: stringValue(payload.code), id: ++errorCounter } };
     }
 

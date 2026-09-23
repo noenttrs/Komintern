@@ -5,10 +5,13 @@ import { registerSW } from "virtual:pwa-register";
 
 import "./styles.css";
 import App from "./App";
+import { LanguageProvider } from "./i18n";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   </React.StrictMode>,
 );
 

@@ -3,11 +3,13 @@ import QRCode from "qrcode";
 
 import { api } from "../api";
 import type { Account } from "../api";
+import { useI18n } from "../i18n";
 
 type Props = { user: Account; onChanged: () => Promise<void> };
 
 /** Sécurité du compte : double authentification facultative et changement d'email. */
 export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
+  const { t, tr } = useI18n();
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
   const [code, setCode] = useState("");
@@ -22,17 +24,17 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
       await action();
       setMessage({ text: success, error: false });
     } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : "Erreur", error: true });
+      setMessage({ text: error instanceof Error ? error.message : t("common.error"), error: true });
     }
   };
 
   return (
     <section className="friends-section">
-      <h3 className="field-label">Sécurité</h3>
+      <h3 className="field-label">{t("security.title")}</h3>
       {message !== null ? <p className={message.error ? "form-message form-message--error" : "form-message"} role="alert">{message.text}</p> : null}
 
       {user.isAdmin === true ? (
-        <p className="field-hint">Compte administrateur : double authentification obligatoire, gérée sur le serveur.</p>
+        <p className="field-hint">{t("security.adminHint")}</p>
       ) : user.totpEnabled === true ? (
         <form
           className="form"
@@ -42,15 +44,15 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
               await api("/me/totp/disable", { body: { code } });
               setCode("");
               await onChanged();
-            }, "Double authentification désactivée.");
+            }, t("security.disabled"));
           }}
         >
-          <p>Double authentification <strong>activée</strong> : un code est demandé à chaque connexion.</p>
+          <p>{tr("security.enabledInfo")}</p>
           <label className="field">
-            <span className="field-label">Code actuel pour la désactiver</span>
+            <span className="field-label">{t("security.disableCode")}</span>
             <input className="code-input" inputMode="numeric" pattern="\d{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} />
           </label>
-          <button type="submit" className="secondary">Désactiver</button>
+          <button type="submit" className="secondary">{t("security.disable")}</button>
         </form>
       ) : setup === null ? (
         <button
@@ -61,10 +63,10 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
               const result = await api<{ secret: string; uri: string }>("/me/totp/setup", { body: {} });
               const svg = await QRCode.toString(result.uri, { type: "svg", margin: 1 });
               setSetup({ secret: result.secret, qr: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` });
-            }, "Scanne le QR code avec ton application d'authentification, puis saisis le code affiché.")
+            }, t("security.scan"))
           }
         >
-          Activer la double authentification
+          {t("security.enable")}
         </button>
       ) : (
         <form
@@ -76,16 +78,16 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
               setSetup(null);
               setCode("");
               await onChanged();
-            }, "Double authentification activée.");
+            }, t("security.enabled"));
           }}
         >
-          <img className="totp-qr" src={setup.qr} alt="QR code de double authentification" />
+          <img className="totp-qr" src={setup.qr} alt={t("security.qrAlt")} />
           <p className="mono totp-secret">{setup.secret}</p>
           <label className="field">
-            <span className="field-label">Code affiché par l'application</span>
+            <span className="field-label">{t("security.appCode")}</span>
             <input className="code-input" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} />
           </label>
-          <button type="submit">Confirmer l'activation</button>
+          <button type="submit">{t("security.confirmEnable")}</button>
         </form>
       )}
 
@@ -98,20 +100,20 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
               await api("/me/email", { body: { email: newEmail, password } });
               setEmailStep("code");
               setPassword("");
-            }, `Un code a été envoyé à ${newEmail}.`);
+            }, t("security.emailCodeSent", { email: newEmail }));
           }}
         >
           <label className="field">
-            <span className="field-label">Nouvelle adresse email</span>
+            <span className="field-label">{t("security.newEmail")}</span>
             <input type="email" autoComplete="email" required value={newEmail} onChange={(event) => setNewEmail(event.target.value)} />
           </label>
           {user.hasPassword === true ? (
             <label className="field">
-              <span className="field-label">Mot de passe actuel</span>
+              <span className="field-label">{t("security.currentPassword")}</span>
               <input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
           ) : null}
-          <button type="submit" className="secondary">Changer d'email</button>
+          <button type="submit" className="secondary">{t("security.changeEmail")}</button>
         </form>
       ) : (
         <form
@@ -124,15 +126,15 @@ export function SecuritySettings({ user, onChanged }: Props): JSX.Element {
               setEmailCode("");
               setNewEmail("");
               await onChanged();
-            }, "Adresse email modifiée.");
+            }, t("security.emailChanged"));
           }}
         >
           <label className="field">
-            <span className="field-label">Code reçu sur la nouvelle adresse</span>
+            <span className="field-label">{t("security.newEmailCode")}</span>
             <input className="code-input" inputMode="numeric" pattern="\d{6}" maxLength={6} required value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, ""))} />
           </label>
-          <button type="submit">Confirmer</button>
-          <button type="button" className="link-button" onClick={() => setEmailStep("idle")}>Annuler</button>
+          <button type="submit">{t("common.confirm")}</button>
+          <button type="button" className="link-button" onClick={() => setEmailStep("idle")}>{t("common.cancel")}</button>
         </form>
       )}
     </section>

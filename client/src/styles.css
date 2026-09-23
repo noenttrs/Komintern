@@ -1439,6 +1439,11 @@ textarea {
   font-size: 0.9rem;
 }
 
+/* Choix de la langue (FR / EN) dans le menu */
+.menu-drawer .menu-lang button {
+  text-align: center;
+}
+
 /* Historique des parties */
 .history-list {
   list-style: none;
@@ -1567,4 +1572,61 @@ textarea {
   flex: 1;
   min-height: 1px;
   background: var(--ink);
+}
+
+/* Bannière de soutien Ko-fi : en tête de carte, dans le flux, sans animation. */
+.support-banner {
+  position: relative;
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+  padding: 0.6rem 2.8rem 0.6rem 0.7rem;
+  border: 1px solid var(--line-soft);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.support-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.support-banner__actions a,
+.support-banner__actions button {
+  width: auto;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.support-banner__actions a {
+  border: 1px solid var(--line);
+  color: var(--bg);
+  background: var(--ink);
+  text-decoration: none;
+}
+
+.support-banner__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2.6rem;
+  min-height: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.support-banner a:focus-visible,
+.support-banner button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }

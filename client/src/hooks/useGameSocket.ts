@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 
 import { CLIENT_EVENTS, SERVER_EVENTS } from "../events";
 import { gameReducer, initialGameState } from "../gameState";
+import { translate } from "../i18n";
 import type { GameState } from "../gameState";
 import { ROOM_CODE_PATTERN, normalizeRoomCode, stringValue, toRecord } from "../protocol";
 import { socket } from "../socket";
@@ -198,7 +199,7 @@ export function useGameSocket(): UseGameSocketResult {
     socket.on(SERVER_EVENTS.ERROR, onError);
     const onKicked = (): void => {
       forgetRoom();
-      dispatch({ type: "notice", message: "L'hôte t'a retiré de la room." });
+      dispatch({ type: "notice", message: translate("notices.kicked") });
     };
     socket.on(SERVER_EVENTS.KICKED, onKicked);
 
@@ -271,7 +272,7 @@ export function useGameSocket(): UseGameSocketResult {
       confirmPseudo: () => {
         const trimmed = stateRef.current.pseudo.trim();
         if (trimmed === "") {
-          dispatch({ type: "error", message: "Pseudo requis" });
+          dispatch({ type: "error", message: translate("errors.pseudoRequired") });
           return;
         }
         dispatch({ type: "set_pseudo", pseudo: trimmed });
@@ -302,16 +303,16 @@ export function useGameSocket(): UseGameSocketResult {
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });
-        dispatch({ type: "notice", message: "Invitation envoyée." });
+        dispatch({ type: "notice", message: translate("notices.inviteSent") });
       },
       createRoom: (options) => {
         if (stateRef.current.pseudo.trim() === "") {
-          dispatch({ type: "error", message: "Pseudo requis" });
+          dispatch({ type: "error", message: translate("errors.pseudoRequired") });
           return;
         }
         const code = normalizeRoomCode(options?.roomName ?? "");
         if (code !== "" && !ROOM_CODE_PATTERN.test(code)) {
-          dispatch({ type: "error", message: "Code de room invalide : 3 à 24 caractères parmi A-Z, 0-9, _ et -." });
+          dispatch({ type: "error", message: translate("errors.invalidRoomCode") });
           return;
         }
         const config = options?.config;
@@ -326,7 +327,7 @@ export function useGameSocket(): UseGameSocketResult {
       joinRoom: (rawCode) => {
         const code = normalizeRoomCode(rawCode);
         if (stateRef.current.pseudo.trim() === "" || !ROOM_CODE_PATTERN.test(code)) {
-          dispatch({ type: "error", message: "Pseudo et code de room valide requis" });
+          dispatch({ type: "error", message: translate("errors.pseudoAndCode") });
           return;
         }
         emitJoin(CLIENT_EVENTS.JOIN_ROOM, { code });

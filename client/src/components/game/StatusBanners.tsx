@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { useI18n } from "../../i18n";
+
 export function StatusBanners({
   error,
   onDismiss,
@@ -21,6 +23,7 @@ export function StatusBanners({
   connection: string;
   inRoom: boolean;
 }): JSX.Element | null {
+  const { t } = useI18n();
   useEffect(() => {
     if (error === null) {
       return;
@@ -38,7 +41,7 @@ export function StatusBanners({
   }, [notice, onDismissNotice]);
 
   const connectionMessage =
-    !inRoom ? null : connection === "disconnected" ? "Connexion perdue, reconnexion en cours..." : connection === "connecting" ? "Connexion..." : null;
+    !inRoom ? null : connection === "disconnected" ? t("status.connectionLost") : connection === "connecting" ? t("status.connecting") : null;
 
   if (error === null && connectionMessage === null && notice === null && invite === null) {
     return null;
@@ -48,9 +51,9 @@ export function StatusBanners({
       {connectionMessage !== null ? <p className="status-banner status-banner--connection">{connectionMessage}</p> : null}
       {invite !== null ? (
         <div className="status-banner status-banner--invite">
-          <span>{invite.fromName} t'invite dans la room {invite.code}</span>
-          <button type="button" onClick={onAcceptInvite}>Rejoindre</button>
-          <button type="button" className="secondary" onClick={onDismissInvite}>Ignorer</button>
+          <span>{t("status.invite", { name: invite.fromName, code: invite.code })}</span>
+          <button type="button" onClick={onAcceptInvite}>{t("common.join")}</button>
+          <button type="button" className="secondary" onClick={onDismissInvite}>{t("status.ignore")}</button>
         </div>
       ) : null}
       {notice !== null ? (

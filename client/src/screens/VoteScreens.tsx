@@ -2,6 +2,7 @@ import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { VoteButtons } from "../components/game/VoteButtons";
 import { WaitingCard } from "../components/game/WaitingCard";
+import { useI18n } from "../i18n";
 import type { ConfidenceVote } from "../types";
 import { useScreen } from "./ScreenContext";
 
@@ -27,6 +28,7 @@ export function ProposalScreen(): JSX.Element {
     setWaitingValidationStep,
     proposeTeam,
   } = useScreen();
+  const { t } = useI18n();
   const iAmChef = myId !== null && proposal.chefId === myId;
   return (
     <main className="game-screen">
@@ -39,7 +41,7 @@ export function ProposalScreen(): JSX.Element {
         front={
           iAmChef ? (
             <div>
-              <h2>Choisir equipe ({proposal.teamSize})</h2>
+              <h2>{t("proposal.choose", { size: proposal.teamSize })}</h2>
               <div className="team-grid">
                 {players.map((player) => {
                   const selected = selectedTeam.includes(player.id);
@@ -67,7 +69,7 @@ export function ProposalScreen(): JSX.Element {
               </div>
             </div>
           ) : (
-            <h2>En attente de la proposition de {proposal.chefId ? nameById(proposal.chefId) : "Chef"}</h2>
+            <h2>{t("proposal.waiting", { name: proposal.chefId ? nameById(proposal.chefId) : t("proposal.chefFallback") })}</h2>
           )
         }
         back={showFullHistory ? expandedBackContent : defaultBackContent}
@@ -83,7 +85,7 @@ export function ProposalScreen(): JSX.Element {
                 proposeTeam(selectedTeam);
               }}
             >
-              Proposer equipe
+              {t("proposal.submit")}
             </button>
           ) : undefined
         }
@@ -111,6 +113,7 @@ export function ConfidenceVoteScreen(): JSX.Element {
     setWaitingValidationStep,
     sendConfidenceVote,
   } = useScreen();
+  const { t } = useI18n();
   const confidenceFooter = <div><p>{missionProgressLabel}</p></div>;
 
   return (
@@ -123,11 +126,11 @@ export function ConfidenceVoteScreen(): JSX.Element {
         footer={confidenceFooter}
         front={
           waitingValidationStep === "confidence_vote" ? (
-            <WaitingCard message="Vote enregistre, en attente des autres joueurs." />
+            <WaitingCard message={t("confidence.recorded")} />
           ) : (
             <div className="vote-phase">
-              <h2>Vote de confiance</h2>
-              <p>{proposal.proposedTeam.map(nameById).join(", ") || "Aucune equipe"}</p>
+              <h2>{t("confidence.title")}</h2>
+              <p>{proposal.proposedTeam.map(nameById).join(", ") || t("confidence.noTeam")}</p>
               <VoteButtons
                 first={{ vote: "yes", symbol: "✓" }}
                 second={{ vote: "no", symbol: "✕" }}
@@ -169,8 +172,9 @@ export function ConfidenceResultScreen(): JSX.Element {
     confidence,
     nameById,
   } = useScreen();
+  const { t } = useI18n();
   const confidenceDetails = Object.entries(confidence.votes)
-    .map(([id, vote]) => `${nameById(id)}: ${vote === "yes" ? "Pour" : "Contre"}`)
+    .map(([id, vote]) => `${nameById(id)}: ${vote === "yes" ? t("game.yes") : t("game.no")}`)
     .join(" | ");
 
   return (
@@ -183,12 +187,12 @@ export function ConfidenceResultScreen(): JSX.Element {
         footer={<div><p>{missionProgressLabel}</p></div>}
         front={
           waitingValidationStep === "confidence_result" ? (
-            <WaitingCard message="Validation envoyee, en attente des autres." />
+            <WaitingCard message={t("common.sentWaitingOthers")} />
           ) : (
             <div className="result-panel">
-              <h2>{confidence.approved ? "Majorite POUR" : "Majorite CONTRE"}</h2>
-              <p>{confidenceDetails || "Aucun vote recu"}</p>
-              <p>Tap pour passer a la suite.</p>
+              <h2>{confidence.approved ? t("confidence.majorityYes") : t("confidence.majorityNo")}</h2>
+              <p>{confidenceDetails || t("confidence.noVotes")}</p>
+              <p>{t("common.tapNext")}</p>
             </div>
           )
         }

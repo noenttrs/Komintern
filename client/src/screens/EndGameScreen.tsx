@@ -1,6 +1,7 @@
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { WaitingCard } from "../components/game/WaitingCard";
+import { useI18n } from "../i18n";
 import { useScreen } from "./ScreenContext";
 
 // Fin de partie et choix de rejouer (end_game puis replay_waiting).
@@ -28,6 +29,7 @@ export function EndGameScreen(): JSX.Element {
     confirmEndGame,
     sendReplayChoice,
   } = useScreen();
+  const { t } = useI18n();
   const sendReplayNow = (): void => {
     if (waitingValidationStep === "replay_choice") {
       return;
@@ -67,16 +69,16 @@ export function EndGameScreen(): JSX.Element {
         footer={frontFooter}
         front={
           waitingValidationStep === "end_game" ? (
-            <WaitingCard message="Validation envoyee, en attente des autres." />
+            <WaitingCard message={t("common.sentWaitingOthers")} />
           ) : waitingValidationStep === "replay_choice" ? (
-            <WaitingCard message="Choix rejouer envoye, en attente des autres joueurs." />
+            <WaitingCard message={t("endGame.replaySent")} />
           ) : (
             <div className="result-panel">
-              <h2>Victoire {winner === "nazi" ? "Nazi" : "Communiste"}</h2>
+              <h2>{winner === "nazi" ? t("mission.victoryNazi") : t("mission.victoryCommunist")}</h2>
               {gameOver?.reason === "forfeit" && gameOver.forfeitedBy !== null ? (
-                <p>Abandon de {nameById(gameOver.forfeitedBy)}</p>
+                <p>{t("endGame.forfeit", { name: nameById(gameOver.forfeitedBy) })}</p>
               ) : null}
-              <p>Rejouer ?</p>
+              <p>{t("endGame.replayQuestion")}</p>
             </div>
           )
         }
@@ -84,8 +86,8 @@ export function EndGameScreen(): JSX.Element {
         overlay={
           <div>
             {roleOverlay}
-            <p>{Object.entries(revealedRoles).map(([id, playerFaction]) => `${nameById(id)}:${playerFaction}`).join(" | ") || "Roles a venir"}</p>
-            {role.faction === "nazi" ? <p>Allies nazis: {naziAllies.length > 0 ? naziAllies.join(", ") : "aucun"}</p> : null}
+            <p>{Object.entries(revealedRoles).map(([id, playerFaction]) => `${nameById(id)}:${playerFaction}`).join(" | ") || t("endGame.rolesPending")}</p>
+            {role.faction === "nazi" ? <p>{t("endGame.naziAllies", { names: naziAllies.length > 0 ? naziAllies.join(", ") : t("common.none") })}</p> : null}
           </div>
         }
         actions={
@@ -96,7 +98,7 @@ export function EndGameScreen(): JSX.Element {
               disabled={waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game"}
               onClick={sendReplayNow}
             >
-              Rejouer
+              {t("endGame.replay")}
             </button>
             <button
               type="button"
@@ -104,7 +106,7 @@ export function EndGameScreen(): JSX.Element {
               disabled={waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game"}
               onClick={quitGameNow}
             >
-              Quitter la game
+              {t("endGame.quit")}
             </button>
           </div>
         }

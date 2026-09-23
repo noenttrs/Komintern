@@ -1,19 +1,22 @@
 import { PublicRooms } from "../components/PublicRooms";
 import { RoomInvite } from "../components/RoomInvite";
+import { SupportBanner } from "../components/SupportBanner";
+import { useI18n } from "../i18n";
 import { PLAYABLE_PRESETS, type RulesetPreset } from "../types";
 import { useScreen } from "./ScreenContext";
 
 // Écrans hors partie : pseudo, accueil, création ou entrée dans une room, salle d'attente.
 export function PseudoEntryScreen(): JSX.Element {
   const { inviteCode, pseudo, setPseudo, confirmPseudo } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel">
-        <h1>Pseudo</h1>
-        {inviteCode !== null ? <p>Choisis un pseudo pour rejoindre la room {inviteCode}.</p> : null}
-        <input value={pseudo} maxLength={20} onChange={(event) => setPseudo(event.target.value)} placeholder="Votre pseudo" />
+        <h1>{t("pseudo.title")}</h1>
+        {inviteCode !== null ? <p>{t("pseudo.inviteHint", { code: inviteCode })}</p> : null}
+        <input value={pseudo} maxLength={20} onChange={(event) => setPseudo(event.target.value)} placeholder={t("pseudo.placeholder")} />
         <button type="button" onClick={confirmPseudo}>
-          Valider
+          {t("common.validate")}
         </button>
       </section>
     </main>
@@ -22,16 +25,18 @@ export function PseudoEntryScreen(): JSX.Element {
 
 export function LandingScreen(): JSX.Element {
   const { pseudo, navigate } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel">
-        <p className="mono">{pseudo || "Sans pseudo"}</p>
+        <SupportBanner phase="landing" />
+        <p className="mono">{pseudo || t("landing.noPseudo")}</p>
         <h1>Nazi Communiste</h1>
         <button type="button" onClick={() => navigate("create_room")}>
-          Creer une room
+          {t("landing.createRoom")}
         </button>
-        <button type="button" onClick={() => navigate("join_room")}>Rejoindre une room</button>
-        <button type="button" className="secondary" onClick={() => navigate("pseudo_entry")}>Modifier pseudo</button>
+        <button type="button" onClick={() => navigate("join_room")}>{t("landing.joinRoom")}</button>
+        <button type="button" className="secondary" onClick={() => navigate("pseudo_entry")}>{t("landing.editPseudo")}</button>
       </section>
     </main>
   );
@@ -69,32 +74,33 @@ export function CreateRoomScreen(): JSX.Element {
     customExperimental,
     setCustomExperimental,
   } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel panel--scroll">
-        <h1>Creation room</h1>
+        <h1>{t("createRoom.title")}</h1>
         <input
           value={roomNameDraft}
           onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
           maxLength={24}
-          placeholder="Nom de room (optionnel)"
+          placeholder={t("createRoom.namePlaceholder")}
         />
 
-        <span className="field-label" id="play-mode-label">Où jouez-vous ?</span>
+        <span className="field-label" id="play-mode-label">{t("createRoom.playModeLabel")}</span>
         <div className="segmented" role="radiogroup" aria-labelledby="play-mode-label">
           <button type="button" role="radio" aria-checked={!remotePlay} className={remotePlay ? "secondary" : ""} onClick={() => setRemotePlay(false)}>
-            Sur place
+            {t("createRoom.local")}
           </button>
           <button type="button" role="radio" aria-checked={remotePlay} className={remotePlay ? "" : "secondary"} onClick={() => setRemotePlay(true)}>
-            À distance
+            {t("createRoom.remote")}
           </button>
         </div>
-        <p className="field-hint">{remotePlay || publicDraft ? "Un chat est disponible pendant la partie." : "Pas de chat : tout se dit autour de la table."}</p>
+        <p className="field-hint">{remotePlay || publicDraft ? t("createRoom.chatHint") : t("createRoom.noChatHint")}</p>
 
-        <span className="field-label" id="visibility-label">Qui peut rejoindre ?</span>
+        <span className="field-label" id="visibility-label">{t("createRoom.visibilityLabel")}</span>
         <div className="segmented" role="radiogroup" aria-labelledby="visibility-label">
           <button type="button" role="radio" aria-checked={!publicDraft} className={publicDraft ? "secondary" : ""} onClick={() => setPublicDraft(false)}>
-            Sur invitation
+            {t("createRoom.inviteOnly")}
           </button>
           <button
             type="button"
@@ -107,23 +113,23 @@ export function CreateRoomScreen(): JSX.Element {
               setRemotePlay(true);
             }}
           >
-            Publique
+            {t("createRoom.public")}
           </button>
         </div>
-        {account.status !== "user" ? <p className="field-hint">Connecte-toi pour créer une partie publique, ouverte à tous.</p> : null}
+        {account.status !== "user" ? <p className="field-hint">{t("createRoom.publicLoginHint")}</p> : null}
 
-        <label className="field-label">Regles</label>
+        <label className="field-label">{t("createRoom.rules")}</label>
         <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
-          <option value="default">Standard (de 4 à 11 joueurs)</option>
-          <option value="preset">Nombre de joueurs fixe</option>
-          <option value="custom">Règles personnalisées</option>
+          <option value="default">{t("createRoom.rulesDefault")}</option>
+          <option value="preset">{t("createRoom.rulesPreset")}</option>
+          <option value="custom">{t("createRoom.rulesCustom")}</option>
         </select>
 
         {rulesMode === "preset" ? (
           <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
             {PLAYABLE_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
-                {preset.replace("PRESET_", "").replace("J", " joueurs")}
+                {t("createRoom.presetPlayers", { count: preset.replace("PRESET_", "").replace("J", "") })}
               </option>
             ))}
           </select>
@@ -215,9 +221,9 @@ export function CreateRoomScreen(): JSX.Element {
             createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft });
           }}
         >
-          Creer
+          {t("createRoom.submit")}
         </button>
-        <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
+        <button type="button" className="secondary" onClick={() => navigate("landing")}>{t("common.back")}</button>
       </section>
     </main>
   );
@@ -225,19 +231,20 @@ export function CreateRoomScreen(): JSX.Element {
 
 export function JoinRoomScreen(): JSX.Element {
   const { account, navigate, joinRoom, joinCodeDraft, setJoinCodeDraft } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel panel--scroll">
-        <h1>Rejoindre room</h1>
+        <h1>{t("joinRoom.title")}</h1>
         <input
           value={joinCodeDraft}
           onChange={(event) => setJoinCodeDraft(event.target.value.toUpperCase())}
           maxLength={24}
-          placeholder="Code room"
+          placeholder={t("joinRoom.codePlaceholder")}
         />
-        <button type="button" onClick={() => joinRoom(joinCodeDraft)}>Rejoindre</button>
+        <button type="button" onClick={() => joinRoom(joinCodeDraft)}>{t("common.join")}</button>
         <PublicRooms signedIn={account.status === "user"} onJoin={joinRoom} />
-        <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
+        <button type="button" className="secondary" onClick={() => navigate("landing")}>{t("common.back")}</button>
       </section>
     </main>
   );
@@ -263,31 +270,35 @@ export function WaitingRoomScreen(): JSX.Element {
     startGame,
     leaveRoom,
   } = useScreen();
+  const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel panel--scroll">
+        <SupportBanner phase="waiting_room" />
         <RoomInvite code={roomCode} />
-        <h1>Salle d attente</h1>
+        <h1>{t("waiting.title")}</h1>
         <p className="mono">
-          {isPublic ? "Partie publique · " : ""}
-          {chatEnabled ? "à distance · chat activé" : "sur place · sans chat"}
+          {isPublic ? t("waiting.publicPrefix") : ""}
+          {chatEnabled ? t("waiting.remoteChat") : t("waiting.localNoChat")}
         </p>
         {isHost && account.status === "user" ? (
           <label className="checkbox-row">
             <input type="checkbox" checked={isPublic} onChange={(event) => setPublicRoom(event.target.checked)} />
-            Partie publique (listée, comptes uniquement)
+            {t("waiting.publicToggle")}
           </label>
         ) : null}
         <p className="mono">
-          {flexibleRoom ? `${players.length} joueurs · de ${minPlayers} à ${targetPlayerCount}` : `${players.length} / ${targetPlayerCount} joueurs`}
+          {flexibleRoom
+            ? t("waiting.playersFlexible", { count: players.length, min: minPlayers, max: targetPlayerCount })
+            : t("waiting.playersFixed", { count: players.length, max: targetPlayerCount })}
         </p>
         {isHost ? (
-          <div className="segmented" role="radiogroup" aria-label="Mode de jeu">
+          <div className="segmented" role="radiogroup" aria-label={t("waiting.modeLabel")}>
             <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>
-              Sur place
+              {t("createRoom.local")}
             </button>
             <button type="button" role="radio" aria-checked={chatEnabled} className={chatEnabled ? "" : "secondary"} onClick={() => setChatMode(true)}>
-              À distance
+              {t("createRoom.remote")}
             </button>
           </div>
         ) : null}
@@ -295,17 +306,17 @@ export function WaitingRoomScreen(): JSX.Element {
           {players.map((player) => (
             <li key={player.id} className="lobby-player">
               <span className="lobby-player__name">
-                {player.pseudo ?? player.id} {player.isHost ? "(hôte)" : ""} {player.isConnected === false ? "(déconnecté)" : ""}
+                {player.pseudo ?? player.id} {player.isHost ? t("waiting.host") : ""} {player.isConnected === false ? t("waiting.disconnected") : ""}
               </span>
               {isHost && player.id !== myId ? (
                 <>
                   <button
                     type="button"
                     className="secondary icon-button"
-                    title="Donner le rôle d'hôte"
-                    aria-label={`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"}`}
+                    title={t("waiting.giveHostTitle")}
+                    aria-label={t("waiting.giveHostLabel", { name: player.pseudo ?? t("waiting.thisPlayer") })}
                     onClick={() => {
-                      if (window.confirm(`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"} ?`)) transferHost(player.id);
+                      if (window.confirm(t("waiting.giveHostConfirm", { name: player.pseudo ?? t("waiting.thisPlayer") }))) transferHost(player.id);
                     }}
                   >
                     ♔
@@ -313,10 +324,10 @@ export function WaitingRoomScreen(): JSX.Element {
                   <button
                     type="button"
                     className="secondary icon-button"
-                    title="Exclure"
-                    aria-label={`Exclure ${player.pseudo ?? "ce joueur"}`}
+                    title={t("waiting.kickTitle")}
+                    aria-label={t("waiting.kickLabel", { name: player.pseudo ?? t("waiting.thisPlayer") })}
                     onClick={() => {
-                      if (window.confirm(`Exclure ${player.pseudo ?? "ce joueur"} de la room ?`)) kickPlayer(player.id);
+                      if (window.confirm(t("waiting.kickConfirm", { name: player.pseudo ?? t("waiting.thisPlayer") }))) kickPlayer(player.id);
                     }}
                   >
                     ✕
@@ -330,12 +341,12 @@ export function WaitingRoomScreen(): JSX.Element {
           {isHost ? (
             <button type="button" disabled={!canStart} onClick={startGame}>
               {canStart
-                ? `Demarrer (${players.length} joueurs)`
-                : `En attente : ${players.length} / ${minPlayers} joueurs minimum`}
+                ? t("waiting.start", { count: players.length })
+                : t("waiting.waitingMin", { count: players.length, min: minPlayers })}
             </button>
           ) : null}
           <button type="button" className="secondary" onClick={leaveRoom}>
-            Quitter
+            {t("waiting.leave")}
           </button>
         </div>
       </section>

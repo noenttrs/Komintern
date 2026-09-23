@@ -3,6 +3,7 @@ import { FactionIcon, scoreChip } from "../components/game/FactionIcon";
 import { MissionProgress } from "../components/game/MissionProgress";
 import { VoteButtons } from "../components/game/VoteButtons";
 import { WaitingCard } from "../components/game/WaitingCard";
+import { useI18n } from "../i18n";
 import type { MissionVote } from "../types";
 import { useScreen } from "./ScreenContext";
 
@@ -25,6 +26,7 @@ export function MissionScreen(): JSX.Element {
     setWaitingValidationStep,
     sendMissionVote,
   } = useScreen();
+  const { t } = useI18n();
   const onTeam = myId !== null && mission.team.includes(myId);
   const hasSubmittedMissionVote = myId !== null && mission.submittedPlayerIds.includes(myId);
   const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
@@ -40,7 +42,7 @@ export function MissionScreen(): JSX.Element {
         footer={missionFooter}
         front={
           waitingValidationStep === "mission_vote" || hasSubmittedMissionVote ? (
-            <WaitingCard message="En attente." />
+            <WaitingCard message={t("mission.waiting")} />
           ) : onTeam ? (
             <div className="vote-phase vote-phase--mission">
               <VoteButtons
@@ -63,7 +65,7 @@ export function MissionScreen(): JSX.Element {
               />
             </div>
           ) : (
-            <WaitingCard message="En attente." />
+            <WaitingCard message={t("mission.waiting")} />
           )
         }
         back={showFullHistory ? expandedBackContent : defaultBackContent}
@@ -85,6 +87,7 @@ export function MissionResultScreen(): JSX.Element {
     missionProgressLabel,
     mission,
   } = useScreen();
+  const { t } = useI18n();
   const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
   const naziVotes = mission.naziVoteCount ?? 0;
   const communistVotes = Math.max(0, mission.team.length - naziVotes);
@@ -100,13 +103,13 @@ export function MissionResultScreen(): JSX.Element {
         footer={<div><p>{missionProgressLabel}</p></div>}
         front={
           waitingValidationStep === "mission_result" ? (
-            <WaitingCard message="Validation envoyee, en attente des autres." />
+            <WaitingCard message={t("common.sentWaitingOthers")} />
           ) : (
             <div className="result-panel result-panel--mission">
-              <h2>{roundWinner === "nazi" ? "Victoire Nazi" : "Victoire Communiste"}</h2>
-              <p>Votes Nazi: {naziVotes}</p>
-              <p>Votes Communist: {communistVotes}</p>
-              <p>Tap pour passer a la suite.</p>
+              <h2>{roundWinner === "nazi" ? t("mission.victoryNazi") : t("mission.victoryCommunist")}</h2>
+              <p>{t("mission.naziVotes", { count: naziVotes })}</p>
+              <p>{t("mission.communistVotes", { count: communistVotes })}</p>
+              <p>{t("common.tapNext")}</p>
             </div>
           )
         }

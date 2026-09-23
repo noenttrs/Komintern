@@ -1,3 +1,4 @@
+import { translate } from "../../i18n";
 import type { UIPhase } from "../../types";
 
 export function isGamePhaseUi(phase: UIPhase): boolean {
@@ -21,5 +22,5 @@ export function stepForPhase(phase: UIPhase): string | null {
 export function formatMissionVotes(naziVoteCount: number, teamSize: number): string {
   const naziVotes = Math.max(0, naziVoteCount);
   const communistVotes = Math.max(0, teamSize - naziVotes);
-  return `vote : nazi:${naziVotes} communist:${communistVotes}`;
+  return translate("game.missionVotes", { nazi: naziVotes, communist: communistVotes });
 }

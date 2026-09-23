@@ -1,5 +1,7 @@
 import { type ReactNode, useRef, useState } from "react";
 
+import { useI18n } from "../../i18n";
+
 export function CardSurface({
   scoreLeft,
   scoreCenter,
@@ -23,6 +25,7 @@ export function CardSurface({
   onOverlayShown?: () => void;
   actions?: JSX.Element;
 }): JSX.Element {
+  const { t } = useI18n();
   const [history, setHistory] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const pointerStartX = useRef<number | null>(null);
@@ -75,7 +78,7 @@ export function CardSurface({
         setShowOverlay(false);
       }}
     >
-      <header className="score-line" aria-label="score">
+      <header className="score-line" aria-label={t("game.score")}>
         <span>{scoreLeft}</span>
         <span>{scoreCenter}</span>
         <span>{scoreRight}</span>

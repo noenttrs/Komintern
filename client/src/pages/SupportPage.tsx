@@ -1,28 +1,27 @@
 import { PageShell } from "../components/PageShell";
+import { useI18n } from "../i18n";
 
 export function SupportPage({ donationUrl }: { donationUrl: string }): JSX.Element {
+  const { t, tr } = useI18n();
   return (
-    <PageShell title="Soutenir le projet">
+    <PageShell title={t("support.title")}>
       <article className="panel page-panel prose">
-        <p>
-          <strong>Nazi Communiste</strong> est gratuit, sans publicité et sans revente de données. Il est développé et hébergé
-          bénévolement.
-        </p>
-        <p>Un don, même petit, aide à :</p>
+        <p>{tr("support.intro")}</p>
+        <p>{t("support.helps")}</p>
         <ul>
-          <li>payer le domaine, l'envoi des emails et l'hébergement ;</li>
-          <li>ajouter de nouveaux modes (7 à 11 joueurs), des variantes de règles et des statistiques plus poussées ;</li>
-          <li>améliorer l'accessibilité et la modération pour que les parties restent agréables.</li>
+          <li>{t("support.help1")}</li>
+          <li>{t("support.help2")}</li>
+          <li>{t("support.help3")}</li>
         </ul>
         {donationUrl !== "" ? (
           <a className="button-link button-link--primary" href={donationUrl} target="_blank" rel="noopener noreferrer">
-            Faire un don sur Ko-fi ↗
+            {t("support.donate")}
           </a>
         ) : (
-          <p className="form-message">Les dons ouvrent bientôt.</p>
+          <p className="form-message">{t("support.soon")}</p>
         )}
-        <p className="mono">Le paiement a lieu sur Ko-fi : aucune donnée bancaire ne passe par ce site.</p>
-        <p>Tu peux aussi aider en parlant du jeu autour de toi, ou en signalant un bug via la page Contact.</p>
+        <p className="mono">{t("support.payment")}</p>
+        <p>{t("support.spread")}</p>
       </article>
     </PageShell>
   );

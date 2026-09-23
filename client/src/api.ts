@@ -1,4 +1,5 @@
-// Appels HTTP vers /api : cookie de session httpOnly, erreurs traduites en français.
+// Appels HTTP vers /api : cookie de session httpOnly, erreurs traduites dans la langue courante.
+import { translate, type TranslationKey } from "./i18n";
 
 export class ApiRequestError extends Error {
   public constructor(
@@ -10,44 +11,45 @@ export class ApiRequestError extends Error {
   }
 }
 
-const API_ERRORS: Record<string, string> = {
-  invalid_email: "Adresse email invalide.",
-  weak_password: "Le mot de passe doit faire au moins 10 caractères.",
-  invalid_display_name: "Pseudo invalide : 3 à 20 caractères.",
-  email_taken: "Un compte existe déjà avec cet email.",
-  display_name_taken: "Ce pseudo est déjà pris.",
-  invalid_credentials: "Email ou mot de passe incorrect.",
-  email_not_verified: "Email pas encore validé : un nouveau code vient de t'être envoyé.",
-  invalid_code: "Code incorrect.",
-  code_expired: "Code expiré, demandes-en un nouveau.",
-  code_too_many_attempts: "Trop d'essais : demande un nouveau code.",
-  code_cooldown: "Un code vient d'être envoyé, attends une minute avant d'en redemander un.",
-  too_many_requests: "Trop de tentatives, réessaie dans quelques minutes.",
-  banned: "Ce compte est suspendu.",
-  google_email_not_verified: "Ton email Google n'est pas vérifié.",
-  unauthorized: "Connecte-toi pour accéder à cette page.",
-  forbidden: "Ce profil n'est visible que par ses amis.",
-  not_found: "Introuvable.",
-  user_not_found: "Aucun joueur avec ce pseudo.",
-  cannot_friend_self: "Tu ne peux pas t'ajouter toi-même.",
-  request_not_found: "Cette demande n'existe plus.",
-  bad_origin: "Requête refusée.",
-  invalid_input: "Données invalides.",
-  unavailable: "Service momentanément indisponible, réessaie plus tard.",
-  network: "Connexion au serveur impossible.",
-  invalid_contact: "Sujet (120 caractères max) et message (10 à 5000 caractères) requis.",
-  invalid_totp: "Code de double authentification incorrect.",
-  totp_required: "Double authentification requise.",
-  admin_password_only: "Ce compte se connecte uniquement par mot de passe.",
-  totp_challenge_expired: "Délai dépassé : reconnecte-toi.",
-  totp_setup_expired: "Délai dépassé : recommence l'activation.",
-  totp_already_enabled: "La double authentification est déjà activée.",
-  admin_totp_required: "La double authentification est obligatoire pour ce compte.",
-  same_email: "C'est déjà ton adresse actuelle.",
-};
+/** Codes d'erreur de l'API (clés de traduction sous « api. »). */
+const API_ERRORS = new Set<string>([
+  "invalid_email",
+  "weak_password",
+  "invalid_display_name",
+  "email_taken",
+  "display_name_taken",
+  "invalid_credentials",
+  "email_not_verified",
+  "invalid_code",
+  "code_expired",
+  "code_too_many_attempts",
+  "code_cooldown",
+  "too_many_requests",
+  "banned",
+  "google_email_not_verified",
+  "unauthorized",
+  "forbidden",
+  "not_found",
+  "user_not_found",
+  "cannot_friend_self",
+  "request_not_found",
+  "bad_origin",
+  "invalid_input",
+  "unavailable",
+  "network",
+  "invalid_contact",
+  "invalid_totp",
+  "totp_required",
+  "admin_password_only",
+  "totp_challenge_expired",
+  "totp_setup_expired",
+  "totp_already_enabled",
+  "admin_totp_required",
+  "same_email",
+]);
 
 export function translateApiError(code: string): string {
-  return API_ERRORS[code] ?? "Une erreur est survenue.";
+  return translate(API_ERRORS.has(code) ? (`api.${code}` as TranslationKey) : "api.generic");
 }
 
 export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
