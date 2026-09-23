@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: server/Dockerfile
     image: komintern-server:latest
-    restart: unless-stopped
+    restart: always
     environment:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
       SOCKET_RATE_LIMIT_MAX_EVENTS: ${SOCKET_RATE_LIMIT_MAX_EVENTS:-80}
@@ -28,7 +28,7 @@ services:
       args:
         VITE_SERVER_URL: ${VITE_SERVER_URL:-}
     image: komintern-web:latest
-    restart: unless-stopped
+    restart: always
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:

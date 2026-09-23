@@ -412,6 +412,17 @@ function shutdown(signal: NodeJS.Signals): void {
 process.once("SIGTERM", shutdown);
 process.once("SIGINT", shutdown);
 
+// Une erreur non rattrapée laisse l'état en mémoire incohérent : on journalise puis on
+// quitte avec un code d'erreur pour que Docker (restart: always) relance un process sain.
+process.on("uncaughtException", (error) => {
+  console.error("uncaught exception, exiting:", error);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandled rejection, exiting:", reason);
+  process.exit(1);
+});
+
 function requireSocketContext(socketId: string): SocketContext {
   const context = socketContext.get(socketId);
   if (context === undefined) {
