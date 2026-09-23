@@ -1,0 +1,64 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { ModerationService } from "../moderation/service";
+import { MemoryGameLogStore, pseudonymFor } from "./gamelog";
+import type { GameLog } from "./gamelog";
+
+function game(id: string, endedAt: Date): GameLog {
+  return {
+    id, roomCode: "R", startedAt: endedAt, endedAt, outcome: "finished", ruleset: {},
+    players: [
+      { playerId: "p1", userId: "u_rosa", pseudo: "Rosa", faction: "nazi" },
+      { playerId: "p2", userId: null, pseudo: "Karl", faction: "communist" },
+    ],
+    turnOrder: ["p1", "p2"], confidenceHistory: [], missionHistory: [], scores: { nazi: 3, communist: 1 }, winner: "nazi",
+    reason: "missions", forfeitedBy: null, anonymizedAt: null,
+    chat: [{ id: "m1", playerId: "p1", pseudo: "Rosa", text: "salut", masked: false, at: endedAt }],
+  };
+}
+
+test("pseudonyms are stable letters", () => {
+  assert.deepEqual([0, 1, 25, 26].map(pseudonymFor), ["Joueur A", "Joueur B", "Joueur Z", "Joueur AA"]);
+});
+
+test("old logs are anonymized except those under an open moderation case", async () => {
+  const store = new MemoryGameLogStore();
+  const old = new Date("2020-01-01");
+  await store.insertGame(game("old", old));
+  await store.insertGame(game("kept", old));
+  await store.insertGame(game("recent", new Date()));
+  const moderation = new ModerationService(store);
+  await moderation.openCase({ trigger: { type: "flagged_word", words: ["x"] }, roomCode: "R", gameId: "kept", messages: [], involved: [] });
+
+  const count = await store.anonymizeGamesBefore(new Date("2021-01-01"), await store.openCaseGameIds());
+  assert.equal(count, 1);
+  const anonymized = store.games.get("old");
+  assert.deepEqual(anonymized?.players.map((p) => [p.userId, p.pseudo]), [[null, "Joueur A"], [null, "Joueur B"]]);
+  assert.equal(anonymized?.chat[0]?.pseudo, "Joueur A");
+  assert.equal(store.games.get("kept")?.players[0]?.pseudo, "Rosa");
+  assert.equal(store.games.get("recent")?.anonymizedAt, null);
+});
+
+test("moderation cases are pseudonymized and identities are stored apart", async () => {
+  const store = new MemoryGameLogStore();
+  const moderation = new ModerationService(store);
+  const rosa = { playerId: "p1", userId: "u_rosa", pseudo: "Rosa" };
+  const karl = { playerId: "p2", userId: null, pseudo: "Karl" };
+  const id = await moderation.openCase({
+    trigger: { type: "report", reporter: karl, reason: "insultes" },
+    roomCode: "R",
+    gameId: null,
+    messages: [
+      { ...rosa, text: "Karl tu es nul", at: 1, flagged: false },
+      { ...karl, text: "stop", at: 2, flagged: false },
+    ],
+    involved: [karl, rosa],
+  });
+  const moderationCase = await store.getCase(id);
+  assert.deepEqual(moderationCase?.messages.map((m) => `${m.pseudonym}: ${m.text}`), ["Joueur A: [joueur] tu es nul", "Joueur B: stop"]);
+  assert.deepEqual(moderationCase?.trigger, { type: "report", reporter: "Joueur B", reason: "insultes" });
+  assert.ok(!JSON.stringify(moderationCase).includes("Rosa"));
+  const identities = await store.getIdentities(id);
+  assert.deepEqual(identities.map((i) => [i.pseudonym, i.userId]), [["Joueur A", "u_rosa"], ["Joueur B", null]]);
+});

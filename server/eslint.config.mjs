@@ -20,6 +20,6 @@ export default tseslint.config(
   {
     // node:test renvoie une promesse par test ; le runner les attend lui-même.
     files: ["src/**/*.test.ts"],
-    rules: { "@typescript-eslint/no-floating-promises": "off" },
+    rules: { "@typescript-eslint/no-floating-promises": "off", "@typescript-eslint/no-explicit-any": "off" },
   },
 );

@@ -1,15 +1,25 @@
 import { createServer } from "http";
 import type { Server as HttpServer } from "http";
 
+import { createAdapter } from "@socket.io/redis-adapter";
+import express from "express";
 import { Server } from "socket.io";
 import type { Socket } from "socket.io";
 
+import { allow } from "./auth/rateLimit";
+import { loadConfig } from "./config";
+import type { Config } from "./config";
 import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
 import type { GameSession } from "./GameSession";
+import { createApi, sessionIdFrom } from "./http/api";
 import { log } from "./logger";
+import { filterMessage } from "./moderation/filter";
 import { EngineError } from "./PythonBridge";
 import { RoomManager } from "./RoomManager";
 import type { RoomManagerOptions } from "./RoomManager";
+import { createServices, createStores } from "./services";
+import type { Services, Stores } from "./services";
+import { RedisKv } from "./store/kv";
 import {
   asRecord,
   parseConfidenceVote,
@@ -28,16 +38,37 @@ export type AppOptions = RoomManagerOptions & {
   allowedOrigins: string[];
   rateLimitMaxEvents: number;
   rateLimitWindowMs: number;
+  config?: Config;
+  /** Tests : stores en mémoire à la place de Mongo/Redis. */
+  stores?: Stores;
 };
 
 export type KominternApp = {
   httpServer: HttpServer;
   io: Server;
   roomManager: RoomManager;
+  services: Services;
   close: () => Promise<void>;
 };
 
 type SocketContext = { roomId: string; playerId: string };
+
+type SocketUser = { userId: string; displayName: string | null; bannedUntil: Date | null };
+
+const CHAT_MAX_LENGTH = 200;
+// eslint-disable-next-line no-control-regex
+const CHAT_CONTROL_CHARS = new RegExp("[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f]", "g");
+
+function parseChatText(raw: unknown): string {
+  if (typeof raw !== "string") {
+    throw new Error("message must be a string");
+  }
+  const text = raw.replace(CHAT_CONTROL_CHARS, "").replace(/\s+/g, " ").trim();
+  if (text.length === 0 || [...text].length > CHAT_MAX_LENGTH) {
+    throw new Error(`message must be 1-${CHAT_MAX_LENGTH} characters`);
+  }
+  return text;
+}
 
 /** Erreurs dont le message peut être montré tel quel au joueur (règles, validation). */
 function publicMessage(error: unknown): string {
@@ -51,7 +82,11 @@ function publicMessage(error: unknown): string {
 }
 
 export function createKominternApp(options: AppOptions): KominternApp {
-  const httpServer = createServer();
+  const config = options.config ?? loadConfig();
+  const expressApp = express();
+  expressApp.disable("x-powered-by");
+  expressApp.set("trust proxy", false);
+  const httpServer = createServer(expressApp);
   const allowAll = options.allowedOrigins.length === 0 || options.allowedOrigins.includes("*");
   const io = new Server(httpServer, {
     cors: { origin: allowAll ? "*" : options.allowedOrigins },
@@ -63,7 +98,46 @@ export function createKominternApp(options: AppOptions): KominternApp {
     },
   });
 
-  const roomManager = new RoomManager(io, options);
+  const storesSetup = options.stores === undefined ? createStores(config) : { stores: options.stores, ready: Promise.resolve(), close: async () => undefined };
+  const notify = (userId: string, event: string, payload: unknown): void => {
+    io.to(`user:${userId}`).emit(event, payload);
+  };
+  const services = createServices(config, storesSetup.stores, notify, storesSetup.close);
+  expressApp.use("/api", createApi(services));
+
+  if (config.socketRedisAdapter && services.kv instanceof RedisKv) {
+    // Diffusions partagées entre instances ; inutile tant qu'il n'y en a qu'une.
+    const pub = services.kv.raw.duplicate();
+    const sub = services.kv.raw.duplicate();
+    pub.on("error", (error: Error) => log.warn("redis adapter error", { message: error.message }));
+    sub.on("error", (error: Error) => log.warn("redis adapter error", { message: error.message }));
+    io.adapter(createAdapter(pub, sub));
+  }
+
+  const roomManager = new RoomManager(io, {
+    ...options,
+    hooks: {
+      onGameRecorded: (game) => services.recordGame(game),
+      onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
+    },
+  });
+  const userBySocket = new Map<string, SocketUser>();
+
+  // La session (cookie httpOnly) est lue au handshake : un socket est invité ou connecté.
+  io.use((socket, next) => {
+    services.sessions
+      .resolve(sessionIdFrom(socket.request))
+      .then(async (userId) => {
+        if (userId !== null) {
+          const user = await services.users.findById(userId);
+          if (user !== null) {
+            userBySocket.set(socket.id, { userId: user.id, displayName: user.displayName, bannedUntil: user.bannedUntil });
+          }
+        }
+      })
+      .catch((error: unknown) => log.warn("session lookup failed on handshake", { message: error instanceof Error ? error.message : String(error) }))
+      .finally(() => next());
+  });
   const socketContext = new Map<string, SocketContext>();
   const pendingPseudoBySocket = new Map<string, string>();
 
@@ -120,7 +194,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
       await detachFromCurrentRoom(socket);
     }
 
-    const { playerId, replacedSocketId } = roomManager.joinRoom(roomId, socket.id, playerUid);
+    const user = userBySocket.get(socket.id);
+    const { playerId, replacedSocketId } = roomManager.joinRoom(roomId, socket.id, playerUid, user?.userId);
     if (replacedSocketId !== undefined) {
       // Le siège passe au nouveau socket : l'ancien ne peut plus agir en son nom.
       socketContext.delete(replacedSocketId);
@@ -135,10 +210,12 @@ export function createKominternApp(options: AppOptions): KominternApp {
     socketContext.set(socket.id, { roomId, playerId });
     socket.emit(SERVER_EVENTS.ROOM_JOINED, { playerId, ...roomManager.getRoomPayload(roomId) });
 
-    const effectivePseudo = pseudo ?? pendingPseudoBySocket.get(socket.id);
+    // Connecté : le pseudo du compte fait foi.
+    const effectivePseudo = user?.displayName ?? pseudo ?? pendingPseudoBySocket.get(socket.id);
     if (effectivePseudo !== undefined) {
       roomManager.setPseudo(roomId, playerId, effectivePseudo);
     }
+    socket.emit(SERVER_EVENTS.CHAT_HISTORY, { messages: roomManager.getChat(roomId) });
 
     const session = roomManager.getSession(roomId);
     if (session !== undefined && session.hasPlayer(playerId)) {
@@ -148,6 +225,11 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
   io.on("connection", (socket: Socket) => {
     log.debug("socket connected", { socketId: socket.id });
+    const connectedUser = userBySocket.get(socket.id);
+    if (connectedUser !== undefined) {
+      void socket.join(`user:${connectedUser.userId}`);
+      services.presence.connect(connectedUser.userId, socket.id);
+    }
     let windowStart = Date.now();
     let eventCount = 0;
     let warned = false;
@@ -168,6 +250,74 @@ export function createKominternApp(options: AppOptions): KominternApp {
         return;
       }
       next();
+    });
+
+    let chatWindowStart = 0;
+    let chatCount = 0;
+    on(socket, CLIENT_EVENTS.CHAT_SEND, "invalid_chat", async (payload) => {
+      const context = requireContext(socket);
+      const user = userBySocket.get(socket.id);
+      if (user?.bannedUntil != null && user.bannedUntil > new Date()) {
+        throw new Error("you are banned from the chat");
+      }
+      const text = parseChatText(payload.text);
+      const now = Date.now();
+      if (now - chatWindowStart > 10_000) {
+        chatWindowStart = now;
+        chatCount = 0;
+      }
+      chatCount += 1;
+      if (chatCount > 5) {
+        throw new Error("too many messages, slow down");
+      }
+      const { masked, flagged } = filterMessage(text, services.wordList);
+      roomManager.addChatMessage(context.roomId, context.playerId, masked, text, flagged.length > 0);
+      if (flagged.length > 0) {
+        const author = roomManager.getIdentity(context.roomId, context.playerId);
+        void openModerationCase(context.roomId, { type: "flagged_word", words: flagged }, author === null ? [] : [author]);
+      }
+    });
+
+    on(socket, CLIENT_EVENTS.REPORT, "invalid_report", async (payload) => {
+      const context = requireContext(socket);
+      if (!(await allow(services.kv, "report", `${context.roomId}:${context.playerId}`, 3, 600))) {
+        throw new Error("too many reports, slow down");
+      }
+      const reason = typeof payload.reason === "string" ? payload.reason.slice(0, 200) : "";
+      const messageId = typeof payload.messageId === "string" ? payload.messageId : undefined;
+      const reportedId =
+        typeof payload.playerId === "string"
+          ? payload.playerId
+          : roomManager.getChatForModeration(context.roomId).find((message) => message.id === messageId)?.playerId;
+      const reporter = roomManager.getIdentity(context.roomId, context.playerId);
+      const reported = reportedId === undefined ? null : roomManager.getIdentity(context.roomId, reportedId);
+      if (reporter === null || reported === null) {
+        throw new Error("unknown player to report");
+      }
+      await openModerationCase(context.roomId, { type: "report", reporter, reason }, [reporter, reported]);
+      socket.emit(SERVER_EVENTS.REPORT_RECEIVED, {});
+    });
+
+    on(socket, CLIENT_EVENTS.INVITE_FRIEND, "invalid_invite", async (payload) => {
+      const context = requireContext(socket);
+      const user = userBySocket.get(socket.id);
+      if (user === undefined) {
+        throw new Error("log in to invite friends");
+      }
+      const friendId = typeof payload.userId === "string" ? payload.userId : "";
+      if (!(await services.friendService.areFriends(user.userId, friendId))) {
+        throw new Error("you can only invite your friends");
+      }
+      if (roomManager.getStatus(context.roomId) !== "waiting") {
+        throw new Error("invitations are only possible from the lobby");
+      }
+      if (!services.presence.isOnline(friendId)) {
+        throw new Error("this friend is offline");
+      }
+      if (!(await allow(services.kv, "invite", user.userId, 10, 60))) {
+        throw new Error("too many invitations, slow down");
+      }
+      notify(friendId, SERVER_EVENTS.ROOM_INVITE, { from: { userId: user.userId, displayName: user.displayName }, code: context.roomId });
     });
 
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
@@ -274,6 +424,11 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     socket.on("disconnect", () => {
       log.debug("socket disconnected", { socketId: socket.id });
+      const user = userBySocket.get(socket.id);
+      userBySocket.delete(socket.id);
+      if (user !== undefined) {
+        services.presence.disconnect(user.userId, socket.id);
+      }
       const context = socketContext.get(socket.id);
       socketContext.delete(socket.id);
       pendingPseudoBySocket.delete(socket.id);
@@ -283,12 +438,34 @@ export function createKominternApp(options: AppOptions): KominternApp {
     });
   });
 
+  async function openModerationCase(
+    roomId: string,
+    trigger: { type: "flagged_word"; words: string[] } | { type: "report"; reporter: { playerId: string; userId: string | null; pseudo: string }; reason: string },
+    involved: Array<{ playerId: string; userId: string | null; pseudo: string }>,
+  ): Promise<void> {
+    try {
+      const messages = roomManager.getChatForModeration(roomId).map((message) => ({
+        playerId: message.playerId,
+        userId: roomManager.getIdentity(roomId, message.playerId)?.userId ?? null,
+        pseudo: message.pseudo,
+        text: message.original,
+        at: message.at,
+        flagged: message.flagged,
+      }));
+      const caseId = await services.moderation.openCase({ trigger, roomCode: roomId, gameId: roomManager.getCurrentGameId(roomId), messages, involved });
+      log.info("moderation case opened", { caseId, trigger: trigger.type });
+    } catch (error) {
+      log.error("failed to open moderation case", { error });
+    }
+  }
+
   async function close(): Promise<void> {
     roomManager.disposeAll();
+    await services.close();
     await new Promise<void>((resolve) => {
       void io.close(() => resolve());
     });
   }
 
-  return { httpServer, io, roomManager, close };
+  return { httpServer, io, roomManager, services, close };
 }

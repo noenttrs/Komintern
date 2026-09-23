@@ -1,0 +1,44 @@
+# Mots et expressions signalés dans le chat (un par ligne, insensible à la casse et aux accents).
+# Un message qui en contient est diffusé masqué et ouvre un dossier de modération pseudonymisé.
+# Les expressions de plusieurs mots sont reconnues telles quelles. Les lignes # sont ignorées.
+# Note : le vocabulaire du jeu (nazi, communiste, fasciste…) n'est volontairement pas signalé.
+
+# Insultes
+connard
+connasse
+salope
+salaud
+pute
+putain de ta mere
+fils de pute
+fdp
+encule
+enculee
+ntm
+nique ta mere
+batard
+# Homophobie / sexisme
+pd
+pede
+tapette
+tarlouze
+gouine
+# Racisme
+negre
+negro
+bougnoule
+bicot
+youpin
+chinetoque
+nigger
+nigga
+# Harcèlement / incitation
+suicide toi
+va te suicider
+va mourir
+kys
+kill yourself
+je vais te tuer
+je sais ou tu habites
+faggot
+retard

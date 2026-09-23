@@ -33,8 +33,8 @@ export type SessionConfig = {
   /** Chef désigné par la partie précédente (rotation continue), s'il est encore là. */
   nextChefId?: string | null;
   onRevealComplete: () => void;
-  onGameFinished: (nextChefId: string | null) => void;
-  onAborted: (reason: string) => void;
+  onGameFinished: (nextChefId: string | null, summary: GameSummary) => void;
+  onAborted: (reason: string, summary: GameSummary) => void;
   randomIndexProvider?: (length: number) => number;
   /** Injecté par les tests ; sinon un vrai process Python est lancé. */
   bridge?: BridgeLike;
@@ -65,6 +65,16 @@ type RoundInfo = {
 type MissionOutcome = MissionHistoryEntry & { scores: Scores; gameWinner: Faction | null; nextRound: RoundInfo | null };
 
 type GameOverInfo = { winner: Faction; reason: "missions" | "forfeit"; forfeitedBy?: string };
+
+/** Ce que la partie laisse derrière elle : log de partie et statistiques des comptes. */
+export type GameSummary = {
+  turnOrder: string[];
+  roleMap: RoleMap;
+  confidenceHistory: ConfidenceHistoryEntry[];
+  missionHistory: MissionHistoryEntry[];
+  scores: Scores;
+  gameOver: GameOverInfo | null;
+};
 
 /**
  * Déroulé d'une partie pour une room. Toute action publique passe par une file
@@ -138,6 +148,17 @@ export class GameSession {
 
   public hasPlayer(playerId: string): boolean {
     return this.playerIds.includes(playerId);
+  }
+
+  public summary(): GameSummary {
+    return {
+      turnOrder: [...this.turnOrder],
+      roleMap: { ...this.roleMap },
+      confidenceHistory: this.confidenceHistory.map((entry) => ({ ...entry, votes: [...entry.votes] })),
+      missionHistory: this.missionHistory.map((entry) => ({ ...entry })),
+      scores: { ...this.scores },
+      gameOver: this.gameOver === null ? null : { ...this.gameOver },
+    };
   }
 
   // ---------------------------------------------------------------- actions publiques
@@ -368,7 +389,7 @@ export class GameSession {
     });
     this.toRoom(SERVER_EVENTS.GAME_ABORTED, { reason: "engine_failure" });
     this.dispose();
-    this.config.onAborted(reason);
+    this.config.onAborted(reason, this.summary());
   }
 
   // ---------------------------------------------------------------- transitions
@@ -620,7 +641,7 @@ export class GameSession {
 
     this.toRoom(SERVER_EVENTS.ROLES_REVEALED, { roleMap: this.roleMap });
     this.dispose();
-    this.config.onGameFinished(nextChefId);
+    this.config.onGameFinished(nextChefId, this.summary());
   }
 
   // ---------------------------------------------------------------- émissions

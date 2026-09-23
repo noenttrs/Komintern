@@ -4,11 +4,45 @@ import type { Server } from "socket.io";
 
 import { SERVER_EVENTS } from "./events";
 import { GameSession } from "./GameSession";
-import type { BridgeLike } from "./GameSession";
+import type { BridgeLike, GameSummary } from "./GameSession";
 import { log } from "./logger";
 import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
 import type { RulesetPreset } from "./rulesets";
 import type { RoomStatus, RoomUpdatedPayload } from "./types";
+
+export type ChatMessage = { id: string; playerId: string; pseudo: string; text: string; at: number };
+
+/** Message tel que conservé côté serveur : texte original et état du filtre. */
+type StoredChatMessage = ChatMessage & { original: string; flagged: boolean };
+
+type CurrentGame = {
+  id: string;
+  startedAt: Date;
+  players: Array<{ playerId: string; userId: string | null; pseudo: string }>;
+  chat: StoredChatMessage[];
+  ruleset: unknown;
+};
+
+/** Partie terminée (ou annulée), transmise pour le log et les statistiques. */
+export type RecordedGame = {
+  gameId: string;
+  roomCode: string;
+  startedAt: Date;
+  endedAt: Date;
+  outcome: "finished" | "aborted";
+  ruleset: unknown;
+  players: Array<{ playerId: string; userId: string | null; pseudo: string }>;
+  chat: Array<{ id: string; playerId: string; pseudo: string; text: string; masked: boolean; at: Date }>;
+  summary: GameSummary;
+};
+
+export type RoomHooks = {
+  onGameRecorded?: (game: RecordedGame) => Promise<void> | void;
+  /** Des comptes entrent en partie ou en sortent (présence « en partie »). */
+  onUsersInGame?: (userIds: string[], inGame: boolean) => void;
+};
+
+const CHAT_HISTORY_LIMIT = 100;
 
 type RoomRecord = {
   code: string;
@@ -18,6 +52,9 @@ type RoomRecord = {
   targetPlayerCount: number;
   socketByPlayer: Map<string, string>;
   playerByUid: Map<string, string>;
+  userIdByPlayer: Map<string, string>;
+  chat: StoredChatMessage[];
+  currentGame?: CurrentGame;
   pseudoByPlayer: Map<string, string>;
   afkTimers: Map<string, NodeJS.Timeout>;
   afkPlayers: Set<string>;
@@ -41,6 +78,7 @@ export type RoomManagerOptions = {
   /** Tests : remplace le process Python. */
   bridgeFactory?: () => BridgeLike;
   randomIndexProvider?: (length: number) => number;
+  hooks?: RoomHooks;
 };
 
 export type CreateRoomOptions = {
@@ -109,6 +147,8 @@ export class RoomManager {
       targetPlayerCount,
       socketByPlayer: new Map(),
       playerByUid: new Map(),
+      userIdByPlayer: new Map(),
+      chat: [],
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
       afkPlayers: new Set(),
@@ -126,13 +166,19 @@ export class RoomManager {
    * Rejoint une room existante. Un `playerUid` déjà connu reprend son siège (rechargement,
    * reconnexion) ; sinon un nouveau joueur est créé, uniquement tant que la room est au salon.
    */
-  public joinRoom(code: string, socketId: string, playerUid?: string): JoinResult {
+  public joinRoom(code: string, socketId: string, playerUid?: string, userId?: string): JoinResult {
     const room = this.requireRoom(code);
-    const knownPlayerId = playerUid === undefined ? undefined : room.playerByUid.get(playerUid);
+    // Un compte connecté retrouve son siège même depuis un autre appareil.
+    const knownPlayerId =
+      (playerUid === undefined ? undefined : room.playerByUid.get(playerUid)) ??
+      (userId === undefined ? undefined : [...room.userIdByPlayer].find(([, id]) => id === userId)?.[0]);
 
     if (knownPlayerId !== undefined && room.playerIds.includes(knownPlayerId)) {
       const previous = room.socketByPlayer.get(knownPlayerId);
       room.socketByPlayer.set(knownPlayerId, socketId);
+      if (playerUid !== undefined) {
+        room.playerByUid.set(playerUid, knownPlayerId);
+      }
       this.cancelEmptyTimer(room);
       this.clearAfk(room, knownPlayerId);
       this.reassignHostIfNeeded(room);
@@ -160,6 +206,9 @@ export class RoomManager {
     room.pseudoByPlayer.set(playerId, `Joueur ${room.playerIds.length}`);
     if (playerUid !== undefined) {
       room.playerByUid.set(playerUid, playerId);
+    }
+    if (userId !== undefined) {
+      room.userIdByPlayer.set(playerId, userId);
     }
     this.cancelEmptyTimer(room);
     this.reassignHostIfNeeded(room);
@@ -246,8 +295,8 @@ export class RoomManager {
         room.status = "playing";
         this.emitRoomUpdated(room);
       },
-      onGameFinished: (nextChefId) => this.onGameFinished(room, session, nextChefId),
-      onAborted: () => this.onGameAborted(room, session),
+      onGameFinished: (nextChefId, summary) => this.onGameFinished(room, session, nextChefId, summary),
+      onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
       randomIndexProvider: this.options.randomIndexProvider,
       bridge: this.options.bridgeFactory?.(),
       pythonPath: this.options.pythonPath,
@@ -262,6 +311,18 @@ export class RoomManager {
       room.replayRequests.clear();
       room.session = session;
       room.status = "table_order";
+      room.currentGame = {
+        id: `g_${crypto.randomBytes(8).toString("hex")}`,
+        startedAt: new Date(),
+        players: room.playerIds.map((playerId) => ({
+          playerId,
+          userId: room.userIdByPlayer.get(playerId) ?? null,
+          pseudo: room.pseudoByPlayer.get(playerId) ?? playerId,
+        })),
+        chat: [],
+        ruleset: resolved.engineArgs,
+      };
+      this.notifyUsersInGame(room, true);
       await session.start();
       this.emitRoomUpdated(room);
       log.info("game started", { code, players: room.playerIds.length });
@@ -269,7 +330,9 @@ export class RoomManager {
     } catch (error) {
       session.dispose();
       room.session = undefined;
+      room.currentGame = undefined;
       room.status = previousStatus;
+      this.notifyUsersInGame(room, false);
       throw error;
     } finally {
       room.starting = false;
@@ -315,6 +378,54 @@ export class RoomManager {
     };
   }
 
+  // ---------------------------------------------------------------- chat et identités
+
+  /** Ajoute un message au chat de la room et le diffuse (texte déjà filtré dans `text`). */
+  public addChatMessage(code: string, playerId: string, text: string, original: string, flagged: boolean): ChatMessage {
+    const room = this.requireRoom(code);
+    if (!room.playerIds.includes(playerId)) {
+      throw new Error("unknown player for this room");
+    }
+    const stored: StoredChatMessage = {
+      id: `m_${crypto.randomBytes(6).toString("hex")}`,
+      playerId,
+      pseudo: room.pseudoByPlayer.get(playerId) ?? playerId,
+      text,
+      at: Date.now(),
+      original,
+      flagged,
+    };
+    room.chat.push(stored);
+    if (room.chat.length > CHAT_HISTORY_LIMIT) {
+      room.chat.splice(0, room.chat.length - CHAT_HISTORY_LIMIT);
+    }
+    room.currentGame?.chat.push(stored);
+    const message = publicMessage(stored);
+    this.io.to(code).emit(SERVER_EVENTS.CHAT_MESSAGE, message);
+    return message;
+  }
+
+  public getChat(code: string): ChatMessage[] {
+    return (this.rooms.get(code)?.chat ?? []).map(publicMessage);
+  }
+
+  /** Messages récents avec leur texte original, pour constituer un dossier de modération. */
+  public getChatForModeration(code: string): Array<ChatMessage & { original: string; flagged: boolean }> {
+    return (this.rooms.get(code)?.chat ?? []).map((message) => ({ ...message }));
+  }
+
+  public getIdentity(code: string, playerId: string): { playerId: string; userId: string | null; pseudo: string } | null {
+    const room = this.rooms.get(code);
+    if (room === undefined || !room.playerIds.includes(playerId)) {
+      return null;
+    }
+    return { playerId, userId: room.userIdByPlayer.get(playerId) ?? null, pseudo: room.pseudoByPlayer.get(playerId) ?? playerId };
+  }
+
+  public getCurrentGameId(code: string): string | null {
+    return this.rooms.get(code)?.currentGame?.id ?? null;
+  }
+
   public disposeAll(): void {
     for (const room of this.rooms.values()) {
       this.clearTimers(room);
@@ -326,10 +437,11 @@ export class RoomManager {
 
   // ---------------------------------------------------------------- interne
 
-  private onGameFinished(room: RoomRecord, session: GameSession, nextChefId: string | null): void {
+  private onGameFinished(room: RoomRecord, session: GameSession, nextChefId: string | null, summary: GameSummary): void {
     if (room.session !== session) {
       return;
     }
+    this.recordGame(room, "finished", summary);
     room.session = undefined;
     room.status = "finished";
     room.nextChefId = nextChefId;
@@ -343,10 +455,11 @@ export class RoomManager {
     }
   }
 
-  private onGameAborted(room: RoomRecord, session: GameSession): void {
+  private onGameAborted(room: RoomRecord, session: GameSession, summary: GameSummary): void {
     if (room.session !== session) {
       return;
     }
+    this.recordGame(room, "aborted", summary);
     room.session = undefined;
     room.status = "waiting";
     for (const playerId of [...room.afkPlayers]) {
@@ -382,6 +495,43 @@ export class RoomManager {
     }
   }
 
+  private recordGame(room: RoomRecord, outcome: RecordedGame["outcome"], summary: GameSummary): void {
+    const game = room.currentGame;
+    room.currentGame = undefined;
+    this.notifyUsersInGame(room, false);
+    if (game === undefined || this.options.hooks?.onGameRecorded === undefined) {
+      return;
+    }
+    const record: RecordedGame = {
+      gameId: game.id,
+      roomCode: room.code,
+      startedAt: game.startedAt,
+      endedAt: new Date(),
+      outcome,
+      ruleset: game.ruleset,
+      players: game.players,
+      chat: game.chat.map((message) => ({
+        id: message.id,
+        playerId: message.playerId,
+        pseudo: message.pseudo,
+        text: message.original,
+        masked: message.flagged,
+        at: new Date(message.at),
+      })),
+      summary,
+    };
+    Promise.resolve(this.options.hooks.onGameRecorded(record)).catch((error: unknown) =>
+      log.error("failed to record game", { code: room.code, error }),
+    );
+  }
+
+  private notifyUsersInGame(room: RoomRecord, inGame: boolean): void {
+    const userIds = room.playerIds.map((id) => room.userIdByPlayer.get(id)).filter((id): id is string => id !== undefined);
+    if (userIds.length > 0) {
+      this.options.hooks?.onUsersInGame?.(userIds, inGame);
+    }
+  }
+
   private removePlayer(room: RoomRecord, playerId: string, notify = true): void {
     const index = room.playerIds.indexOf(playerId);
     if (index === -1) {
@@ -390,6 +540,7 @@ export class RoomManager {
     room.playerIds.splice(index, 1);
     room.socketByPlayer.delete(playerId);
     room.pseudoByPlayer.delete(playerId);
+    room.userIdByPlayer.delete(playerId);
     room.replayRequests.delete(playerId);
     for (const [uid, mapped] of room.playerByUid) {
       if (mapped === playerId) {
@@ -538,6 +689,10 @@ export class RoomManager {
     }
     throw new Error("could not allocate a room code");
   }
+}
+
+function publicMessage(message: StoredChatMessage): ChatMessage {
+  return { id: message.id, playerId: message.playerId, pseudo: message.pseudo, text: message.text, at: message.at };
 }
 
 export { MAX_PLAYERS, MIN_PLAYERS };

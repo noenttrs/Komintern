@@ -40,7 +40,7 @@ export class FakeBridge implements BridgeLike {
   private scores = { nazi: 0, communist: 0 };
 
   public constructor(
-    private readonly roles: Record<string, "nazi" | "communist">,
+    public readonly roles: Record<string, "nazi" | "communist">,
     private readonly missionSizes: number[] = [2, 3, 2, 3, 3],
     private readonly winThreshold = 3,
   ) {}
@@ -59,6 +59,10 @@ export class FakeBridge implements BridgeLike {
     switch (command) {
       case "start_game":
         this.players = args.player_ids as string[];
+        if (Object.keys(this.roles).length === 0) {
+          // Rôles non fournis : les deux premiers joueurs de l'ordre sont nazis.
+          this.players.forEach((id, index) => (this.roles[id] = index < 2 ? "nazi" : "communist"));
+        }
         this.cursor = args.chef_cursor as number;
         return { status: "ok", round: this.round() };
       case "get_player_view": {

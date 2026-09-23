@@ -16,8 +16,23 @@ services:
       MAX_ROOMS: ${MAX_ROOMS:-200}
       ENGINE_TIMEOUT_MS: ${ENGINE_TIMEOUT_MS:-5000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MONGO_APP_URL: mongodb://app:${MONGO_APP_PASSWORD:?}@mongo:27017/nazicom?authSource=nazicom
+      MONGO_LOG_URL: mongodb://logger:${MONGO_LOG_PASSWORD:?}@mongo:27017/nazicom_logs?authSource=nazicom_logs
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/0
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      LEGAL_EDITOR_NAME: ${LEGAL_EDITOR_NAME:-}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
     expose:
       - "3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - komintern
     healthcheck:
@@ -48,6 +63,43 @@ services:
       start_period: 5s
       retries: 3
 
+  # Bases de données : aucun port publié, joignables uniquement depuis le réseau Docker.
+  mongo:
+    image: mongo:7
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?}
+      MONGO_LOG_PASSWORD: ${MONGO_LOG_PASSWORD:?}
+    volumes:
+      - mongo-data:/data/db
+      - ./infra/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - komintern
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - komintern
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+
   # Tunnel Cloudflare : connexion sortante uniquement, aucun port à ouvrir sur la box.
   # Activé par COMPOSE_PROFILES=tunnel et CLOUDFLARE_TUNNEL_TOKEN dans .env.
   # Dans Cloudflare, le hostname public doit pointer vers le service http://web:8080.
@@ -64,7 +116,10 @@ services:
     networks:
       - komintern
 
-# Aucun volume : l'état du jeu est en mémoire, rien n'est écrit sur disque.
+# Les parties en cours restent en mémoire ; comptes, amis, stats et logs sont dans Mongo.
+volumes:
+  mongo-data:
+  redis-data:
 
 networks:
   komintern:
