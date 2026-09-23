@@ -28,6 +28,12 @@ export function parseRoute(pathname: string, search = ""): Route {
   return { page: "game" };
 }
 
+/** Code de room d'un lien d'invitation /r/CODE, ou null. */
+export function joinCodeFromPath(pathname: string): string | null {
+  const match = /^\/r\/([A-Za-z0-9_-]{3,24})\/?$/.exec(pathname);
+  return match === null ? null : (match[1] as string).toUpperCase();
+}
+
 const listeners = new Set<() => void>();
 
 export function navigate(path: string): void {

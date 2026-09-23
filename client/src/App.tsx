@@ -14,7 +14,8 @@ import { AuthPage } from "./pages/AuthPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { navigate as goTo, useRoute } from "./router";
+import { RoomInvite } from "./components/RoomInvite";
+import { joinCodeFromPath, navigate as goTo, useRoute } from "./router";
 import { socket } from "./socket";
 
 import { PLAYABLE_PRESETS, type ConfidenceVote, type MissionVote, type RulesetPreset, type UIPhase } from "./types";
@@ -385,6 +386,24 @@ export default function App(): JSX.Element {
       socket.connect();
     }
   }, [account.status]);
+
+  // Lien d'invitation /r/CODE : on rejoint la room dès que le joueur a un pseudo.
+  const [inviteCode, setInviteCode] = useState<string | null>(() => joinCodeFromPath(window.location.pathname));
+  useEffect(() => {
+    if (inviteCode === null) {
+      return;
+    }
+    if (roomCode === inviteCode) {
+      setInviteCode(null);
+      window.history.replaceState({}, "", "/");
+      return;
+    }
+    if (phase === "landing" || phase === "join_room") {
+      window.history.replaceState({}, "", "/");
+      setInviteCode(null);
+      joinRoom(inviteCode);
+    }
+  }, [inviteCode, phase, roomCode, joinRoom]);
 
   // Retour de la connexion Google (?auth=ok|error|banned).
   useEffect(() => {
@@ -795,6 +814,7 @@ export default function App(): JSX.Element {
       <main className="screen">
         <section className="panel">
           <h1>Pseudo</h1>
+          {inviteCode !== null ? <p>Choisis un pseudo pour rejoindre la room {inviteCode}.</p> : null}
           <input value={pseudo} maxLength={20} onChange={(event) => setPseudo(event.target.value)} placeholder="Votre pseudo" />
           <button type="button" onClick={confirmPseudo}>
             Valider
@@ -975,17 +995,8 @@ export default function App(): JSX.Element {
   if (phase === "waiting_room") {
     return (
       <main className="screen">
-        <section className="panel">
-          <button
-            type="button"
-            className="mono room-code"
-            title="Copier le code"
-            onClick={() => {
-              void navigator.clipboard?.writeText(roomCode).catch(() => undefined);
-            }}
-          >
-            Room {roomCode}
-          </button>
+        <section className="panel panel--scroll">
+          <RoomInvite code={roomCode} />
           <h1>Salle d attente</h1>
           <p className="mono">{chatEnabled ? "Partie à distance · chat activé" : "Partie sur place · sans chat"}</p>
           <p className="mono">

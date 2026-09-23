@@ -107,4 +107,18 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Creer" }));
     expect(fake.socket.emitted.find((entry) => entry.event === "create_room")?.payload).toMatchObject({ chatEnabled: true });
   });
+
+  it("joins the room of an invitation link", () => {
+    window.history.replaceState({}, "", "/r/ab12cd");
+    render(<App />);
+    expect(fake.socket.emitted.find((entry) => entry.event === "join_room")?.payload).toMatchObject({ code: "AB12CD", pseudo: "Rosa" });
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("shows the invitation link and QR code in the waiting room", async () => {
+    render(<App />);
+    act(() => fake.socket.serverEmit("room_joined", { playerId: "p1", ...room }));
+    fireEvent.click(screen.getByRole("button", { name: "QR code" }));
+    expect(await screen.findByAltText("QR code pour rejoindre la room ROOM")).toBeTruthy();
+  });
 });

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRoute } from "./router";
+import { joinCodeFromPath, parseRoute } from "./router";
+
+describe("joinCodeFromPath", () => {
+  it("reads invitation links", () => {
+    expect(joinCodeFromPath("/r/ab12cd")).toBe("AB12CD");
+    expect(joinCodeFromPath("/r/AB12CD/")).toBe("AB12CD");
+    expect(joinCodeFromPath("/r/!")).toBeNull();
+    expect(joinCodeFromPath("/profil")).toBeNull();
+  });
+});
 
 describe("parseRoute", () => {
   it("maps paths to pages", () => {

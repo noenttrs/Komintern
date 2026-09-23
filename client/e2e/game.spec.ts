@@ -82,12 +82,21 @@ for (const device of DEVICES) {
     if (device.remote) await host.page.getByRole("radio", { name: "À distance" }).click();
     await host.page.getByRole("button", { name: "Creer", exact: true }).click();
     const code = (await host.page.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
-    for (const guest of guests) {
-      await guest.page.getByRole("button", { name: "Rejoindre une room" }).click();
-      await guest.page.getByPlaceholder("Code room").fill(code);
-      await guest.page.getByRole("button", { name: "Rejoindre", exact: true }).click();
+    for (const [index, guest] of guests.entries()) {
+      if (index % 2 === 0) {
+        // Lien d'invitation (équivalent du scan du QR code)
+        await guest.page.goto(`/r/${code}`);
+      } else {
+        await guest.page.getByRole("button", { name: "Rejoindre une room" }).click();
+        await guest.page.getByPlaceholder("Code room").fill(code);
+        await guest.page.getByRole("button", { name: "Rejoindre", exact: true }).click();
+      }
       await expect(guest.page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
     }
+    await host.page.getByRole("button", { name: "QR code" }).click();
+    await expect(host.page.getByAltText(/QR code pour rejoindre/)).toBeVisible();
+    await host.page.screenshot({ path: `e2e/screenshots/game-${device.name}-00-qr.png` });
+    await host.page.getByRole("button", { name: "Fermer" }).click();
     await expect(host.page.getByRole("button", { name: "Demarrer" })).toBeEnabled();
     await check(host.page, tag("01-salle-attente"));
 

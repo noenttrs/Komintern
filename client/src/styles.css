@@ -1275,3 +1275,54 @@ textarea {
   font-size: 0.85rem;
   margin-top: -0.3rem;
 }
+
+/* Invitation : code de room, QR code, partage */
+.room-invite {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: var(--screen-gap);
+}
+
+.qr-overlay__img {
+  width: min(80vw, 60vh, 22rem);
+  height: auto;
+  border: 1px solid var(--line);
+}
+
+.qr-overlay__code {
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 1.6rem;
+  letter-spacing: 0.3em;
+  color: var(--ink);
+}
+
+.qr-overlay button {
+  width: auto;
+  min-width: 10rem;
+}
+
+.room-invite__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.room-invite__actions button {
+  min-height: 2.4rem;
+  padding: 0.4rem;
+  font-size: 0.85rem;
+}
