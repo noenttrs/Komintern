@@ -13,6 +13,7 @@ export type Config = {
   emailFrom: string;
   google?: { clientId: string; clientSecret: string };
   legal: { editorName: string; contactEmail: string };
+  donationUrl: string;
   logRetentionAnonymizeDays: number;
 };
 
@@ -41,6 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     emailFrom: optional(env.EMAIL_FROM) ?? "Nazi Communiste <noreply@localhost>",
     google: googleId !== undefined && googleSecret !== undefined ? { clientId: googleId, clientSecret: googleSecret } : undefined,
     legal: { editorName: optional(env.LEGAL_EDITOR_NAME) ?? "", contactEmail: optional(env.LEGAL_CONTACT_EMAIL) ?? "" },
+    donationUrl: /^https:\/\/[^\s"<>]+$/.test(env.DONATION_URL ?? "") ? (env.DONATION_URL as string) : "",
     logRetentionAnonymizeDays: parsePositiveIntEnv(env.LOG_ANONYMIZE_AFTER_DAYS, 365),
   };
 }

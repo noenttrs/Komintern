@@ -45,6 +45,8 @@ for (const size of SIZES) {
         ["/a-propos", "À propos", "about"],
         ["/mentions-legales", "Mentions légales", "legal"],
         ["/amis", "Amis", "friends"],
+        ["/contact", "Contact", "contact"],
+        ["/soutenir", "Soutenir le projet", "support"],
       ] as const) {
         await page.goto(path);
         await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();

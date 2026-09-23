@@ -56,6 +56,44 @@ Sans clé, les codes de validation sont écrits dans les logs du serveur (`docke
 
 Renseigne `LEGAL_EDITOR_NAME` et `LEGAL_CONTACT_EMAIL` dans `.env`. Tant qu'ils sont vides, la page `/mentions-legales` affiche un avertissement.
 
+### Boîte mail contact@fascismwontget.me (Zoho Mail)
+
+Resend sert uniquement à *envoyer*, depuis le sous-domaine `send.`. Pour *recevoir* et répondre, une boîte Zoho gratuite (offre « Forever Free », 5 utilisateurs, webmail et application mobile) s'installe sur le domaine racine sans conflit :
+
+1. Sur https://www.zoho.com/mail/, choisis **Sign up** puis l'offre gratuite. Choisis « J'ai déjà un domaine » et saisis `fascismwontget.me`.
+2. Zoho demande un enregistrement **TXT de vérification** : ajoute-le dans Cloudflare, onglet DNS, en « DNS only ».
+3. Crée l'utilisateur `contact@fascismwontget.me`. Tu peux ajouter des alias : `admin@`, `noreply@` pour recevoir les rebonds, etc.
+4. Ajoute dans Cloudflare, en « DNS only » :
+   - `MX @ mx.zoho.eu` avec la priorité 10, `MX @ mx2.zoho.eu` avec la priorité 20, `MX @ mx3.zoho.eu` avec la priorité 50 (région UE ; Zoho affiche les bons serveurs) ;
+   - `TXT @ "v=spf1 include:zoho.eu ~all"` ;
+   - l'enregistrement **DKIM** que Zoho génère dans Mail Admin, rubrique Domains puis Email Authentication.
+5. Les messages du formulaire `/contact` arrivent dans cette boîte, avec réponse directe à l'expéditeur. Ils restent aussi consultables dans la page admin.
+
+### Dons (Ko-fi)
+
+Crée ta page sur https://ko-fi.com, puis indique son adresse dans `.env` (`DONATION_URL=https://ko-fi.com/ton-nom`) et lance `docker compose up -d server`. Le bouton apparaît sur `/soutenir` et dans le menu.
+
+## Administration
+
+La page `/admin` affiche :
+- les statistiques globales ;
+- les signalements (conversation pseudonymisée, levée d'anonymat tracée, clôture, bannissement) ;
+- les messages de contact.
+
+Elle n'est accessible qu'à un compte portant le rôle admin, et seulement après une **double authentification TOTP**. Pour tout autre visiteur, `/api/admin/*` répond 404.
+
+Le rôle ne s'attribue qu'en ligne de commande, sur le serveur, à un **compte dédié**. Ce compte ne peut pas se connecter via Google, et son mot de passe est généré aléatoirement :
+
+```bash
+docker compose exec server node dist/admin/cli.js create admin@fascismwontget.me Komintern
+# affiche le mot de passe (une seule fois) et un QR code à scanner avec Aegis, Google Authenticator, 1Password…
+docker compose exec server node dist/admin/cli.js reset-totp admin@fascismwontget.me
+docker compose exec server node dist/admin/cli.js reset-password admin@fascismwontget.me
+docker compose exec server node dist/admin/cli.js revoke admin@fascismwontget.me
+```
+
+Pour se connecter : connexion normale sur le site, puis Menu, Administration, et le code à 6 chiffres. La session admin dure 12 h et chaque code ne sert qu'une fois.
+
 ## Modération
 
 Deux déclencheurs ouvrent un dossier **pseudonymisé** (« Joueur A, B… ») :

@@ -1138,3 +1138,128 @@ main.game-screen {
     40rem
   );
 }
+
+/* ------------------------------------------------------------------ profil, contact, dons, admin */
+
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.8rem;
+  font: inherit;
+  resize: vertical;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.stats--empty {
+  border: 1px solid var(--line-soft);
+  padding: 0.8rem;
+}
+
+.stat-headline {
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 1.4rem;
+  color: var(--ink);
+}
+
+.stat--main {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.stat--main .field-label {
+  color: var(--bg);
+}
+
+.camp-list {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.camp {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.camp__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.camp__bar {
+  height: 0.6rem;
+  border: 1px solid var(--line);
+}
+
+.camp__bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+.menu-support {
+  font-weight: 600;
+}
+
+.button-link--primary {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-tabs button {
+  width: auto;
+  flex: 1 1 8rem;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-stats__value {
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.admin-log {
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--line-soft);
+  padding: 0.6rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-log__flagged {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0 0.2rem;
+}
+
+.contact-item {
+  border: 1px solid var(--line-soft);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.contact-item__body {
+  white-space: pre-wrap;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}

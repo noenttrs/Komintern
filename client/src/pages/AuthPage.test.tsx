@@ -9,7 +9,7 @@ function account(overrides: Partial<AccountActions> = {}): AccountState & Accoun
   return {
     status: "guest",
     user: null,
-    config: { googleEnabled: true, emailDelivery: true, legal: { editorName: "", contactEmail: "" } },
+    config: { googleEnabled: true, emailDelivery: true, legal: { editorName: "", contactEmail: "" }, donationUrl: "" },
     refresh: vi.fn(),
     register: vi.fn().mockResolvedValue(undefined),
     resendCode: vi.fn().mockResolvedValue(undefined),

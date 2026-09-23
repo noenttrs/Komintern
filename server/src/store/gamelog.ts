@@ -46,6 +46,19 @@ export type ModerationIdentity = { pseudonym: string; playerId: string; userId: 
 
 export type AuditEntry = { caseId: string; action: string; at: Date; detail?: string };
 
+export type GameLogStats = {
+  total: number;
+  finished: number;
+  aborted: number;
+  last24h: number;
+  last7d: number;
+  winsNazi: number;
+  winsCommunist: number;
+  forfeits: number;
+  openCases: number;
+  totalCases: number;
+};
+
 export interface GameLogStore {
   insertGame(log: GameLog): Promise<void>;
   /** Remplace pseudos et comptes par « Joueur A, B… » ; renvoie le nombre de parties traitées. */
@@ -60,6 +73,7 @@ export interface GameLogStore {
   openCaseGameIds(): Promise<string[]>;
   audit(entry: AuditEntry): Promise<void>;
   auditTrail(caseId: string): Promise<AuditEntry[]>;
+  stats(now?: Date): Promise<GameLogStats>;
 }
 
 export function newLogId(prefix: string): string {
@@ -173,6 +187,23 @@ export class MongoGameLogStore implements GameLogStore {
   public async auditTrail(caseId: string): Promise<AuditEntry[]> {
     return this.audits.find({ caseId }, { projection: { _id: 0 } }).sort({ at: 1 }).toArray();
   }
+
+  public async stats(now = new Date()): Promise<GameLogStats> {
+    const day = new Date(now.getTime() - 24 * 3600 * 1000);
+    const week = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+    const [total, finished, last24h, last7d, winsNazi, winsCommunist, forfeits, openCases, totalCases] = await Promise.all([
+      this.games.countDocuments(),
+      this.games.countDocuments({ outcome: "finished" }),
+      this.games.countDocuments({ endedAt: { $gte: day } }),
+      this.games.countDocuments({ endedAt: { $gte: week } }),
+      this.games.countDocuments({ outcome: "finished", winner: "nazi" }),
+      this.games.countDocuments({ outcome: "finished", winner: "communist" }),
+      this.games.countDocuments({ reason: "forfeit" }),
+      this.cases.countDocuments({ status: "open" }),
+      this.cases.countDocuments(),
+    ]);
+    return { total, finished, aborted: total - finished, last24h, last7d, winsNazi, winsCommunist, forfeits, openCases, totalCases };
+  }
 }
 
 export class MemoryGameLogStore implements GameLogStore {
@@ -238,5 +269,24 @@ export class MemoryGameLogStore implements GameLogStore {
 
   public async auditTrail(caseId: string): Promise<AuditEntry[]> {
     return this.audits.filter((entry) => entry.caseId === caseId);
+  }
+
+  public async stats(now = new Date()): Promise<GameLogStats> {
+    const games = [...this.games.values()];
+    const since = (ms: number) => games.filter((g) => g.endedAt.getTime() >= now.getTime() - ms).length;
+    const finished = games.filter((g) => g.outcome === "finished");
+    const cases = [...this.cases.values()];
+    return {
+      total: games.length,
+      finished: finished.length,
+      aborted: games.length - finished.length,
+      last24h: since(24 * 3600 * 1000),
+      last7d: since(7 * 24 * 3600 * 1000),
+      winsNazi: finished.filter((g) => g.winner === "nazi").length,
+      winsCommunist: finished.filter((g) => g.winner === "communist").length,
+      forfeits: games.filter((g) => g.reason === "forfeit").length,
+      openCases: cases.filter((c) => c.status === "open").length,
+      totalCases: cases.length,
+    };
   }
 }

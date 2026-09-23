@@ -27,6 +27,9 @@ export function AboutPage(): JSX.Element {
           On joue sans inscription. Un compte permet de garder ses statistiques (victoires, défaites, parties jouées dans chaque camp),
           d'ajouter des amis, de voir s'ils sont en ligne et de les inviter dans sa room.
         </p>
+        <p>
+          Le projet te plaît ? Tu peux <a href="/soutenir">le soutenir</a> ou <a href="/contact">nous écrire</a>.
+        </p>
         <p className="mono">
           Pour les agents IA : <a href="/llms.txt">/llms.txt</a> · <a href="/agents.html">/agents.html</a>
         </p>

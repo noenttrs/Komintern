@@ -8,7 +8,10 @@ export type Route =
   | { page: "profile"; userId: string | null; setup: boolean }
   | { page: "friends" }
   | { page: "about" }
-  | { page: "legal" };
+  | { page: "legal" }
+  | { page: "contact" }
+  | { page: "support" }
+  | { page: "admin" };
 
 export function parseRoute(pathname: string, search = ""): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
@@ -16,6 +19,9 @@ export function parseRoute(pathname: string, search = ""): Route {
   if (path === "/amis") return { page: "friends" };
   if (path === "/a-propos") return { page: "about" };
   if (path === "/mentions-legales") return { page: "legal" };
+  if (path === "/contact") return { page: "contact" };
+  if (path === "/soutenir") return { page: "support" };
+  if (path === "/admin") return { page: "admin" };
   if (path === "/profil") return { page: "profile", userId: null, setup: new URLSearchParams(search).has("setup") };
   const friend = /^\/profil\/([A-Za-z0-9_-]{3,64})$/.exec(path);
   if (friend !== null) return { page: "profile", userId: friend[1] ?? null, setup: false };

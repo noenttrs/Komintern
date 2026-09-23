@@ -4,7 +4,14 @@ import type { Collection, Db } from "mongodb";
 
 import type { Faction } from "../types";
 
-export type UserStats = { wins: number; losses: number; gamesNazi: number; gamesCommunist: number };
+export type UserStats = {
+  wins: number;
+  losses: number;
+  gamesNazi: number;
+  gamesCommunist: number;
+  winsNazi: number;
+  winsCommunist: number;
+};
 
 export type User = {
   id: string;
@@ -17,10 +24,16 @@ export type User = {
   createdAt: Date;
   stats: UserStats;
   bannedUntil: Date | null;
+  /** Rôle attribué uniquement en ligne de commande côté serveur, jamais depuis le site. */
+  role: "admin" | null;
+  /** Secret TOTP (base32) de la double authentification, obligatoire pour les admins. */
+  totpSecret: string | null;
 };
 
 export type NewUser = Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName">;
-export type UserPatch = Partial<Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil">>;
+export type UserPatch = Partial<
+  Pick<User, "email" | "emailVerified" | "passwordHash" | "googleSub" | "displayName" | "bannedUntil" | "role" | "totpSecret">
+>;
 
 /** Violation d'unicité (email, pseudo ou compte Google déjà utilisé). */
 export class DuplicateError extends Error {
@@ -40,9 +53,10 @@ export interface UserStore {
   update(id: string, patch: UserPatch): Promise<User | null>;
   recordGameResult(id: string, result: { won: boolean; faction: Faction }): Promise<void>;
   delete(id: string): Promise<void>;
+  countAll(): Promise<{ total: number; verified: number }>;
 }
 
-const EMPTY_STATS: UserStats = { wins: 0, losses: 0, gamesNazi: 0, gamesCommunist: 0 };
+const EMPTY_STATS: UserStats = { wins: 0, losses: 0, gamesNazi: 0, gamesCommunist: 0, winsNazi: 0, winsCommunist: 0 };
 
 export function newUserId(): string {
   return `u_${crypto.randomBytes(12).toString("hex")}`;
@@ -54,6 +68,8 @@ function statsIncrement(result: { won: boolean; faction: Faction }): UserStats {
     losses: result.won ? 0 : 1,
     gamesNazi: result.faction === "nazi" ? 1 : 0,
     gamesCommunist: result.faction === "communist" ? 1 : 0,
+    winsNazi: result.won && result.faction === "nazi" ? 1 : 0,
+    winsCommunist: result.won && result.faction === "communist" ? 1 : 0,
   };
 }
 
@@ -70,6 +86,8 @@ function fromDoc(doc: UserDoc): User {
     createdAt: doc.createdAt,
     stats: { ...EMPTY_STATS, ...doc.stats },
     bannedUntil: doc.bannedUntil ?? null,
+    role: doc.role ?? null,
+    totpSecret: doc.totpSecret ?? null,
   };
 }
 
@@ -98,6 +116,8 @@ export class MongoUserStore implements UserStore {
       createdAt: new Date(),
       stats: { ...EMPTY_STATS },
       bannedUntil: null,
+      role: null,
+      totpSecret: null,
     };
     try {
       await this.users.insertOne(doc);
@@ -151,12 +171,26 @@ export class MongoUserStore implements UserStore {
     const inc = statsIncrement(result);
     await this.users.updateOne(
       { _id: id },
-      { $inc: { "stats.wins": inc.wins, "stats.losses": inc.losses, "stats.gamesNazi": inc.gamesNazi, "stats.gamesCommunist": inc.gamesCommunist } },
+      {
+        $inc: {
+          "stats.wins": inc.wins,
+          "stats.losses": inc.losses,
+          "stats.gamesNazi": inc.gamesNazi,
+          "stats.gamesCommunist": inc.gamesCommunist,
+          "stats.winsNazi": inc.winsNazi,
+          "stats.winsCommunist": inc.winsCommunist,
+        },
+      },
     );
   }
 
   public async delete(id: string): Promise<void> {
     await this.users.deleteOne({ _id: id });
+  }
+
+  public async countAll(): Promise<{ total: number; verified: number }> {
+    const [total, verified] = await Promise.all([this.users.countDocuments(), this.users.countDocuments({ emailVerified: true })]);
+    return { total, verified };
   }
 }
 
@@ -187,7 +221,7 @@ export class MemoryUserStore implements UserStore {
 
   public async create(input: NewUser): Promise<User> {
     this.checkUnique(input);
-    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null };
+    const user: User = { id: newUserId(), ...input, createdAt: new Date(), stats: { ...EMPTY_STATS }, bannedUntil: null, role: null, totpSecret: null };
     this.users.set(user.id, user);
     return { ...user };
   }
@@ -225,15 +259,17 @@ export class MemoryUserStore implements UserStore {
     const user = this.users.get(id);
     if (user === undefined) return;
     const inc = statsIncrement(result);
-    user.stats = {
-      wins: user.stats.wins + inc.wins,
-      losses: user.stats.losses + inc.losses,
-      gamesNazi: user.stats.gamesNazi + inc.gamesNazi,
-      gamesCommunist: user.stats.gamesCommunist + inc.gamesCommunist,
-    };
+    user.stats = Object.fromEntries(
+      Object.entries(user.stats).map(([key, value]) => [key, value + inc[key as keyof UserStats]]),
+    ) as UserStats;
   }
 
   public async delete(id: string): Promise<void> {
     this.users.delete(id);
+  }
+
+  public async countAll(): Promise<{ total: number; verified: number }> {
+    const all = [...this.users.values()];
+    return { total: all.length, verified: all.filter((user) => user.emailVerified).length };
   }
 }

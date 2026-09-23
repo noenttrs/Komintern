@@ -9,6 +9,7 @@ import type { Socket } from "socket.io";
 import { allow } from "./auth/rateLimit";
 import { loadConfig } from "./config";
 import type { Config } from "./config";
+import { AdminService } from "./admin/service";
 import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
 import type { GameSession } from "./GameSession";
 import { createApi, sessionIdFrom } from "./http/api";
@@ -103,7 +104,6 @@ export function createKominternApp(options: AppOptions): KominternApp {
     io.to(`user:${userId}`).emit(event, payload);
   };
   const services = createServices(config, storesSetup.stores, notify, storesSetup.close);
-  expressApp.use("/api", createApi(services));
 
   if (config.socketRedisAdapter && services.kv instanceof RedisKv) {
     // Diffusions partagées entre instances ; inutile tant qu'il n'y en a qu'une.
@@ -121,6 +121,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
       onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
     },
   });
+  const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats());
+  expressApp.use("/api", createApi(services, admin));
   const userBySocket = new Map<string, SocketUser>();
 
   // La session (cookie httpOnly) est lue au handshake : un socket est invité ou connecté.

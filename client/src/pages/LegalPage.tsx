@@ -13,18 +13,24 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
       <article className="panel page-panel prose">
         {missing ? <p className="form-message form-message--error">Informations de l'éditeur à compléter avant l'ouverture publique.</p> : null}
 
-        <h2>Éditeur et hébergeur</h2>
+        <h2>Éditeur</h2>
         <p>
-          Site édité à titre personnel et non commercial par <strong>{editor}</strong>, qui en assure aussi l'hébergement sur un serveur
-          personnel situé en France. Contact : {mail}.
+          Site édité à titre personnel, non professionnel et non commercial sous le pseudonyme <strong>{editor}</strong>.
+          Conformément à l'article 6, III, 2 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique
+          (LCEN), l'éditeur a choisi de ne pas rendre publique son identité ; elle peut être communiquée sur réquisition de
+          l'autorité judiciaire. Contact : {mail}.
         </p>
+
+        <h2>Hébergement</h2>
+        <p>Le site est hébergé sur un serveur personnel de l'éditeur, situé en France.</p>
         <p>
           Le trafic transite par <strong>Cloudflare, Inc.</strong> (101 Townsend St, San Francisco, CA 94107, États-Unis — cloudflare.com),
-          qui assure le chiffrement HTTPS et la protection du site. Les emails sont envoyés via <strong>Resend</strong> (resend.com).
+          qui assure le chiffrement HTTPS et la protection du site. Les emails sont envoyés via <strong>Resend</strong> (resend.com)
+          et la boîte de contact est hébergée par <strong>Zoho Mail</strong> (zoho.com).
         </p>
 
         <h2>Données personnelles</h2>
-        <p>Le responsable du traitement est l'éditeur ci-dessus. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.</p>
+        <p>Le responsable du traitement est l'éditeur ci-dessus, joignable à {mail}. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.</p>
         <h3>Sans compte</h3>
         <p>
           Seuls ton pseudo et tes actions de jeu sont traités, le temps de la partie. Un identifiant technique aléatoire est stocké dans ton
@@ -47,6 +53,12 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
           Les messages contenant des termes signalés et les signalements de joueurs ouvrent un dossier de modération
           <strong> pseudonymisé</strong> : la conversation y est examinée sans les noms, et le lien avec les personnes concernées n'est
           consulté qu'en cas de besoin, chaque consultation étant tracée. Une sanction peut aller jusqu'à la suspension du compte.
+        </p>
+        <h3>Formulaire de contact et dons</h3>
+        <p>
+          Les messages envoyés via le formulaire de contact (email, sujet, message) sont conservés le temps de leur traitement,
+          au plus 3 ans. Les dons passent par <strong>Ko-fi</strong> (ko-fi.com) : le paiement a lieu sur leur site, aucune donnée
+          bancaire ne transite par celui-ci.
         </p>
         <h3>Cookies</h3>
         <p>Un seul cookie est utilisé : le cookie de session, strictement nécessaire à la connexion. Il n'y a ni cookie publicitaire ni mesure d'audience, donc pas de bandeau de consentement.</p>

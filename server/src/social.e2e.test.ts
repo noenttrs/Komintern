@@ -198,6 +198,8 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
       losses: won ? 0 : 1,
       gamesNazi: won ? 0 : 1,
       gamesCommunist: won ? 1 : 0,
+      winsNazi: 0,
+      winsCommunist: won ? 1 : 0,
     });
   }
 

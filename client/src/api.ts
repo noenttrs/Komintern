@@ -35,6 +35,10 @@ const API_ERRORS: Record<string, string> = {
   invalid_input: "Données invalides.",
   unavailable: "Service momentanément indisponible, réessaie plus tard.",
   network: "Connexion au serveur impossible.",
+  invalid_contact: "Sujet (120 caractères max) et message (10 à 5000 caractères) requis.",
+  invalid_totp: "Code de double authentification incorrect.",
+  totp_required: "Double authentification requise.",
+  admin_password_only: "Ce compte se connecte uniquement par mot de passe.",
 };
 
 export function translateApiError(code: string): string {
@@ -63,7 +67,7 @@ export async function api<T = unknown>(path: string, options: { method?: string;
   return payload as T;
 }
 
-export type Stats = { wins: number; losses: number; gamesNazi: number; gamesCommunist: number };
+export type Stats = { wins: number; losses: number; gamesNazi: number; gamesCommunist: number; winsNazi?: number; winsCommunist?: number };
 
 export type Account = {
   id: string;
@@ -73,9 +77,15 @@ export type Account = {
   email?: string | null;
   hasPassword?: boolean;
   hasGoogle?: boolean;
+  isAdmin?: boolean;
 };
 
-export type PublicConfig = { googleEnabled: boolean; emailDelivery: boolean; legal: { editorName: string; contactEmail: string } };
+export type PublicConfig = {
+  googleEnabled: boolean;
+  emailDelivery: boolean;
+  legal: { editorName: string; contactEmail: string };
+  donationUrl: string;
+};
 
 export type PresenceStatus = "online" | "in_game" | "offline";
 

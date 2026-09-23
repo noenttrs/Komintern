@@ -5,12 +5,13 @@ import { navigate } from "../router";
 type MenuProps = {
   signedIn: boolean;
   displayName: string | null;
+  isAdmin?: boolean;
   pendingRequests: number;
   install: { canPrompt: boolean; isIos: boolean; installed: boolean; install: () => Promise<void> };
 };
 
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
-export function Menu({ signedIn, displayName, pendingRequests, install }: MenuProps): JSX.Element {
+export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, install }: MenuProps): JSX.Element {
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -88,6 +89,8 @@ export function Menu({ signedIn, displayName, pendingRequests, install }: MenuPr
         ) : (
           <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>Se connecter</button>
         )}
+        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>Administration</button> : null}
+        <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>♥ Soutenir le projet</button>
         {!install.installed && (install.canPrompt || install.isIos) ? (
           <button
             type="button"
@@ -101,6 +104,7 @@ export function Menu({ signedIn, displayName, pendingRequests, install }: MenuPr
         {showIosHelp ? <p className="menu-help">Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p> : null}
         <div className="menu-footer">
           <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>À propos</button>
+          <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>Contact</button>
           <button type="button" className="secondary" onClick={() => go("/mentions-legales")} tabIndex={open ? 0 : -1}>Mentions légales</button>
         </div>
       </nav>

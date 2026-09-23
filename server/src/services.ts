@@ -17,6 +17,9 @@ import type { RecordedGame } from "./RoomManager";
 import { FriendService } from "./social/friends";
 import { PresenceService } from "./social/presence";
 import type { Notifier } from "./social/presence";
+import { ContactService } from "./admin/service";
+import { MemoryContactStore, MongoContactStore } from "./store/contact";
+import type { ContactStore } from "./store/contact";
 import { MemoryFriendStore, MongoFriendStore } from "./store/friends";
 import type { FriendStore } from "./store/friends";
 import { MemoryGameLogStore, MongoGameLogStore } from "./store/gamelog";
@@ -26,7 +29,7 @@ import type { Kv } from "./store/kv";
 import { MemoryUserStore, MongoUserStore } from "./store/users";
 import type { UserStore } from "./store/users";
 
-export type Stores = { kv: Kv; users: UserStore; friends: FriendStore; gameLogs: GameLogStore; mailer: Mailer };
+export type Stores = { kv: Kv; users: UserStore; friends: FriendStore; gameLogs: GameLogStore; contact: ContactStore; mailer: Mailer };
 
 export type Services = Stores & {
   config: Config;
@@ -36,6 +39,7 @@ export type Services = Stores & {
   friendService: FriendService;
   presence: PresenceService;
   moderation: ModerationService;
+  contactService: ContactService;
   wordList: WordList;
   google?: GoogleOAuth;
   recordGame: (game: RecordedGame) => Promise<void>;
@@ -56,6 +60,7 @@ export function createStores(config: Config): { stores: Stores; ready: Promise<v
   const users = new MongoUserStore(appClient.db());
   const friends = new MongoFriendStore(appClient.db());
   const gameLogs = new MongoGameLogStore(logClient.db());
+  const contact = new MongoContactStore(appClient.db());
   const kv = new RedisKv(config.redisUrl);
   const mailer = config.resendApiKey === undefined ? new LogMailer() : new ResendMailer(config.resendApiKey, config.emailFrom);
 
@@ -63,7 +68,7 @@ export function createStores(config: Config): { stores: Stores; ready: Promise<v
   const ready = (async () => {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        await Promise.all([users.ensureIndexes(), friends.ensureIndexes(), gameLogs.ensureIndexes()]);
+        await Promise.all([users.ensureIndexes(), friends.ensureIndexes(), gameLogs.ensureIndexes(), contact.ensureIndexes()]);
         log.info("mongo ready");
         return;
       } catch (error) {
@@ -74,7 +79,7 @@ export function createStores(config: Config): { stores: Stores; ready: Promise<v
   })();
 
   return {
-    stores: { kv, users, friends, gameLogs, mailer },
+    stores: { kv, users, friends, gameLogs, contact, mailer },
     ready,
     close: async () => {
       await Promise.allSettled([appClient.close(), logClient.close(), kv.close()]);
@@ -83,7 +88,14 @@ export function createStores(config: Config): { stores: Stores; ready: Promise<v
 }
 
 export function memoryStores(mailer: Mailer): Stores {
-  return { kv: new MemoryKv(), users: new MemoryUserStore(), friends: new MemoryFriendStore(), gameLogs: new MemoryGameLogStore(), mailer };
+  return {
+    kv: new MemoryKv(),
+    users: new MemoryUserStore(),
+    friends: new MemoryFriendStore(),
+    gameLogs: new MemoryGameLogStore(),
+    contact: new MemoryContactStore(),
+    mailer,
+  };
 }
 
 export function createServices(config: Config, stores: Stores, notify: Notifier, closeStores: () => Promise<void> = async () => undefined): Services {
@@ -156,6 +168,7 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
     friendService: new FriendService(stores.users, stores.friends, presence, stores.kv, notify),
     presence,
     moderation,
+    contactService: new ContactService(stores.contact, stores.mailer, stores.kv, config.legal.contactEmail),
     wordList,
     google:
       config.google === undefined

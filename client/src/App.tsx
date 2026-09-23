@@ -7,6 +7,9 @@ import { useFriends } from "./hooks/useFriends";
 import { useGameSocket } from "./hooks/useGameSocket";
 import { useInstallPrompt } from "./hooks/useInstallPrompt";
 import { AboutPage } from "./pages/AboutPage";
+import { AdminPage } from "./pages/AdminPage";
+import { ContactPage } from "./pages/ContactPage";
+import { SupportPage } from "./pages/SupportPage";
 import { AuthPage } from "./pages/AuthPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { LegalPage } from "./pages/LegalPage";
@@ -1455,11 +1458,23 @@ export default function App(): JSX.Element {
       <AboutPage />
     ) : route.page === "legal" ? (
       <LegalPage editorName={account.config?.legal.editorName ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
+    ) : route.page === "contact" ? (
+      <ContactPage defaultEmail={account.user?.email ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
+    ) : route.page === "support" ? (
+      <SupportPage donationUrl={account.config?.donationUrl ?? ""} />
+    ) : route.page === "admin" ? (
+      <AdminPage isAdmin={account.user?.isAdmin === true} />
     ) : null;
 
   return (
     <>
-      <Menu signedIn={account.status === "user"} displayName={accountName} pendingRequests={friends.view.incoming.length} install={install} />
+      <Menu
+        signedIn={account.status === "user"}
+        displayName={accountName}
+        isAdmin={account.user?.isAdmin === true}
+        pendingRequests={friends.view.incoming.length}
+        install={install}
+      />
       <StatusBanners
         error={error}
         onDismiss={dismissError}

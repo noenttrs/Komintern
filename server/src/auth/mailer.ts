@@ -1,6 +1,6 @@
 import { log } from "../logger";
 
-export type Mail = { to: string; subject: string; text: string; html: string };
+export type Mail = { to: string; subject: string; text: string; html: string; replyTo?: string };
 
 export interface Mailer {
   send(mail: Mail): Promise<void>;
@@ -17,7 +17,14 @@ export class ResendMailer implements Mailer {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: this.from, to: [mail.to], subject: mail.subject, text: mail.text, html: mail.html }),
+      body: JSON.stringify({
+        from: this.from,
+        to: [mail.to],
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+        ...(mail.replyTo === undefined ? {} : { reply_to: mail.replyTo }),
+      }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {

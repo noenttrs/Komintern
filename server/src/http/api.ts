@@ -4,6 +4,7 @@ import { parse as parseCookie, serialize as serializeCookie } from "cookie";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
+import type { AdminService } from "../admin/service";
 import { ApiError, accountView } from "../auth/accounts";
 import type { User } from "../store/users";
 import { SessionService } from "../auth/sessions";
@@ -31,7 +32,7 @@ export function sessionIdFrom(request: IncomingMessage): string | undefined {
   return header === undefined ? undefined : parseCookie(header)[SESSION_COOKIE];
 }
 
-export function createApi(services: Services): express.Router {
+export function createApi(services: Services, admin: AdminService): express.Router {
   const { accounts, sessions, config } = services;
   const router = express.Router();
 
@@ -107,6 +108,7 @@ export function createApi(services: Services): express.Router {
       googleEnabled: services.google !== undefined,
       emailDelivery: config.resendApiKey !== undefined,
       legal: config.legal,
+      donationUrl: config.donationUrl,
     });
   });
 
@@ -206,6 +208,65 @@ export function createApi(services: Services): express.Router {
 
   router.delete("/friends/:userId", route(async (request, response) => {
     await services.friendService.remove(requireUser(request), String(request.params.userId));
+    response.status(204).end();
+  }));
+
+  router.post("/contact", route(async (request, response) => {
+    await services.contactService.submit(request.body ?? {}, request.userId ?? null, clientIp(request));
+    response.status(202).json({ status: "sent" });
+  }));
+
+  // ---------------------------------------------------------------- administration
+  // Rôle admin + session élevée par TOTP ; tout autre visiteur reçoit 404 (la zone n'existe pas).
+  const requireAdmin = async (request: AuthedRequest): Promise<void> => {
+    if (!(await admin.isAdmin(request.userId))) throw new ApiError(404, "not_found");
+  };
+  const requireElevated = async (request: AuthedRequest): Promise<void> => {
+    await requireAdmin(request);
+    if (!(await admin.isElevated(request.userId, request.sessionId))) throw new ApiError(401, "totp_required");
+  };
+
+  router.get("/admin/session", route(async (request, response) => {
+    await requireAdmin(request);
+    response.json({ elevated: await admin.isElevated(request.userId, request.sessionId) });
+  }));
+  router.post("/admin/session", route(async (request, response) => {
+    await requireAdmin(request);
+    await admin.elevate(request.userId as string, request.sessionId as string, request.body?.code);
+    response.json({ elevated: true });
+  }));
+  router.get("/admin/stats", route(async (request, response) => {
+    await requireElevated(request);
+    response.json(await admin.stats());
+  }));
+  router.get("/admin/reports", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ reports: await admin.listReports(request.query.status) });
+  }));
+  router.get("/admin/reports/:id", route(async (request, response) => {
+    await requireElevated(request);
+    response.json(await admin.report(String(request.params.id)));
+  }));
+  router.post("/admin/reports/:id/reveal", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ identities: await admin.revealReport(String(request.params.id)) });
+  }));
+  router.post("/admin/reports/:id/resolve", route(async (request, response) => {
+    await requireElevated(request);
+    await admin.resolveReport(String(request.params.id), request.body?.note);
+    response.status(204).end();
+  }));
+  router.post("/admin/users/:id/ban", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days) });
+  }));
+  router.get("/admin/contact", route(async (request, response) => {
+    await requireElevated(request);
+    response.json({ messages: await admin.listContact() });
+  }));
+  router.post("/admin/contact/:id/read", route(async (request, response) => {
+    await requireElevated(request);
+    await admin.markContact(String(request.params.id), request.body?.read);
     response.status(204).end();
   }));
 

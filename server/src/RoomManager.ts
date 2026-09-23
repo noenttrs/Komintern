@@ -422,6 +422,18 @@ export class RoomManager {
     return { playerId, userId: room.userIdByPlayer.get(playerId) ?? null, pseudo: room.pseudoByPlayer.get(playerId) ?? playerId };
   }
 
+  public liveStats(): { rooms: number; players: number; connectedPlayers: number; gamesInProgress: number } {
+    let players = 0;
+    let connectedPlayers = 0;
+    let gamesInProgress = 0;
+    for (const room of this.rooms.values()) {
+      players += room.playerIds.length;
+      connectedPlayers += room.socketByPlayer.size;
+      if (room.session !== undefined) gamesInProgress += 1;
+    }
+    return { rooms: this.rooms.size, players, connectedPlayers, gamesInProgress };
+  }
+
   public getCurrentGameId(code: string): string | null {
     return this.rooms.get(code)?.currentGame?.id ?? null;
   }

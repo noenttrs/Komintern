@@ -43,6 +43,7 @@ export type AccountView = {
   email?: string | null;
   hasPassword?: boolean;
   hasGoogle?: boolean;
+  isAdmin?: boolean;
 };
 
 const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -83,7 +84,9 @@ function parseCode(raw: unknown): string {
 
 export function accountView(user: User, self: boolean): AccountView {
   const base: AccountView = { id: user.id, displayName: user.displayName, createdAt: user.createdAt.toISOString(), stats: { ...user.stats } };
-  return self ? { ...base, email: user.email, hasPassword: user.passwordHash !== null, hasGoogle: user.googleSub !== null } : base;
+  return self
+    ? { ...base, email: user.email, hasPassword: user.passwordHash !== null, hasGoogle: user.googleSub !== null, isAdmin: user.role === "admin" }
+    : base;
 }
 
 export function isBanned(user: User, now = new Date()): boolean {
@@ -194,6 +197,10 @@ export class AccountService {
     }
     const bySub = await this.deps.users.findByGoogleSub(identity.sub);
     const user = bySub ?? (await this.linkOrCreateGoogleUser(identity));
+    // Le compte admin ne se connecte jamais via Google : mot de passe + TOTP uniquement.
+    if (user.role === "admin") {
+      throw new ApiError(403, "admin_password_only");
+    }
     if (isBanned(user)) {
       throw new ApiError(403, "banned");
     }
@@ -238,6 +245,9 @@ export class AccountService {
 
   private async linkOrCreateGoogleUser(identity: GoogleIdentity): Promise<User> {
     const byEmail = await this.deps.users.findByEmail(identity.email);
+    if (byEmail !== null && byEmail.role === "admin") {
+      throw new ApiError(403, "admin_password_only");
+    }
     if (byEmail !== null) {
       // Google prouve la possession de l'email. Un compte jamais validé a pu être créé par
       // quelqu'un d'autre avec cet email : son mot de passe est alors effacé.
