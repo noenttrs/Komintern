@@ -3,6 +3,13 @@
 # Usage : scripts/check.sh [--no-docker]
 set -euo pipefail
 
+# Pas de sudo : Node vient de nvm (absent du PATH de root) et les fichiers créés
+# appartiendraient à root. L'utilisateur est déjà dans le groupe docker.
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "Lancez ce script sans sudo : scripts/check.sh" >&2
+  exit 1
+fi
+
 cd "$(dirname "$0")/.."
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
