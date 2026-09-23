@@ -6,10 +6,10 @@ Le nom et le thème sont satiriques : le jeu met en scène la lutte contre le fa
 
 ## Concept
 
-- 3 à 11 joueurs (format de référence : 5 joueurs, 2 nazis et 3 communistes).
+- 3 à 14 joueurs (format de référence : 5 joueurs, 2 nazis et 3 communistes).
 - À 2 joueurs : un duel. Chaque rôle est tiré à pile ou face et chacun ne connaît que le sien ; après discussion, chacun vote en secret « confiance » ou « nazi ! ». Un communiste gagne s'il juge juste ; un nazi, s'il se fait accepter ou trouve un autre nazi.
 - Les rôles sont distribués au hasard et en secret. Les nazis connaissent les rôles de tout le monde ; les communistes ne connaissent que le leur.
-- Le premier camp à remporter (joueurs ÷ 2) + 1 missions gagne la partie (3 à 5 joueurs, 6 à 11 joueurs).
+- Le premier camp à remporter (joueurs ÷ 2) + 1 missions gagne la partie (3 missions à 5 joueurs, 8 à 14). Partie rapide au choix : toujours 5 missions, premier camp à 3.
 
 ## Déroulement d'une manche
 

@@ -6,7 +6,7 @@ from dataclasses import asdict
 from enum import Enum
 from typing import Any
 
-from gameengine.constants import PRESET_5J, PRESETS
+from gameengine.constants import PRESET_5J, PRESETS, QUICK_PRESETS
 from gameengine.duel import DuelVote, draw_duel_roles, resolve_duel
 from gameengine.game_manager import GameManager
 from gameengine.round_manager import RoundManager
@@ -14,7 +14,10 @@ from gameengine.utils import make_rng
 from gameengine.types import ConfidenceVote, Faction, GameState, InfoMode, MissionVote, RoundPhase, RoundState, Ruleset
 
 
-PRESET_BY_NAME: dict[str, Ruleset] = {f"PRESET_{count}J": preset for count, preset in PRESETS.items()}
+PRESET_BY_NAME: dict[str, Ruleset] = {
+    **{f"PRESET_{count}J": preset for count, preset in PRESETS.items()},
+    **{f"PRESET_{count}J_RAPIDE": preset for count, preset in QUICK_PRESETS.items()},
+}
 
 
 def _enum_name(value: Enum) -> str:

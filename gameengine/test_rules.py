@@ -204,13 +204,20 @@ class StartGameValidationTests(unittest.TestCase):
                 bridge.start_game({"player_ids": PLAYERS_5, "chef_cursor": bad})
 
     def test_every_preset_starts_and_plays_its_first_round(self) -> None:
-        for count in range(3, 12):
+        for count in range(3, 15):
             with self.subTest(players=count):
                 bridge = EngineBridge()
                 players = [f"p{index}" for index in range(count)]
                 round_state = bridge.start_game({"player_ids": players, "chef_cursor": 0, "ruleset_preset": f"PRESET_{count}J"})["round"]
                 self.assertEqual(round_state["mission_count"], 2 * (count // 2 + 1) - 1)
                 bridge.propose_team({"team": players[: round_state["required_team_size"]]})
+
+    def test_quick_presets_start(self) -> None:
+        for count in range(6, 15):
+            with self.subTest(players=count):
+                players = [f"p{index}" for index in range(count)]
+                round_state = EngineBridge().start_game({"player_ids": players, "chef_cursor": 0, "ruleset_preset": f"PRESET_{count}J_RAPIDE"})["round"]
+                self.assertEqual(round_state["mission_count"], 5)
 
     def test_fewer_than_three_players_cannot_play(self) -> None:
         with self.assertRaisesRegex(ValueError, "ruleset_preset"):

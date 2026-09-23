@@ -23,7 +23,7 @@ export type UIPhase =
   | "duel_result";
 
 // Seuls les presets dont les tailles de mission sont définies sont jouables.
-// Formats de 3 à 11 joueurs (voir docs/REGLES.md).
+// Formats de 3 à 14 joueurs (voir docs/REGLES.md).
 export const PLAYABLE_PRESETS = [
   "PRESET_3J",
   "PRESET_4J",
@@ -34,6 +34,9 @@ export const PLAYABLE_PRESETS = [
   "PRESET_9J",
   "PRESET_10J",
   "PRESET_11J",
+  "PRESET_12J",
+  "PRESET_13J",
+  "PRESET_14J",
 ] as const;
 
 export type RulesetPreset = (typeof PLAYABLE_PRESETS)[number];

@@ -78,6 +78,7 @@ export function CreateRoomScreen(): JSX.Element {
     setCustomExperimental,
   } = useScreen();
   const { t } = useI18n();
+  const [pace, setPace] = useState<"classic" | "quick">("classic");
   return (
     <main className="screen">
       <section className="panel panel--scroll">
@@ -128,6 +129,21 @@ export function CreateRoomScreen(): JSX.Element {
           <option value="custom">{t("createRoom.rulesCustom")}</option>
         </select>
 
+        {rulesMode === "default" ? (
+          <>
+            <span className="field-label" id="pace-label">{t("createRoom.paceLabel")}</span>
+            <div className="segmented" role="radiogroup" aria-labelledby="pace-label">
+              <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
+                {t("createRoom.paceClassic")}
+              </button>
+              <button type="button" role="radio" aria-checked={pace === "quick"} className={pace === "quick" ? "" : "secondary"} onClick={() => setPace("quick")}>
+                {t("createRoom.paceQuick")}
+              </button>
+            </div>
+            <p className="field-hint">{pace === "classic" ? t("createRoom.paceClassicHint") : t("createRoom.paceQuickHint")}</p>
+          </>
+        ) : null}
+
         {rulesMode === "preset" ? (
           <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
             {PLAYABLE_PRESETS.map((preset) => (
@@ -144,7 +160,7 @@ export function CreateRoomScreen(): JSX.Element {
               type="number"
               value={customPlayerCount}
               min={3}
-              max={11}
+              max={14}
               onChange={(event) => setCustomPlayerCount(Number(event.target.value))}
               placeholder="player_count"
             />
@@ -221,7 +237,7 @@ export function CreateRoomScreen(): JSX.Element {
                     },
                   };
 
-            createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft });
+            createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft, pace });
           }}
         >
           {t("createRoom.submit")}
@@ -276,6 +292,8 @@ export function WaitingRoomScreen(): JSX.Element {
     canStart,
     flexibleRoom,
     isPublic,
+    pace,
+    setPace,
     chatEnabled,
     setPublicRoom,
     setChatMode,
@@ -306,6 +324,20 @@ export function WaitingRoomScreen(): JSX.Element {
             ? t("waiting.playersFlexible", { count: players.length, min: minPlayers, max: targetPlayerCount })
             : t("waiting.playersFixed", { count: players.length, max: targetPlayerCount })}
         </p>
+        {flexibleRoom ? (
+          isHost ? (
+            <div className="segmented" role="radiogroup" aria-label={t("createRoom.paceLabel")}>
+              <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
+                {t("createRoom.paceClassic")}
+              </button>
+              <button type="button" role="radio" aria-checked={pace === "quick"} className={pace === "quick" ? "" : "secondary"} onClick={() => setPace("quick")}>
+                {t("createRoom.paceQuick")}
+              </button>
+            </div>
+          ) : (
+            <p className="mono">{pace === "quick" ? t("createRoom.paceQuick") : t("createRoom.paceClassic")}</p>
+          )
+        ) : null}
         {isHost ? (
           <div className="segmented" role="radiogroup" aria-label={t("waiting.modeLabel")}>
             <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>

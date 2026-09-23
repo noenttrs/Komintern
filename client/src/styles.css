@@ -1860,3 +1860,19 @@ textarea {
   color: inherit;
   opacity: 0.8;
 }
+
+/* Proposition d'équipe à plus de 10 joueurs : 3 colonnes, noms plus petits. */
+.team-grid--dense {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.team-grid--dense .chip {
+  min-height: 2.2rem;
+  padding: 0.35rem 0.2rem;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

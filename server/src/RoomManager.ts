@@ -7,8 +7,8 @@ import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
 import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
-import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
-import type { RulesetPreset } from "./rulesets";
+import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePace, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
+import type { GamePace, RulesetPreset } from "./rulesets";
 import type { PlayerSummary, PushSubscriptionData, RoomStatus, RoomUpdatedPayload } from "./types";
 
 export type ChatMessage = { id: string; playerId: string; pseudo: string; text: string; at: number };
@@ -94,6 +94,8 @@ type RoomRecord = {
   userIdByPlayer: Map<string, string>;
   chatEnabled: boolean;
   isPublic: boolean;
+  /** Règles libres : partie classique ou rapide. */
+  pace: GamePace;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
   pseudoByPlayer: Map<string, string>;
@@ -141,6 +143,7 @@ export type CreateRoomOptions = {
   ruleset?: unknown;
   chatEnabled?: boolean;
   isPublic?: boolean;
+  pace?: unknown;
 };
 
 export type JoinResult = {
@@ -210,6 +213,7 @@ export class RoomManager {
       // Une room publique se joue à distance : chat toujours disponible.
       chatEnabled: options.isPublic === true || options.chatEnabled !== false,
       isPublic: options.isPublic === true,
+      pace: parsePace(options.pace),
       chat: [],
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
@@ -381,6 +385,13 @@ export class RoomManager {
     this.emitRoomUpdated(room);
   }
 
+  public setPace(code: string, hostId: string, pace: unknown): void {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    room.pace = parsePace(pace);
+    this.emitRoomUpdated(room);
+  }
+
   public setPublic(code: string, hostId: string, isPublic: boolean): void {
     const room = this.requireRoom(code);
     this.requireHostInLobby(room, hostId);
@@ -447,7 +458,7 @@ export class RoomManager {
     if (room.playerIds.length === DUEL_PLAYERS && preset === undefined && ruleset === undefined) {
       return this.startDuel(room);
     }
-    const resolved = resolveRulesetForPlayerCount(room.playerIds.length, ruleset === undefined ? preset : undefined, ruleset);
+    const resolved = resolveRulesetForPlayerCount(room.playerIds.length, ruleset === undefined ? preset : undefined, ruleset, room.pace);
 
     room.starting = true;
     const previousStatus = room.status;
@@ -604,6 +615,7 @@ export class RoomManager {
       status: room.status,
       chatEnabled: room.chatEnabled,
       isPublic: room.isPublic,
+      pace: room.pace,
     };
   }
 

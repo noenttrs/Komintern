@@ -1,4 +1,4 @@
-# Règles officielles — v0.6
+# Règles officielles — v0.7
 
 Référence des règles de **Nazi Communiste**. Le moteur Python (`gameengine/`) en est l'implémentation : en cas d'écart, c'est ce document qui fait foi et le moteur qui doit être corrigé.
 
@@ -6,9 +6,9 @@ Référence des règles de **Nazi Communiste**. Le moteur Python (`gameengine/`)
 
 ## Vue d'ensemble
 
-Jeu de déduction sociale pour **2 à 11 joueurs**, chacun sur son téléphone, autour d'une table ou à distance.
+Jeu de déduction sociale pour **2 à 14 joueurs**, chacun sur son téléphone, autour d'une table ou à distance.
 
-- **De 3 à 11 joueurs** : deux factions secrètes s'affrontent sur une série de missions. La première à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
+- **De 3 à 14 joueurs** : deux factions secrètes s'affrontent sur une série de missions. La première à remporter **(nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1** missions gagne. Le format de référence est à 5 joueurs : 2 nazis, 3 communistes, 5 missions, premier à 3.
 - **À 2 joueurs** : un duel de confiance, sans missions (voir [Duel à 2 joueurs](#duel-à-2-joueurs)).
 - **À 1 joueur**, le jeu n'est pas jouable.
 
@@ -26,6 +26,9 @@ Jeu de déduction sociale pour **2 à 11 joueurs**, chacun sur son téléphone, 
 | 9 | 3 | 6 | 5 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 6 |
 | 10 | 4 | 6 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 |
 | 11 | 4 | 7 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 6 · 5 · 6 · 6 · 7 |
+| 12 | 4 | 8 | 7 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 · 7 · 7 |
+| 13 | 5 | 8 | 7 | 3 · 4 · 4 · 5 · 4 · 5 · 6 · 5 · 6 · 6 · 7 · 6 · 7 |
+| 14 | 5 | 9 | 8 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 · 7 · 6 · 7 · 8 |
 
 Principes de calibrage :
 - **Juste assez de missions** pour qu'un camp atteigne forcément le seuil (2 × seuil − 1), donc jamais d'égalité.
@@ -34,13 +37,29 @@ Principes de calibrage :
 
 À 3 joueurs, la partie est courte et repose sur le bluff : après un sabotage, le chef sait qui est le nazi, mais le troisième joueur doit choisir qui croire, et c'est lui qui départage les votes de confiance.
 
-Une room peut imposer un format (nombre exact de joueurs) ou rester libre : elle démarre alors avec le nombre de joueurs présents, de 2 à 11, et prend le format correspondant.
+### Partie rapide
+
+À la création d'une room sans format imposé, l'hôte choisit la durée : **classique** (le tableau ci-dessus) ou **rapide** : toujours **5 missions, premier camp à 3**, avec des équipes plus grandes quand on est nombreux. Les camps sont les mêmes qu'en classique. De 3 à 5 joueurs, les deux durées sont identiques. L'hôte peut changer la durée dans le salon, avant de démarrer.
+
+| Joueurs | Nazis | Missions (taille des équipes) |
+|---|---|---|
+| 6 | 2 | 2 · 3 · 3 · 4 · 4 |
+| 7 | 3 | 2 · 3 · 3 · 4 · 4 |
+| 8 | 3 | 3 · 4 · 4 · 5 · 5 |
+| 9 | 3 | 3 · 4 · 4 · 5 · 5 |
+| 10 | 4 | 3 · 4 · 4 · 5 · 5 |
+| 11 | 4 | 4 · 4 · 5 · 5 · 6 |
+| 12 | 4 | 4 · 5 · 5 · 6 · 6 |
+| 13 | 5 | 4 · 5 · 5 · 6 · 6 |
+| 14 | 5 | 5 · 5 · 6 · 6 · 7 |
+
+Une room peut imposer un format (nombre exact de joueurs) ou rester libre : elle démarre alors avec le nombre de joueurs présents, de 2 à 14, et prend le format correspondant.
 
 ---
 
 ## Les factions
 
-### Les nazis — la minorité (1 à 4 joueurs)
+### Les nazis — la minorité (1 à 5 joueurs)
 - Reçoivent **la liste complète des rôles** de la partie (sauf en duel).
 - Peuvent voter **nazi ou communiste** lors des missions.
 - Objectif : faire échouer les missions en glissant des votes nazis.
@@ -105,7 +124,7 @@ Le rôle de chef suit un **roulement continu**, dans l'ordre de table, qui persi
 
 ## Fin de partie
 
-La partie se termine dès qu'un camp atteint le **nombre de missions requis** : 2 à 3 joueurs, 3 à 4-5 joueurs, 4 à 6-7 joueurs, 5 à 8-9 joueurs, 6 à 10-11 joueurs.
+La partie se termine dès qu'un camp atteint le **nombre de missions requis** : 2 à 3 joueurs, 3 à 4-5 joueurs, 4 à 6-7 joueurs, 5 à 8-9 joueurs, 6 à 10-11 joueurs, 7 à 12-13 joueurs, 8 à 14 joueurs ; en partie rapide, toujours 3.
 
 Elle se termine aussi par **abandon** : quand un joueur quitte la partie, ou reste absent au-delà du délai (voir ci-dessous), son camp perd.
 
@@ -169,6 +188,7 @@ Accuser a toujours un prix : on gagne en démasquant un nazi, on perd en accusan
 
 | Version | Changements |
 |---|---|
+| 0.7 | Formats jusqu'à 14 joueurs (classique : 13 à 15 missions de 12 à 14 joueurs) ; partie rapide au choix (5 missions, premier à 3). |
 | 0.6 | Duel : rôles tirés indépendamment à pile ou face (25 / 50 / 25 %) ; un communiste gagne s'il juge juste ; deux nazis qui se font confiance gagnent ensemble. Plus aucun vote gagnant d'avance. |
 | 0.5 | Document refondu (`docs/REGLES.md`) : ordre de table, premier chef, votes mélangés, règles d'absence (attente jusqu'à 5 min, annulation si l'absent part avant la distribution des rôles), rejouer. |
 | 0.4 | Duel à 2 joueurs. |
@@ -179,5 +199,5 @@ Accuser a toujours un prix : on gagne en démasquant un nazi, on perd en accusan
 
 ---
 
-> **Version** : 0.6
+> **Version** : 0.7
 > **Statut** : référence du moteur (`gameengine/`), de la page Règles du site et des pages pour les agents IA.

@@ -440,6 +440,9 @@ export function createKominternApp(options: AppOptions): KominternApp {
       if (typeof payload.chatEnabled === "boolean") {
         roomManager.setChatEnabled(context.roomId, context.playerId, payload.chatEnabled);
       }
+      if (payload.pace === "classic" || payload.pace === "quick") {
+        roomManager.setPace(context.roomId, context.playerId, payload.pace);
+      }
     });
 
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
@@ -470,6 +473,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
         ruleset: payload.ruleset,
         // Chat activé par défaut ; `chatEnabled: false` pour une partie jouée sur place.
         chatEnabled: payload.chatEnabled !== false,
+        pace: payload.pace,
       });
       await attach(socket, roomId, playerUid, pseudo);
     });

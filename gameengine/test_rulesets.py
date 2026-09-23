@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from gameengine.constants import PRESETS
+from gameengine.constants import PRESETS, QUICK_PRESETS
 from gameengine.types import InfoMode, Ruleset
 
 
 class PresetTests(unittest.TestCase):
-    def test_presets_cover_4_to_11_players(self) -> None:
-        self.assertEqual(sorted(PRESETS), list(range(3, 12)))
+    def test_presets_cover_3_to_14_players(self) -> None:
+        self.assertEqual(sorted(PRESETS), list(range(3, 15)))
 
     def test_every_preset_follows_the_design_rules(self) -> None:
         for count, preset in PRESETS.items():
@@ -22,6 +22,17 @@ class PresetTests(unittest.TestCase):
                 self.assertLessEqual(max(preset.mission_sizes), preset.communist_count, "a nazi-free team must exist")
                 self.assertEqual(preset.mission_sizes[0], min(preset.mission_sizes), "games open with a small team")
                 self.assertEqual(preset.info_mode, InfoMode.FULL)
+
+
+    def test_quick_presets_are_5_missions_first_to_3(self) -> None:
+        self.assertEqual(sorted(QUICK_PRESETS), list(range(6, 15)))
+        for count, preset in QUICK_PRESETS.items():
+            with self.subTest(players=count):
+                self.assertEqual((preset.mission_count, preset.win_threshold), (5, 3))
+                self.assertEqual(preset.nazi_count, PRESETS[count].nazi_count, "same sides as the classic format")
+                self.assertTrue(preset.is_playable)
+                self.assertEqual(preset.mission_sizes[0], min(preset.mission_sizes))
+                self.assertEqual(preset.mission_sizes, sorted(preset.mission_sizes), "teams grow as the game goes on")
 
 
 class RulesetValidationTests(unittest.TestCase):

@@ -67,6 +67,7 @@ export type RoomSnapshot = {
   status: RoomStatus | null;
   chatEnabled: boolean | null;
   isPublic: boolean | null;
+  pace: "classic" | "quick" | null;
 };
 
 const ROOM_STATUSES: RoomStatus[] = ["waiting", "table_order", "playing", "finished"];
@@ -101,6 +102,7 @@ export function parseRoom(value: unknown): RoomSnapshot {
     status: status !== null && (ROOM_STATUSES as string[]).includes(status) ? (status as RoomStatus) : null,
     chatEnabled: boolValue(payload.chatEnabled),
     isPublic: boolValue(payload.isPublic),
+    pace: payload.pace === "quick" ? ("quick" as const) : payload.pace === "classic" ? ("classic" as const) : null,
   };
 }
 

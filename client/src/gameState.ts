@@ -54,6 +54,8 @@ export interface GameState {
   /** Faux pour une partie sur place : le chat n'est pas affiché. */
   chatEnabled: boolean;
   isPublic: boolean;
+  /** Règles libres : partie classique ou rapide. */
+  pace: "classic" | "quick";
   phase: UIPhase;
   connection: ConnectionStatus;
   error: { message: string; code: string | null; id: number } | null;
@@ -156,6 +158,7 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     roomStatus: null,
     chatEnabled: true,
     isPublic: false,
+    pace: "classic",
     phase: pseudo.trim() === "" ? "pseudo_entry" : "landing",
     connection: "idle",
     error: null,
@@ -188,6 +191,7 @@ function applyRoom(state: GameState, payload: unknown): GameState {
     roomStatus: room.status ?? state.roomStatus,
     chatEnabled: room.chatEnabled ?? state.chatEnabled,
     isPublic: room.isPublic ?? state.isPublic,
+    pace: room.pace ?? state.pace,
   };
 }
 

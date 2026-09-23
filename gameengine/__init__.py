@@ -15,6 +15,7 @@ from .constants import (
 	PRESET_10J,
 	PRESET_11J,
 	PRESETS,
+	QUICK_PRESETS,
 	WIN_THRESHOLD,
 )
 from .game_manager import GameManager

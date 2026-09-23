@@ -173,11 +173,11 @@ test("a room created for in-person play refuses chat messages", () => {
   assert.equal(manager.getRoomPayload(remote).chatEnabled, true);
 });
 
-test("free rules rooms accept 2 (duel) to 11 players, preset rooms an exact count", async () => {
+test("free rules rooms accept 2 (duel) to 14 players, preset rooms an exact count", async () => {
   const { manager } = setup();
   const free = manager.createRoom();
-  assert.deepEqual([manager.getRoomPayload(free).minPlayers, manager.getRoomPayload(free).maxPlayers], [2, 11]);
-  const players = Array.from({ length: 11 }, (_, index) => manager.joinRoom(free, `f${index}`).playerId);
+  assert.deepEqual([manager.getRoomPayload(free).minPlayers, manager.getRoomPayload(free).maxPlayers], [2, 14]);
+  const players = Array.from({ length: 14 }, (_, index) => manager.joinRoom(free, `f${index}`).playerId);
   assert.throws(() => manager.joinRoom(free, "f-extra"), /room is full/);
   await manager.startGame(free, players[0] as string);
 
@@ -480,4 +480,19 @@ test("waiting for an absent player is capped: no endless stall", async () => {
   }
   manager.releaseHold(code, first, gone);
   assert.throws(() => manager.holdForPlayer(code, first, gone), /cannot wait any longer/);
+});
+
+test("free rooms go up to 14 players, in classic or quick pace", async () => {
+  const { manager, events } = setup();
+  const missionCounts = () => events.filter((entry) => entry.event === "game_started").map((entry) => (entry.payload as { missionCount: number }).missionCount);
+  const classic = manager.createRoom();
+  const classicPlayers = Array.from({ length: 14 }, (_, index) => manager.joinRoom(classic, `c${index}`).playerId);
+  await manager.startGame(classic, classicPlayers[0] as string);
+  assert.equal(manager.getRoomPayload(classic).pace, "classic");
+
+  const quick = manager.createRoom({ pace: "quick" });
+  const quickPlayers = Array.from({ length: 14 }, (_, index) => manager.joinRoom(quick, `q${index}`).playerId);
+  assert.throws(() => manager.setPace(quick, quickPlayers[1] as string, "classic"), /only the host/);
+  await manager.startGame(quick, quickPlayers[0] as string);
+  assert.deepEqual(missionCounts(), [15, 5], "14 players: 15 missions in classic, 5 in quick");
 });

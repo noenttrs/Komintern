@@ -42,7 +42,8 @@ export function ProposalScreen(): JSX.Element {
           iAmChef ? (
             <div>
               <h2>{t("proposal.choose", { size: proposal.teamSize })}</h2>
-              <div className="team-grid">
+              {/* Au-delà de 10 joueurs : 3 colonnes plus serrées, pour que tout tienne sur un téléphone. */}
+              <div className={players.length > 10 ? "team-grid team-grid--dense" : "team-grid"}>
                 {players.map((player) => {
                   const selected = selectedTeam.includes(player.id);
                   return (

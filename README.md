@@ -21,17 +21,17 @@ Chacun joue sur son téléphone, autour d'une table ou à distance.
 
 ## Le jeu
 
-3 à 11 joueurs (le format de référence est à 5 : 2 nazis, 3 communistes), et un **duel** à 2. Les nazis connaissent tous les rôles ; les communistes ne connaissent que le leur. Chaque manche :
+3 à 14 joueurs (le format de référence est à 5 : 2 nazis, 3 communistes), et un **duel** à 2. Les nazis connaissent tous les rôles ; les communistes ne connaissent que le leur. Chaque manche :
 
 1. **Proposition** : le chef choisit une équipe.
 2. **Vote de confiance** : tout le monde vote publiquement. Il faut une majorité stricte, sinon le même chef repropose.
 3. **Mission** : l'équipe vote en secret. Un seul vote nazi fait échouer la mission.
 
-Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`docs/REGLES.md`](docs/REGLES.md).
+Le premier camp à (joueurs ÷ 2) + 1 missions gagne, ou à 3 missions sur 5 en partie rapide (au choix à la création de la room). Règles complètes : [`docs/REGLES.md`](docs/REGLES.md).
 
 ## Fonctionnalités
 
-- **Parties en temps réel** de 3 à 11 joueurs via WebSocket, et un **duel à 2** (chacun ne connaît que son rôle, puis vote en secret « confiance » ou « nazi ! »), avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
+- **Parties en temps réel** de 3 à 14 joueurs via WebSocket, et un **duel à 2** (chacun ne connaît que son rôle, puis vote en secret « confiance » ou « nazi ! »), avec reprise automatique après un rechargement ou une coupure réseau (resynchronisation complète de l'état).
 - **Rejoindre en un scan** : lien d'invitation `/r/CODE`, QR code plein écran, et scan du QR code directement dans l'app (sans passer par l'appareil photo ni Safari) ; **rooms publiques** pour jouer avec des inconnus.
 - **Sur place ou à distance** : sans chat autour d'une table, avec chat à distance. L'hôte peut exclure un joueur, transférer son rôle ou changer de mode.
 - **Jouable sans compte.** Le compte est facultatif : email + mot de passe avec code de validation, ou Google.
@@ -93,7 +93,7 @@ Sans clé Resend, les codes de validation s'affichent dans `docker compose logs 
 scripts/check.sh        # lint, types, tests moteur, serveur et client, build Docker, intégration des bases
 ```
 
-- **Moteur** : tests des règles, des 9 formats (3 à 11 joueurs), de la table des résultats du duel, de la validation et du protocole.
+- **Moteur** : tests des règles, des 12 formats classiques (3 à 14 joueurs), des 9 formats rapides, de la table des résultats du duel, de la validation et du protocole.
 - **Serveur** : tests unitaires et de bout en bout, dont des parties complètes avec le vrai moteur, les comptes, la double authentification, les amis, le chat modéré, les rooms publiques et l'administration.
 - **Client** : tests du reducer, des hooks et des écrans.
 - **Tests visuels Playwright** : parties à 5 joueurs dans 5 navigateurs mobiles (sur place et à distance, liens d'invitation), et contrôle de la mise en page de 320 à 1440 px.

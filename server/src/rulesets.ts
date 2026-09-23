@@ -1,4 +1,4 @@
-// Miroir des presets de gameengine/constants.py (3 à 11 joueurs). Le moteur reste l'autorité :
+// Miroir des presets de gameengine/constants.py (3 à 14 joueurs, classiques et rapides). Le moteur reste l'autorité :
 // ces données servent à valider tôt (création de room) et à afficher les tailles de mission.
 export const RULESET_PRESETS = {
 	PRESET_3J: { playerCount: 3, naziCount: 1, missionSizes: [2, 2, 2], missionCount: 3, winThreshold: 2 },
@@ -10,12 +10,32 @@ export const RULESET_PRESETS = {
 	PRESET_9J: { playerCount: 9, naziCount: 3, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 6], missionCount: 9, winThreshold: 5 },
 	PRESET_10J: { playerCount: 10, naziCount: 4, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 5, 6, 6], missionCount: 11, winThreshold: 6 },
 	PRESET_11J: { playerCount: 11, naziCount: 4, missionSizes: [3, 4, 4, 5, 4, 5, 6, 5, 6, 6, 7], missionCount: 11, winThreshold: 6 },
+	PRESET_12J: { playerCount: 12, naziCount: 4, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 5, 6, 6, 7, 7], missionCount: 13, winThreshold: 7 },
+	PRESET_13J: { playerCount: 13, naziCount: 5, missionSizes: [3, 4, 4, 5, 4, 5, 6, 5, 6, 6, 7, 6, 7], missionCount: 13, winThreshold: 7 },
+	PRESET_14J: { playerCount: 14, naziCount: 5, missionSizes: [3, 4, 4, 5, 4, 5, 5, 6, 5, 6, 6, 7, 6, 7, 8], missionCount: 15, winThreshold: 8 },
+	// Mode rapide : 5 missions, premier camp à 3 (au choix à la création de la room).
+	PRESET_6J_RAPIDE: { playerCount: 6, naziCount: 2, missionSizes: [2, 3, 3, 4, 4], missionCount: 5, winThreshold: 3 },
+	PRESET_7J_RAPIDE: { playerCount: 7, naziCount: 3, missionSizes: [2, 3, 3, 4, 4], missionCount: 5, winThreshold: 3 },
+	PRESET_8J_RAPIDE: { playerCount: 8, naziCount: 3, missionSizes: [3, 4, 4, 5, 5], missionCount: 5, winThreshold: 3 },
+	PRESET_9J_RAPIDE: { playerCount: 9, naziCount: 3, missionSizes: [3, 4, 4, 5, 5], missionCount: 5, winThreshold: 3 },
+	PRESET_10J_RAPIDE: { playerCount: 10, naziCount: 4, missionSizes: [3, 4, 4, 5, 5], missionCount: 5, winThreshold: 3 },
+	PRESET_11J_RAPIDE: { playerCount: 11, naziCount: 4, missionSizes: [4, 4, 5, 5, 6], missionCount: 5, winThreshold: 3 },
+	PRESET_12J_RAPIDE: { playerCount: 12, naziCount: 4, missionSizes: [4, 5, 5, 6, 6], missionCount: 5, winThreshold: 3 },
+	PRESET_13J_RAPIDE: { playerCount: 13, naziCount: 5, missionSizes: [4, 5, 5, 6, 6], missionCount: 5, winThreshold: 3 },
+	PRESET_14J_RAPIDE: { playerCount: 14, naziCount: 5, missionSizes: [5, 5, 6, 6, 7], missionCount: 5, winThreshold: 3 },
 } as const;
+
+/** Durée de partie choisie à la création : classique (joueurs ÷ 2 + 1) ou rapide (premier à 3). */
+export type GamePace = "classic" | "quick";
+
+export function parsePace(raw: unknown): GamePace {
+  return raw === "quick" ? "quick" : "classic";
+}
 
 export type RulesetPreset = keyof typeof RULESET_PRESETS;
 
 export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 11;
+export const MAX_PLAYERS = 14;
 
 type RawRulesetPayload = Record<string, unknown>;
 
@@ -57,6 +77,7 @@ export function resolveRulesetForPlayerCount(
 	playerCount: number,
 	rulesetPreset?: string,
 	ruleset?: unknown,
+	pace: GamePace = "classic",
 ): ResolvedRuleset {
 	if (!Number.isInteger(playerCount) || playerCount < MIN_PLAYERS) {
 		throw new Error(`at least ${MIN_PLAYERS} players are required to start`);
@@ -89,7 +110,7 @@ export function resolveRulesetForPlayerCount(
 		};
 	}
 
-	const inferredPreset = getPresetNameForPlayerCount(playerCount);
+	const inferredPreset = getPresetNameForPlayerCount(playerCount, pace);
 	if (inferredPreset === null) {
 		throw new Error(`no playable ruleset for ${playerCount} players`);
 	}
@@ -103,13 +124,13 @@ export function resolveRulesetForPlayerCount(
 }
 
 /** Preset jouable correspondant à ce nombre de joueurs, ou null. */
-export function getPresetNameForPlayerCount(playerCount: number): RulesetPreset | null {
-	for (const [presetName, preset] of Object.entries(RULESET_PRESETS) as Array<[RulesetPreset, (typeof RULESET_PRESETS)[RulesetPreset]]>) {
-		if (preset.playerCount === playerCount) {
-			return presetName;
-		}
+export function getPresetNameForPlayerCount(playerCount: number, pace: GamePace = "classic"): RulesetPreset | null {
+	const quick = `PRESET_${playerCount}J_RAPIDE`;
+	if (pace === "quick" && quick in RULESET_PRESETS) {
+		return quick as RulesetPreset;
 	}
-	return null;
+	const classic = `PRESET_${playerCount}J`;
+	return classic in RULESET_PRESETS ? (classic as RulesetPreset) : null;
 }
 
 /** Même contrat que Ruleset.__post_init__ côté Python (gameengine/types.py). */

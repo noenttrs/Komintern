@@ -54,6 +54,8 @@ export interface RoomUpdatedPayload {
   chatEnabled: boolean;
   /** Listée dans les parties publiques (comptes uniquement). */
   isPublic: boolean;
+  /** Règles libres : partie classique (joueurs ÷ 2 + 1) ou rapide (premier à 3). */
+  pace: "classic" | "quick";
 }
 
 export interface Scores {
