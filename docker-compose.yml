@@ -48,6 +48,22 @@ services:
       start_period: 5s
       retries: 3
 
+  # Tunnel Cloudflare : connexion sortante uniquement, aucun port à ouvrir sur la box.
+  # Activé par COMPOSE_PROFILES=tunnel et CLOUDFLARE_TUNNEL_TOKEN dans .env.
+  # Dans Cloudflare, le hostname public doit pointer vers le service http://web:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN manquant dans .env}
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - komintern
+
 # Aucun volume : l'état du jeu est en mémoire, rien n'est écrit sur disque.
 
 networks:
