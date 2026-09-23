@@ -20,6 +20,8 @@ function chime(): void {
     const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (Context === undefined) return;
     audioContext ??= new Context();
+    // Après un geste de l'utilisateur, le navigateur autorise le son : on le débloque pour la suite.
+    if (audioContext.state === "suspended") void audioContext.resume();
     const now = audioContext.currentTime;
     [660, 880].forEach((frequency, index) => {
       const oscillator = audioContext!.createOscillator();
@@ -39,6 +41,14 @@ function chime(): void {
   }
 }
 
+function buzz(): void {
+  try {
+    if (typeof navigator.vibrate === "function") navigator.vibrate([60, 40, 60]);
+  } catch {
+    // Vibration indisponible : on ignore.
+  }
+}
+
 /**
  * Prévient le joueur quand c'est à lui d'agir (vibration + petit son), une fois par occasion.
  * `turnKey` identifie l'occasion (ex. « vote-3-2 ») ; null quand il n'a rien à faire.
@@ -52,8 +62,8 @@ export function useTurnAlerts(turnKey: string | null): [AlertSettings, (settings
       return;
     }
     lastKey.current = turnKey;
-    if (settings.vibration && typeof navigator.vibrate === "function") {
-      navigator.vibrate([60, 40, 60]);
+    if (settings.vibration) {
+      buzz();
     }
     if (settings.sound) {
       chime();
@@ -61,6 +71,9 @@ export function useTurnAlerts(turnKey: string | null): [AlertSettings, (settings
   }, [turnKey, settings]);
 
   const update = (next: AlertSettings): void => {
+    // Aperçu immédiat quand on active une alerte dans le menu.
+    if (next.vibration && !settings.vibration) buzz();
+    if (next.sound && !settings.sound) chime();
     setSettings(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
