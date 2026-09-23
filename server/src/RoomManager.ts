@@ -56,6 +56,7 @@ type RoomRecord = {
   playerByUid: Map<string, string>;
   userIdByPlayer: Map<string, string>;
   chatEnabled: boolean;
+  isPublic: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
   pseudoByPlayer: Map<string, string>;
@@ -92,6 +93,7 @@ export type CreateRoomOptions = {
   rulesetPreset?: unknown;
   ruleset?: unknown;
   chatEnabled?: boolean;
+  isPublic?: boolean;
 };
 
 export type JoinResult = {
@@ -156,7 +158,9 @@ export class RoomManager {
       socketByPlayer: new Map(),
       playerByUid: new Map(),
       userIdByPlayer: new Map(),
-      chatEnabled: options.chatEnabled !== false,
+      // Une room publique se joue à distance : chat toujours disponible.
+      chatEnabled: options.isPublic === true || options.chatEnabled !== false,
+      isPublic: options.isPublic === true,
       chat: [],
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
@@ -209,6 +213,9 @@ export class RoomManager {
     }
     if (room.status !== "waiting" || room.starting) {
       throw new Error("the game has already started in this room");
+    }
+    if (room.isPublic && userId === undefined) {
+      throw new Error("log in to join public rooms");
     }
     if (room.playerIds.length >= room.maxPlayers) {
       throw new Error("room is full");
@@ -308,8 +315,37 @@ export class RoomManager {
   public setChatEnabled(code: string, hostId: string, enabled: boolean): void {
     const room = this.requireRoom(code);
     this.requireHostInLobby(room, hostId);
+    if (room.isPublic && !enabled) {
+      throw new Error("public rooms always have chat");
+    }
     room.chatEnabled = enabled;
     this.emitRoomUpdated(room);
+  }
+
+  public setPublic(code: string, hostId: string, isPublic: boolean): void {
+    const room = this.requireRoom(code);
+    this.requireHostInLobby(room, hostId);
+    if (isPublic && room.playerIds.some((id) => !room.userIdByPlayer.has(id))) {
+      throw new Error("every player needs an account to make the room public");
+    }
+    room.isPublic = isPublic;
+    if (isPublic) room.chatEnabled = true;
+    this.emitRoomUpdated(room);
+  }
+
+  /** Rooms publiques ouvertes (au salon, pas pleines), les plus remplies d'abord. */
+  public listPublicRooms(): Array<{ code: string; host: string; players: number; minPlayers: number; maxPlayers: number }> {
+    return [...this.rooms.values()]
+      .filter((room) => room.isPublic && room.status === "waiting" && !room.starting && room.playerIds.length < room.maxPlayers && room.socketByPlayer.size > 0)
+      .map((room) => ({
+        code: room.code,
+        host: room.hostPlayerId === null ? "?" : (room.pseudoByPlayer.get(room.hostPlayerId) ?? "?"),
+        players: room.playerIds.length,
+        minPlayers: room.minPlayers,
+        maxPlayers: room.maxPlayers,
+      }))
+      .sort((a, b) => b.players - a.players)
+      .slice(0, 50);
   }
 
   public setPseudo(code: string, playerId: string, pseudo: string): void {
@@ -440,6 +476,7 @@ export class RoomManager {
       maxPlayers: room.maxPlayers,
       status: room.status,
       chatEnabled: room.chatEnabled,
+      isPublic: room.isPublic,
     };
   }
 

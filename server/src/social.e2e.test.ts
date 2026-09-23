@@ -117,6 +117,9 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
   const rosaView = await api("/friends", { cookie: rosa!.cookie });
   assert.equal(rosaView.body.friends[0].status, "online");
 
+  // --- Parties publiques : liste vide au départ
+  assert.deepEqual((await api("/rooms/public")).body, { rooms: [] });
+
   // --- Room et invitation
   const rosaSocket = open(rosa!.cookie);
   const joined = next<{ playerId: string; code: string }>(rosaSocket, "room_joined");

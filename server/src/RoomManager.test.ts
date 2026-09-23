@@ -234,6 +234,25 @@ test("a room deleted in the middle of a game records it as aborted", async () =>
   assert.deepEqual(recorded, ["aborted"]);
 });
 
+test("public rooms are listed, reserved to accounts, and always have chat", () => {
+  const { manager } = setup();
+  const code = manager.createRoom({ isPublic: true, chatEnabled: false });
+  assert.equal(manager.getRoomPayload(code).chatEnabled, true);
+  assert.deepEqual(manager.listPublicRooms(), [], "an empty room is not listed");
+  const host = manager.joinRoom(code, "s1", UIDS[0], "u_host").playerId;
+  assert.throws(() => manager.joinRoom(code, "s2", UIDS[1]), /log in to join public rooms/);
+  manager.joinRoom(code, "s3", UIDS[2], "u_guest");
+  assert.deepEqual(manager.listPublicRooms().map((room) => [room.code, room.players]), [[code, 2]]);
+  assert.throws(() => manager.setChatEnabled(code, host, false), /always have chat/);
+  manager.setPublic(code, host, false);
+  assert.deepEqual(manager.listPublicRooms(), []);
+
+  const privateRoom = manager.createRoom();
+  const privateHost = manager.joinRoom(privateRoom, "p1", UIDS[3], "u_other").playerId;
+  manager.joinRoom(privateRoom, "p2", UIDS[4]);
+  assert.throws(() => manager.setPublic(privateRoom, privateHost, true), /needs an account/);
+});
+
 test("room creation is capped", () => {
   const { manager } = setup({ maxRooms: 2 });
   manager.createRoom();

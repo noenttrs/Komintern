@@ -1529,3 +1529,16 @@ textarea {
   flex: 1;
   overflow-wrap: anywhere;
 }
+
+.public-rooms {
+  display: grid;
+  gap: 0.4rem;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 0.6rem;
+}
+
+.public-rooms__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}

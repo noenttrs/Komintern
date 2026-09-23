@@ -94,7 +94,7 @@ describe("App", () => {
     render(<App />);
     act(() => fake.socket.serverEmit("room_joined", { playerId: "p1", ...room, chatEnabled: false }));
     expect(screen.queryByRole("button", { name: "Ouvrir le chat" })).toBeNull();
-    expect(screen.getByText("Partie sur place · sans chat")).toBeTruthy();
+    expect(screen.getByText(/sur place · sans chat/)).toBeTruthy();
     act(() => fake.socket.serverEmit("room_updated", { ...room, chatEnabled: true }));
     expect(screen.getByRole("button", { name: "Ouvrir le chat" })).toBeTruthy();
   });

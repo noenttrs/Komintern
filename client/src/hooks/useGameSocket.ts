@@ -63,7 +63,7 @@ export interface GameActions {
   confirmPseudo: () => void;
   navigate: (phase: UIPhase) => void;
   dismissError: () => void;
-  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null; chatEnabled?: boolean }) => void;
+  createRoom: (options?: { roomName?: string; config?: StartGameVariantConfig | null; chatEnabled?: boolean; isPublic?: boolean }) => void;
   joinRoom: (code: string) => void;
   leaveRoom: () => void;
   startGame: () => void;
@@ -88,6 +88,7 @@ export interface GameActions {
   kickPlayer: (playerId: string) => void;
   transferHost: (playerId: string) => void;
   setChatMode: (enabled: boolean) => void;
+  setPublicRoom: (isPublic: boolean) => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -297,6 +298,7 @@ export function useGameSocket(): UseGameSocketResult {
       kickPlayer: (playerId) => emitAction(CLIENT_EVENTS.KICK_PLAYER, { playerId }),
       transferHost: (playerId) => emitAction(CLIENT_EVENTS.TRANSFER_HOST, { playerId }),
       setChatMode: (enabled) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { chatEnabled: enabled }),
+      setPublicRoom: (isPublic) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { isPublic }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });
@@ -318,6 +320,7 @@ export function useGameSocket(): UseGameSocketResult {
           ...(config?.ruleset_preset ? { ruleset_preset: config.ruleset_preset } : {}),
           ...(config?.ruleset ? { ruleset: config.ruleset } : {}),
           chatEnabled: options?.chatEnabled !== false,
+          isPublic: options?.isPublic === true,
         });
       },
       joinRoom: (rawCode) => {

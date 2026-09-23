@@ -64,6 +64,7 @@ export type RoomSnapshot = {
   minPlayers: number | null;
   status: RoomStatus | null;
   chatEnabled: boolean | null;
+  isPublic: boolean | null;
 };
 
 const ROOM_STATUSES: RoomStatus[] = ["waiting", "table_order", "playing", "finished"];
@@ -96,6 +97,7 @@ export function parseRoom(value: unknown): RoomSnapshot {
     minPlayers: numberValue(payload.minPlayers),
     status: status !== null && (ROOM_STATUSES as string[]).includes(status) ? (status as RoomStatus) : null,
     chatEnabled: boolValue(payload.chatEnabled),
+    isPublic: boolValue(payload.isPublic),
   };
 }
 
@@ -216,4 +218,8 @@ ERROR_TRANSLATIONS.push(
   [/only the host can do that/, "Seul l'hôte peut faire ça."],
   [/only possible in the waiting room/, "Possible uniquement dans la salle d'attente."],
   [/chat is disabled/, "Le chat est désactivé dans cette room (partie sur place)."],
+  [/log in to join public rooms/, "Connecte-toi pour rejoindre une partie publique."],
+  [/log in to create a public room/, "Connecte-toi pour créer une partie publique."],
+  [/public rooms always have chat/, "Une partie publique se joue à distance : le chat reste activé."],
+  [/needs an account to make the room public/, "Tous les joueurs doivent avoir un compte pour rendre la partie publique."],
 );

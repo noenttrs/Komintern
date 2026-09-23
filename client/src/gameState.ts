@@ -50,6 +50,7 @@ export interface GameState {
   roomStatus: RoomStatus | null;
   /** Faux pour une partie sur place : le chat n'est pas affiché. */
   chatEnabled: boolean;
+  isPublic: boolean;
   phase: UIPhase;
   connection: ConnectionStatus;
   error: { message: string; code: string | null; id: number } | null;
@@ -145,6 +146,7 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     players: [],
     roomStatus: null,
     chatEnabled: true,
+    isPublic: false,
     phase: pseudo.trim() === "" ? "pseudo_entry" : "landing",
     connection: "idle",
     error: null,
@@ -176,6 +178,7 @@ function applyRoom(state: GameState, payload: unknown): GameState {
     minPlayers: room.minPlayers ?? room.targetPlayerCount ?? state.minPlayers,
     roomStatus: room.status ?? state.roomStatus,
     chatEnabled: room.chatEnabled ?? state.chatEnabled,
+    isPublic: room.isPublic ?? state.isPublic,
   };
 }
 

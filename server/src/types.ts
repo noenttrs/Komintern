@@ -42,6 +42,8 @@ export interface RoomUpdatedPayload {
   status: RoomStatus;
   /** Faux pour une partie jouée sur place : pas de chat. */
   chatEnabled: boolean;
+  /** Listée dans les parties publiques (comptes uniquement). */
+  isPublic: boolean;
 }
 
 export interface Scores {

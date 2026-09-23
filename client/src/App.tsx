@@ -15,6 +15,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { PublicRooms } from "./components/PublicRooms";
 import { RoomInvite } from "./components/RoomInvite";
 import { Tutorial } from "./components/Tutorial";
 import { RulesPage } from "./pages/RulesPage";
@@ -373,6 +374,8 @@ export default function App(): JSX.Element {
     kickPlayer,
     transferHost,
     setChatMode,
+    setPublicRoom,
+    isPublic,
   } = useGameSocket();
   const account = useAccount();
   const route = useRoute();
@@ -448,6 +451,7 @@ export default function App(): JSX.Element {
   const [roomNameDraft, setRoomNameDraft] = useState("");
   // Par défaut, partie sur place : pas de chat qui encombre l'écran.
   const [remotePlay, setRemotePlay] = useState(false);
+  const [publicDraft, setPublicDraft] = useState(false);
   const [rulesMode, setRulesMode] = useState<"default" | "preset" | "custom">("default");
   const [presetDraft, setPresetDraft] = useState<RulesetPreset>("PRESET_5J");
   const [customPlayerCount, setCustomPlayerCount] = useState(5);
@@ -884,7 +888,28 @@ export default function App(): JSX.Element {
               À distance
             </button>
           </div>
-          <p className="field-hint">{remotePlay ? "Un chat est disponible pendant la partie." : "Pas de chat : tout se dit autour de la table."}</p>
+          <p className="field-hint">{remotePlay || publicDraft ? "Un chat est disponible pendant la partie." : "Pas de chat : tout se dit autour de la table."}</p>
+
+          <span className="field-label" id="visibility-label">Qui peut rejoindre ?</span>
+          <div className="segmented" role="radiogroup" aria-labelledby="visibility-label">
+            <button type="button" role="radio" aria-checked={!publicDraft} className={publicDraft ? "secondary" : ""} onClick={() => setPublicDraft(false)}>
+              Sur invitation
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={publicDraft}
+              className={publicDraft ? "" : "secondary"}
+              disabled={account.status !== "user"}
+              onClick={() => {
+                setPublicDraft(true);
+                setRemotePlay(true);
+              }}
+            >
+              Publique
+            </button>
+          </div>
+          {account.status !== "user" ? <p className="field-hint">Connecte-toi pour créer une partie publique, ouverte à tous.</p> : null}
 
           <label className="field-label">Regles</label>
           <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
@@ -986,7 +1011,7 @@ export default function App(): JSX.Element {
                       },
                     };
 
-              createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay });
+              createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft });
             }}
           >
             Creer
@@ -1000,7 +1025,7 @@ export default function App(): JSX.Element {
   if (phase === "join_room") {
     return (
       <main className="screen">
-        <section className="panel">
+        <section className="panel panel--scroll">
           <h1>Rejoindre room</h1>
           <input
             value={joinCodeDraft}
@@ -1009,6 +1034,7 @@ export default function App(): JSX.Element {
             placeholder="Code room"
           />
           <button type="button" onClick={() => joinRoom(joinCodeDraft)}>Rejoindre</button>
+          <PublicRooms signedIn={account.status === "user"} onJoin={joinRoom} />
           <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
         </section>
       </main>
@@ -1021,7 +1047,16 @@ export default function App(): JSX.Element {
         <section className="panel panel--scroll">
           <RoomInvite code={roomCode} />
           <h1>Salle d attente</h1>
-          <p className="mono">{chatEnabled ? "Partie à distance · chat activé" : "Partie sur place · sans chat"}</p>
+          <p className="mono">
+            {isPublic ? "Partie publique · " : ""}
+            {chatEnabled ? "à distance · chat activé" : "sur place · sans chat"}
+          </p>
+          {isHost && account.status === "user" ? (
+            <label className="checkbox-row">
+              <input type="checkbox" checked={isPublic} onChange={(event) => setPublicRoom(event.target.checked)} />
+              Partie publique (listée, comptes uniquement)
+            </label>
+          ) : null}
           <p className="mono">
             {flexibleRoom ? `${players.length} joueurs · de ${minPlayers} à ${targetPlayerCount}` : `${players.length} / ${targetPlayerCount} joueurs`}
           </p>

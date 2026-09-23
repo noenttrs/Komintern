@@ -122,7 +122,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
     },
   });
   const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats());
-  expressApp.use("/api", createApi(services, admin));
+  expressApp.use("/api", createApi(services, admin, () => roomManager.listPublicRooms()));
   const userBySocket = new Map<string, SocketUser>();
 
   // La session (cookie httpOnly) est lue au handshake : un socket est invité ou connecté.
@@ -343,10 +343,12 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     on(socket, CLIENT_EVENTS.SET_ROOM_OPTIONS, "invalid_room_options", (payload) => {
       const context = requireContext(socket);
-      if (typeof payload.chatEnabled !== "boolean") {
-        throw new Error("chatEnabled must be a boolean");
+      if (typeof payload.isPublic === "boolean") {
+        roomManager.setPublic(context.roomId, context.playerId, payload.isPublic);
       }
-      roomManager.setChatEnabled(context.roomId, context.playerId, payload.chatEnabled);
+      if (typeof payload.chatEnabled === "boolean") {
+        roomManager.setChatEnabled(context.roomId, context.playerId, payload.chatEnabled);
+      }
     });
 
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
@@ -362,7 +364,11 @@ export function createKominternApp(options: AppOptions): KominternApp {
       const code = parseOptionalRoomCode(payload.code ?? payload.room_name);
       const playerUid = parseOptionalPlayerUid(payload.playerUid);
       const pseudo = parseOptionalPseudo(payload.pseudo);
+      if (payload.isPublic === true && userBySocket.get(socket.id) === undefined) {
+        throw new Error("log in to create a public room");
+      }
       const roomId = roomManager.createRoom({
+        isPublic: payload.isPublic === true,
         code,
         rulesetPreset: payload.ruleset_preset,
         ruleset: payload.ruleset,

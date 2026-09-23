@@ -32,7 +32,7 @@ export function sessionIdFrom(request: IncomingMessage): string | undefined {
   return header === undefined ? undefined : parseCookie(header)[SESSION_COOKIE];
 }
 
-export function createApi(services: Services, admin: AdminService): express.Router {
+export function createApi(services: Services, admin: AdminService, publicRooms: () => unknown[] = () => []): express.Router {
   const { accounts, sessions, config } = services;
   const router = express.Router();
 
@@ -230,6 +230,10 @@ export function createApi(services: Services, admin: AdminService): express.Rout
     await services.friendService.remove(requireUser(request), String(request.params.userId));
     response.status(204).end();
   }));
+
+  router.get("/rooms/public", (_request, response) => {
+    response.json({ rooms: publicRooms() });
+  });
 
   router.post("/contact", route(async (request, response) => {
     await services.contactService.submit(request.body ?? {}, request.userId ?? null, clientIp(request));
