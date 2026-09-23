@@ -20,6 +20,7 @@ import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { Tutorial } from "./components/Tutorial";
 import { RulesPage } from "./pages/RulesPage";
+import { recordPageView } from "./audience";
 import { joinCodeFromPath, navigate as goTo, useRoute } from "./router";
 import { EndGameScreen } from "./screens/EndGameScreen";
 import { CreateRoomScreen, JoinRoomScreen, LandingScreen, PseudoEntryScreen, WaitingRoomScreen } from "./screens/LobbyScreens";
@@ -118,6 +119,9 @@ export default function App(): JSX.Element {
   } = game;
   const account = useAccount();
   const route = useRoute();
+  useEffect(() => {
+    recordPageView(window.location.pathname);
+  }, [route]);
   const friends = useFriends(account.status === "user");
   const install = useInstallPrompt();
 

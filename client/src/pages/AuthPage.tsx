@@ -6,11 +6,14 @@ import { PageShell } from "../components/PageShell";
 import type { AccountActions, AccountState } from "../hooks/useAccount";
 import { navigate } from "../router";
 
-type Mode = "login" | "register" | "verify" | "forgot" | "reset";
+type Mode = "login" | "register" | "verify" | "forgot" | "reset" | "totp";
 
 /** Connexion / inscription. Un compte est facultatif : on peut toujours jouer en invité. */
 export function AuthPage({ account }: { account: AccountState & AccountActions }): JSX.Element {
-  const [mode, setMode] = useState<Mode>("login");
+  // Retour de Google avec la double authentification active : /connexion?totp=<jeton>
+  const googleChallenge = new URLSearchParams(window.location.search).get("totp");
+  const [mode, setMode] = useState<Mode>(googleChallenge !== null ? "totp" : "login");
+  const [challenge, setChallenge] = useState<string | null>(googleChallenge);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -49,13 +52,29 @@ export function AuthPage({ account }: { account: AccountState & AccountActions }
   );
 
   return (
-    <PageShell title={mode === "register" ? "Créer un compte" : mode === "login" ? "Connexion" : mode === "verify" ? "Valider l'email" : "Mot de passe oublié"}>
+    <PageShell
+      title={
+        mode === "register" ? "Créer un compte" : mode === "login" || mode === "totp" ? "Connexion" : mode === "verify" ? "Valider l'email" : "Mot de passe oublié"
+      }
+    >
       <div className="panel page-panel">
         <p>Un compte est facultatif : il garde tes statistiques et te permet d'ajouter des amis. Tu peux jouer sans.</p>
         {message !== null ? <p className={message.error ? "form-message form-message--error" : "form-message"} role="alert">{message.text}</p> : null}
 
         {mode === "login" ? (
-          <form className="form" onSubmit={run(async () => { await account.login(email, password); navigate("/"); })}>
+          <form
+            className="form"
+            onSubmit={run(async () => {
+              const token = await account.login(email, password);
+              if (token !== null) {
+                setChallenge(token);
+                setCode("");
+                setMode("totp");
+                return;
+              }
+              navigate("/");
+            })}
+          >
             {google}
             {emailField}
             <label className="field">
@@ -85,6 +104,18 @@ export function AuthPage({ account }: { account: AccountState & AccountActions }
           </form>
         ) : null}
 
+        {mode === "totp" && challenge !== null ? (
+          <form className="form" onSubmit={run(async () => { await account.completeTotpLogin(challenge, code); navigate("/"); })}>
+            <p>Double authentification : saisis le code à 6 chiffres de ton application.</p>
+            <label className="field">
+              <span className="field-label">Code de double authentification</span>
+              <input inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} className="code-input" />
+            </label>
+            <button type="submit" disabled={busy}>Valider</button>
+            <button type="button" className="secondary" onClick={() => { setMode("login"); setChallenge(null); }}>Retour</button>
+          </form>
+        ) : null}
+
         {mode === "verify" ? (
           <form className="form" onSubmit={run(async () => { await account.verify(email, code); navigate("/profil"); })}>
             {emailField}
@@ -108,7 +139,19 @@ export function AuthPage({ account }: { account: AccountState & AccountActions }
         ) : null}
 
         {mode === "reset" ? (
-          <form className="form" onSubmit={run(async () => { await account.resetPassword(email, code, password); navigate("/profil"); })}>
+          <form
+            className="form"
+            onSubmit={run(async () => {
+              const token = await account.resetPassword(email, code, password);
+              if (token !== null) {
+                setChallenge(token);
+                setCode("");
+                setMode("totp");
+                return;
+              }
+              navigate("/profil");
+            })}
+          >
             {emailField}
             <label className="field">
               <span className="field-label">Code reçu par email</span>

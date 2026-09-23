@@ -14,9 +14,10 @@ function account(overrides: Partial<AccountActions> = {}): AccountState & Accoun
     register: vi.fn().mockResolvedValue(undefined),
     resendCode: vi.fn().mockResolvedValue(undefined),
     verify: vi.fn().mockResolvedValue(undefined),
-    login: vi.fn().mockResolvedValue(undefined),
+    login: vi.fn().mockResolvedValue(null),
+    completeTotpLogin: vi.fn().mockResolvedValue(undefined),
     forgotPassword: vi.fn().mockResolvedValue(undefined),
-    resetPassword: vi.fn().mockResolvedValue(undefined),
+    resetPassword: vi.fn().mockResolvedValue(null),
     logout: vi.fn(),
     setDisplayName: vi.fn(),
     deleteAccount: vi.fn(),
@@ -52,5 +53,20 @@ describe("AuthPage", () => {
     });
     expect(screen.getByRole("alert").textContent).toMatch(/pas encore validé/);
     expect(screen.getByLabelText("Code reçu par email")).toBeTruthy();
+  });
+
+  it("asks for the second factor when two-factor authentication is enabled", async () => {
+    const acc = account({ login: vi.fn().mockResolvedValue("challenge-token-123456789") });
+    render(<AuthPage account={acc} />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "rosa@example.org" } });
+    fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: "whatever12345" } });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Se connecter"));
+    });
+    fireEvent.change(screen.getByLabelText("Code de double authentification"), { target: { value: "123456" } });
+    await act(async () => {
+      fireEvent.click(screen.getByText("Valider"));
+    });
+    expect(acc.completeTotpLogin).toHaveBeenCalledWith("challenge-token-123456789", "123456");
   });
 });

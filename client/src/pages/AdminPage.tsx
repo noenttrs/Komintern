@@ -35,7 +35,7 @@ type Identity = { pseudonym: string; playerId: string; userId: string | null; ps
 
 type ContactMessage = { id: string; createdAt: string; email: string; subject: string; message: string; userId: string | null; read: boolean };
 
-type Tab = "stats" | "reports" | "contact";
+type Tab = "stats" | "audience" | "reports" | "contact";
 
 const fmt = (date: string): string => new Date(date).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 
@@ -88,13 +88,13 @@ export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
   return (
     <PageShell title="Administration">
       <div className="admin-tabs" role="tablist">
-        {(["stats", "reports", "contact"] as const).map((entry) => (
+        {(["stats", "audience", "reports", "contact"] as const).map((entry) => (
           <button key={entry} type="button" role="tab" aria-selected={tab === entry} className={tab === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
-            {entry === "stats" ? "Statistiques" : entry === "reports" ? "Signalements" : "Contact"}
+            {entry === "stats" ? "Statistiques" : entry === "audience" ? "Audience" : entry === "reports" ? "Signalements" : "Contact"}
           </button>
         ))}
       </div>
-      {tab === "stats" ? <StatsTab /> : tab === "reports" ? <ReportsTab /> : <ContactTab />}
+      {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "reports" ? <ReportsTab /> : <ContactTab />}
     </PageShell>
   );
 }
@@ -141,6 +141,55 @@ function StatsTab(): JSX.Element {
         ))}
       </dl>
       <button type="button" className="secondary" onClick={reload}>Actualiser</button>
+    </div>
+  );
+}
+
+type Audience = { daily: Array<{ day: string; visitors: number; pageviews: number }>; topPages: Array<{ path: string; views: number }> };
+
+function AudienceTab(): JSX.Element {
+  const { data, error } = useLoad<Audience>("/admin/audience");
+  if (error !== null) return <p className="form-message form-message--error">{error}</p>;
+  if (data === null) return <p>Chargement…</p>;
+  const sum = (days: number, key: "visitors" | "pageviews") => data.daily.slice(-days).reduce((total, entry) => total + entry[key], 0);
+  const max = Math.max(1, ...data.daily.map((entry) => entry.visitors));
+  const cells: Array<[string, number]> = [
+    ["Visiteurs aujourd'hui", data.daily.at(-1)?.visitors ?? 0],
+    ["Visiteurs (7 j, cumul)", sum(7, "visitors")],
+    ["Visiteurs (30 j, cumul)", sum(30, "visitors")],
+    ["Pages vues (30 j)", sum(30, "pageviews")],
+  ];
+  return (
+    <div className="panel page-panel">
+      <dl className="admin-stats">
+        {cells.map(([label, value]) => (
+          <div key={label} className="stat">
+            <dt className="field-label">{label}</dt>
+            <dd className="admin-stats__value">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <h3 className="field-label">Visiteurs par jour (30 jours)</h3>
+      <div className="audience-chart" role="img" aria-label="Visiteurs par jour sur 30 jours">
+        {data.daily.map((entry) => (
+          <span
+            key={entry.day}
+            className="audience-chart__bar"
+            style={{ height: `${(entry.visitors / max) * 100}%` }}
+            title={`${entry.day} : ${entry.visitors} visiteurs, ${entry.pageviews} pages vues`}
+          />
+        ))}
+      </div>
+      <h3 className="field-label">Pages les plus vues (30 jours)</h3>
+      <ul className="friend-list">
+        {data.topPages.map((page) => (
+          <li key={page.path} className="friend-row">
+            <span className="friend-row__name mono">{page.path}</span>
+            <span>{page.views}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="field-hint">Mesure anonyme sans cookie. Les visiteurs sont comptés par jour : les cumuls comptent plusieurs fois un visiteur revenu plusieurs jours.</p>
     </div>
   );
 }

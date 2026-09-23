@@ -1542,3 +1542,29 @@ textarea {
   justify-content: space-between;
   align-items: baseline;
 }
+
+.totp-qr {
+  width: min(200px, 60vw);
+  height: auto;
+  border: 1px solid var(--line);
+  justify-self: center;
+}
+
+.totp-secret {
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.audience-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.audience-chart__bar {
+  flex: 1;
+  min-height: 1px;
+  background: var(--ink);
+}

@@ -39,6 +39,11 @@ const API_ERRORS: Record<string, string> = {
   invalid_totp: "Code de double authentification incorrect.",
   totp_required: "Double authentification requise.",
   admin_password_only: "Ce compte se connecte uniquement par mot de passe.",
+  totp_challenge_expired: "Délai dépassé : reconnecte-toi.",
+  totp_setup_expired: "Délai dépassé : recommence l'activation.",
+  totp_already_enabled: "La double authentification est déjà activée.",
+  admin_totp_required: "La double authentification est obligatoire pour ce compte.",
+  same_email: "C'est déjà ton adresse actuelle.",
 };
 
 export function translateApiError(code: string): string {
@@ -78,6 +83,7 @@ export type Account = {
   hasPassword?: boolean;
   hasGoogle?: boolean;
   isAdmin?: boolean;
+  totpEnabled?: boolean;
 };
 
 export type PublicConfig = {

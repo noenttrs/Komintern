@@ -15,9 +15,11 @@ export type AccountActions = {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   resendCode: (email: string) => Promise<void>;
   verify: (email: string, code: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  /** Renvoie un jeton de défi si la double authentification est demandée. */
+  login: (email: string, password: string) => Promise<string | null>;
+  completeTotpLogin: (token: string, code: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (email: string, code: string, password: string) => Promise<void>;
+  resetPassword: (email: string, code: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   setDisplayName: (displayName: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -57,12 +59,22 @@ export function useAccount(): AccountState & AccountActions {
         await api("/auth/resend", { body: { email } });
       },
       verify: async (email, code) => signedIn((await api<{ user: Account }>("/auth/verify", { body: { email, code } })).user),
-      login: async (email, password) => signedIn((await api<{ user: Account }>("/auth/login", { body: { email, password } })).user),
+      login: async (email, password) => {
+        const result = await api<{ user?: Account; totpRequired?: boolean; token?: string }>("/auth/login", { body: { email, password } });
+        if (result.totpRequired === true && result.token !== undefined) return result.token;
+        signedIn(result.user as Account);
+        return null;
+      },
+      completeTotpLogin: async (token, code) => signedIn((await api<{ user: Account }>("/auth/login/totp", { body: { token, code } })).user),
       forgotPassword: async (email) => {
         await api("/auth/password/forgot", { body: { email } });
       },
-      resetPassword: async (email, code, password) =>
-        signedIn((await api<{ user: Account }>("/auth/password/reset", { body: { email, code, password } })).user),
+      resetPassword: async (email, code, password) => {
+        const result = await api<{ user?: Account; totpRequired?: boolean; token?: string }>("/auth/password/reset", { body: { email, code, password } });
+        if (result.totpRequired === true && result.token !== undefined) return result.token;
+        signedIn(result.user as Account);
+        return null;
+      },
       logout: async () => {
         await api("/auth/logout", { body: {} });
         setState((current) => ({ ...current, status: "guest", user: null }));

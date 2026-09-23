@@ -1,8 +1,12 @@
+import { useState } from "react";
+
+import { audienceOptedOut, setAudienceOptOut } from "../audience";
 import { PageShell } from "../components/PageShell";
 
 type LegalPageProps = { editorName: string; contactEmail: string };
 
 export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Element {
+  const [optOut, setOptOut] = useState(audienceOptedOut);
   const missing = editorName === "" || contactEmail === "";
   const editor = editorName === "" ? "[nom de l'éditeur à compléter]" : editorName;
   const contact = contactEmail === "" ? "[email de contact à compléter]" : contactEmail;
@@ -60,6 +64,25 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
           au plus 3 ans. Les dons passent par <strong>Ko-fi</strong> (ko-fi.com) : le paiement a lieu sur leur site, aucune donnée
           bancaire ne transite par celui-ci.
         </p>
+        <h3>Mesure d'audience</h3>
+        <p>
+          Le site compte ses visites de façon anonyme, sans cookie et sans service tiers : nombre de pages vues par page, et nombre de
+          visiteurs distincts par jour. Ce dernier est calculé à partir d'une empreinte technique (adresse IP et navigateur) hachée avec
+          une clé renouvelée chaque jour et jamais conservée : il est impossible de suivre un visiteur d'un jour à l'autre ou de
+          l'identifier. Les compteurs sont conservés 13 mois. Base légale : l'intérêt légitime (mesure d'audience exemptée de
+          consentement). Le signal « Do Not Track » de ton navigateur est respecté.
+        </p>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={optOut}
+            onChange={(event) => {
+              setAudienceOptOut(event.target.checked);
+              setOptOut(event.target.checked);
+            }}
+          />
+          Ne pas compter mes visites
+        </label>
         <h3>Cookies</h3>
         <p>Un seul cookie est utilisé : le cookie de session, strictement nécessaire à la connexion. Il n'y a ni cookie publicitaire ni mesure d'audience, donc pas de bandeau de consentement.</p>
         <h3>Tes droits</h3>

@@ -7,6 +7,7 @@ import type { AccountActions, AccountState } from "../hooks/useAccount";
 import { navigate } from "../router";
 import { Achievements } from "./Achievements";
 import { GameHistory } from "./GameHistory";
+import { SecuritySettings } from "./SecuritySettings";
 import { StatsGrid } from "./StatsGrid";
 
 type ProfilePageProps = { account: AccountState & AccountActions; userId: string | null; setup: boolean };
@@ -94,6 +95,7 @@ export function ProfilePage({ account, userId, setup }: ProfilePageProps): JSX.E
             {own ? (
               <>
                 <p className="profile-meta">{profile.email}{profile.hasGoogle ? " · lié à Google" : ""}</p>
+                <SecuritySettings user={profile} onChanged={account.refresh} />
                 <button type="button" className="secondary" onClick={() => void account.logout().then(() => navigate("/"))}>Se déconnecter</button>
                 <button
                   type="button"
