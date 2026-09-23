@@ -674,7 +674,7 @@ export const fr = {
     colResult: "Résultat",
     colMissions: "Missions",
     colChat: "Messages",
-    playersValue: "{players} ({accounts} comptes)",
+    playersValue: "{players} · {accounts} avec compte",
     gameAborted: "Annulée",
     duelWinners: "Duel · {count} gagnant(s)",
     duelForfeit: "Duel · abandon",

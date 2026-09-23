@@ -28,7 +28,7 @@ describe("admin moderation tabs", () => {
       },
     });
     render(<GamesTab />);
-    expect(await screen.findByText("5 (2 comptes)")).toBeTruthy();
+    expect(await screen.findByText("5 · 2 avec compte")).toBeTruthy();
     expect(screen.getByText("Nazis ⚑")).toBeTruthy();
     expect(screen.getByText("5 min")).toBeTruthy();
   });

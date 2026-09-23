@@ -1820,3 +1820,13 @@ textarea {
   display: grid;
   gap: 0.8rem;
 }
+
+.admin-table .history-missions {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.admin-table .dot {
+  flex: none;
+}

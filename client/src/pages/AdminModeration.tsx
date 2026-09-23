@@ -165,8 +165,14 @@ export function GamesTab(): JSX.Element {
                 <td>{t("admin.playersValue", { players: game.playerCount, accounts: game.accounts })}</td>
                 <td>{Math.max(1, Math.round(game.durationSeconds / 60))} min</td>
                 <td>{result(game)}{game.moderated ? " ⚑" : ""}</td>
-                <td className="history-missions">
-                  {game.missions.map((mission, index) => <span key={index} className={mission === "communist" ? "dot" : "dot dot--full"} />)}
+                <td>
+                  {game.missions.length === 0 ? (
+                    "—"
+                  ) : (
+                    <span className="history-missions" aria-label={game.missions.map((mission) => (mission === "communist" ? "C" : "N")).join(" ")}>
+                      {game.missions.map((mission, index) => <span key={index} className={mission === "communist" ? "dot" : "dot dot--full"} />)}
+                    </span>
+                  )}
                 </td>
                 <td>{game.chatMessages}</td>
               </tr>

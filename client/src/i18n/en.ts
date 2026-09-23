@@ -675,7 +675,7 @@ export const en: Dictionary = {
     colResult: "Result",
     colMissions: "Missions",
     colChat: "Messages",
-    playersValue: "{players} ({accounts} accounts)",
+    playersValue: "{players} · {accounts} with an account",
     gameAborted: "Cancelled",
     duelWinners: "Duel · {count} winner(s)",
     duelForfeit: "Duel · forfeit",
