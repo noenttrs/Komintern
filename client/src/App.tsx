@@ -1,6 +1,9 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ChatPanel } from "./components/ChatPanel";
+import { FactionIcon } from "./components/game/FactionIcon";
+import { formatMissionVotes, isGamePhaseUi, stepForPhase } from "./components/game/phases";
+import { StatusBanners } from "./components/game/StatusBanners";
 import { Menu } from "./components/Menu";
 import { useAccount } from "./hooks/useAccount";
 import { useFriends } from "./hooks/useFriends";
@@ -15,307 +18,62 @@ import { AuthPage } from "./pages/AuthPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { PublicRooms } from "./components/PublicRooms";
-import { RoomInvite } from "./components/RoomInvite";
 import { Tutorial } from "./components/Tutorial";
 import { RulesPage } from "./pages/RulesPage";
 import { joinCodeFromPath, navigate as goTo, useRoute } from "./router";
+import { EndGameScreen } from "./screens/EndGameScreen";
+import { CreateRoomScreen, JoinRoomScreen, LandingScreen, PseudoEntryScreen, WaitingRoomScreen } from "./screens/LobbyScreens";
+import { MissionResultScreen, MissionScreen } from "./screens/MissionScreens";
+import { type InfoMode, type RulesMode, type ScreenContextValue, ScreenProvider } from "./screens/ScreenContext";
+import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
+import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
 import { socket } from "./socket";
 
-import { PLAYABLE_PRESETS, type ConfidenceVote, type MissionVote, type RulesetPreset, type UIPhase } from "./types";
+import type { ConfidenceVote, MissionVote, RulesetPreset, UIPhase } from "./types";
 
-function FactionIcon({ faction }: { faction: "nazi" | "communist" | null }): JSX.Element {
-  if (faction === "communist") {
-    return (
-      <svg className="faction-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="currentColor" d="M21 12c-2 0-3-3-6-3s-3 2-3 2s0-2-3-2s-4 3-6 3c-1 0-2-1-2-1s1 5 5 5c5 0 6-3 6-3s1 3 6 3c4 0 5-5 5-5s-1 1-2 1" />
-      </svg>
-    );
+/** Un écran par phase ; chacun lit ce dont il a besoin via useScreen(). */
+function renderScreen(phase: UIPhase): JSX.Element {
+  switch (phase) {
+    case "pseudo_entry":
+      return <PseudoEntryScreen />;
+    case "landing":
+      return <LandingScreen />;
+    case "create_room":
+      return <CreateRoomScreen />;
+    case "join_room":
+      return <JoinRoomScreen />;
+    case "waiting_room":
+      return <WaitingRoomScreen />;
+    case "table_order":
+      return <TableOrderScreen />;
+    case "role_reveal":
+      return <RoleRevealScreen />;
+    case "mission_proposal":
+      return <ProposalScreen />;
+    case "confidence_vote":
+      return <ConfidenceVoteScreen />;
+    case "confidence_result":
+      return <ConfidenceResultScreen />;
+    case "mission_execution":
+      return <MissionScreen />;
+    case "mission_result":
+      return <MissionResultScreen />;
+    case "end_game":
+    case "replay_waiting":
+      return <EndGameScreen />;
+    default:
+      return (
+        <main className="screen">
+          <section className="panel">
+            <h1>Etat de jeu inconnu</h1>
+          </section>
+        </main>
+      );
   }
-
-  if (faction === "nazi") {
-    return (
-      <svg className="faction-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
-        <path fill="currentColor" d="M256 25c-71 0-111.7 11.79-135.2 38.89C100.2 87.64 91.37 125.9 89.49 183H16v18h480v-18h-73.5c-1.9-57.1-10.7-95.36-31.3-119.11C367.7 36.79 327 25 256 25M108.4 217c-2.2 15.1-3.4 30.9-3.4 47c0 25.5 2.9 50 8.3 72.8c1.5-2.2 3-4.3 4.6-6.5c8.5-12 17.5-24.5 29.3-34.4c11.7-9.8 26.6-16.9 44.8-16.9c17.5 0 35.1 4.2 49 13.5c5.9 3.9 11 8.9 15 14.8c4-5.9 9.1-10.9 15-14.8c13.9-9.3 31.5-13.5 49-13.5c18.2 0 33.1 7.1 44.8 16.9c11.8 9.9 20.8 22.4 29.3 34.4c1.6 2.2 3.1 4.3 4.6 6.5c5.4-22.8 8.3-47.3 8.3-72.8c0-16.1-1.2-31.9-3.4-47zm83.6 80c-13.8 0-23.8 4.8-33.2 12.7s-17.8 19.2-26.2 31.1c-8.4 11.8-16.8 24.2-27.5 34.3c-10.7 10-24.23 17.5-40.9 17.9c-20.06.5-39.32-11.3-55.147-23.2c2.077 4.1 4.077 8.2 6.467 12.5c14.17 25.5 34.55 51.7 51.26 57.1c18.97 6.2 54.32-4.1 90.02-17.9C192.5 407.6 228 391 256 391s63.5 16.6 99.2 30.5c35.7 13.8 71.1 24.1 90 17.9c16.7-5.4 37.1-31.6 51.3-57.1c2.4-4.3 4.4-8.4 6.4-12.5c-15.8 11.9-35 23.7-55.1 23.2c-16.7-.4-30.2-7.9-40.9-17.9c-10.7-10.1-19.1-22.5-27.5-34.3c-8.4-11.9-16.8-23.2-26.2-31.1S333.8 297 320 297c-14.5 0-28.9 3.8-39 10.5S265 323 256 323s-14.9-8.8-25-15.5s-24.5-10.5-39-10.5m64 112c-20 0-56.5 15.2-92.7 29.2c-.3.1-.7.3-1 .4c26 30.7 58.6 48.4 93.7 48.4s67.7-17.7 93.7-48.4c-.3-.1-.7-.3-1-.4c-36.2-14-72.7-29.2-92.7-29.2" />
-      </svg>
-    );
-  }
-
-  return <span className="faction-icon-fallback">?</span>;
-}
-
-function scoreChip(faction: "nazi" | "communist", score: number): JSX.Element {
-  return (
-    <span className="score-chip">
-      <FactionIcon faction={faction} /> : {score}
-    </span>
-  );
-}
-
-function WaitingCard({ message }: { message: string }): JSX.Element {
-  return (
-    <div className="waiting-card-inline">
-      <h2>Validation envoyee</h2>
-      <p>{message}</p>
-    </div>
-  );
-}
-
-function CardSurface({
-  scoreLeft,
-  scoreCenter,
-  scoreRight,
-  meta,
-  footer,
-  front,
-  back,
-  overlay,
-  onOverlayShown,
-  actions,
-}: {
-  scoreLeft: ReactNode;
-  scoreCenter?: ReactNode;
-  scoreRight: ReactNode;
-  meta?: JSX.Element;
-  footer?: JSX.Element;
-  front: JSX.Element;
-  back?: JSX.Element;
-  overlay?: JSX.Element;
-  onOverlayShown?: () => void;
-  actions?: JSX.Element;
-}): JSX.Element {
-  const [history, setHistory] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(false);
-  const pointerStartX = useRef<number | null>(null);
-  const longPressTimer = useRef<number | null>(null);
-
-  const clearTimer = (): void => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const showBack = history && back !== undefined;
-
-  return (
-    <section
-      className="card-zone"
-      onPointerDown={(event) => {
-        pointerStartX.current = event.clientX;
-        clearTimer();
-        longPressTimer.current = window.setTimeout(() => {
-          setShowOverlay(true);
-          onOverlayShown?.();
-          longPressTimer.current = null;
-        }, 360);
-      }}
-      onPointerMove={(event) => {
-        if (pointerStartX.current === null) {
-          return;
-        }
-        const delta = event.clientX - pointerStartX.current;
-        if (Math.abs(delta) > 45 && back !== undefined) {
-          if (delta < 0) {
-            setHistory(true);
-          } else {
-            setHistory(false);
-          }
-          pointerStartX.current = null;
-          clearTimer();
-        }
-      }}
-      onPointerUp={() => {
-        pointerStartX.current = null;
-        clearTimer();
-        setShowOverlay(false);
-      }}
-      onPointerCancel={() => {
-        pointerStartX.current = null;
-        clearTimer();
-        setShowOverlay(false);
-      }}
-    >
-      <header className="score-line" aria-label="score">
-        <span>{scoreLeft}</span>
-        <span>{scoreCenter}</span>
-        <span>{scoreRight}</span>
-      </header>
-
-      <div className="card">
-        <div className={showBack ? "card__inner card__inner--flipped" : "card__inner"}>
-          <div className="card__face card__face--flat card__face--front">
-            {meta ? <div className="card__meta">{meta}</div> : null}
-            <div className="card__content">{front}</div>
-            {footer ? <div className="card__footer">{footer}</div> : null}
-            {actions ? <div className="card__actions">{actions}</div> : null}
-          </div>
-          {back ? (
-            <div className="card__face card__face--flat card__face--back">
-              {meta ? <div className="card__meta">{meta}</div> : null}
-              <div className="card__content">{back}</div>
-              {footer ? <div className="card__footer">{footer}</div> : null}
-              {actions ? <div className="card__actions">{actions}</div> : null}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {showOverlay && overlay ? <div className="card-overlay">{overlay}</div> : null}
-    </section>
-  );
-}
-
-function VoteButtons({
-  first,
-  second,
-  onVote,
-  disabled,
-  randomize,
-  selectedVote,
-  disabledVotes,
-  split,
-}: {
-  first: { vote: ConfidenceVote | MissionVote; symbol: ReactNode };
-  second: { vote: ConfidenceVote | MissionVote; symbol: ReactNode };
-  onVote: (value: ConfidenceVote | MissionVote) => void;
-  disabled?: boolean;
-  randomize?: boolean;
-  selectedVote?: ConfidenceVote | MissionVote | null;
-  disabledVotes?: Array<ConfidenceVote | MissionVote>;
-  split?: boolean;
-}): JSX.Element {
-  const isSwappedRef = useRef<boolean>(randomize === true && Math.random() > 0.5);
-  const order = isSwappedRef.current ? [second, first] : [first, second];
-  const isDisabled = (vote: ConfidenceVote | MissionVote): boolean => disabled === true || disabledVotes?.includes(vote) === true;
-  return (
-    <div className={split === true ? "vote-stack vote-stack--split" : "vote-stack"}>
-      <button
-        type="button"
-        className={selectedVote === order[0].vote ? "vote-btn vote-btn--active" : "vote-btn"}
-        disabled={isDisabled(order[0].vote)}
-        onClick={() => onVote(order[0].vote)}
-      >
-        {order[0].symbol}
-      </button>
-      <button
-        type="button"
-        className={selectedVote === order[1].vote ? "vote-btn vote-btn--active" : "vote-btn"}
-        disabled={isDisabled(order[1].vote)}
-        onClick={() => onVote(order[1].vote)}
-      >
-        {order[1].symbol}
-      </button>
-    </div>
-  );
-}
-
-function StatusBanners({
-  error,
-  onDismiss,
-  notice,
-  onDismissNotice,
-  invite,
-  onAcceptInvite,
-  onDismissInvite,
-  connection,
-  inRoom,
-}: {
-  error: { message: string; id: number } | null;
-  onDismiss: () => void;
-  notice: { message: string; id: number } | null;
-  onDismissNotice: () => void;
-  invite: { code: string; fromName: string } | null;
-  onAcceptInvite: () => void;
-  onDismissInvite: () => void;
-  connection: string;
-  inRoom: boolean;
-}): JSX.Element | null {
-  useEffect(() => {
-    if (error === null) {
-      return;
-    }
-    const timer = window.setTimeout(onDismiss, 5000);
-    return () => window.clearTimeout(timer);
-  }, [error, onDismiss]);
-
-  useEffect(() => {
-    if (notice === null) {
-      return;
-    }
-    const timer = window.setTimeout(onDismissNotice, 4000);
-    return () => window.clearTimeout(timer);
-  }, [notice, onDismissNotice]);
-
-  const connectionMessage =
-    !inRoom ? null : connection === "disconnected" ? "Connexion perdue, reconnexion en cours..." : connection === "connecting" ? "Connexion..." : null;
-
-  if (error === null && connectionMessage === null && notice === null && invite === null) {
-    return null;
-  }
-  return (
-    <div className="status-banners" role="status" aria-live="polite" onClick={(event) => event.stopPropagation()}>
-      {connectionMessage !== null ? <p className="status-banner status-banner--connection">{connectionMessage}</p> : null}
-      {invite !== null ? (
-        <div className="status-banner status-banner--invite">
-          <span>{invite.fromName} t'invite dans la room {invite.code}</span>
-          <button type="button" onClick={onAcceptInvite}>Rejoindre</button>
-          <button type="button" className="secondary" onClick={onDismissInvite}>Ignorer</button>
-        </div>
-      ) : null}
-      {notice !== null ? (
-        <button type="button" className="status-banner status-banner--connection" onClick={onDismissNotice}>
-          {notice.message}
-        </button>
-      ) : null}
-      {error !== null ? (
-        <button type="button" className="status-banner status-banner--error" onClick={onDismiss}>
-          {error.message}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function isGamePhaseUi(phase: UIPhase): boolean {
-  return !["pseudo_entry", "landing", "create_room", "join_room", "waiting_room"].includes(phase);
-}
-
-/** Étape de validation correspondant à un écran, pour restaurer « déjà validé » au resync. */
-function stepForPhase(phase: UIPhase): string | null {
-  const steps: Partial<Record<UIPhase, string>> = {
-    table_order: "table_order",
-    role_reveal: "role_reveal",
-    confidence_vote: "confidence_vote",
-    confidence_result: "confidence_result",
-    mission_execution: "mission_vote",
-    mission_result: "mission_result",
-    end_game: "end_game",
-  };
-  return steps[phase] ?? null;
-}
-
-function formatMissionVotes(naziVoteCount: number, teamSize: number): string {
-  const naziVotes = Math.max(0, naziVoteCount);
-  const communistVotes = Math.max(0, teamSize - naziVotes);
-  return `vote : nazi:${naziVotes} communist:${communistVotes}`;
-}
-
-function MissionProgress({ team, submittedPlayerIds }: { team: string[]; submittedPlayerIds: string[] }): JSX.Element {
-  if (team.length === 0) {
-    return <span className="progress-dots progress-dots--compact" aria-label="progression de mission">...</span>;
-  }
-
-  return (
-    <span className="progress-dots progress-dots--compact" aria-label="progression de mission">
-      {team.map((playerId) => (
-        <span key={playerId} className={submittedPlayerIds.includes(playerId) ? "dot dot--full" : "dot"} />
-      ))}
-    </span>
-  );
 }
 
 export default function App(): JSX.Element {
+  const game = useGameSocket();
   const {
     pseudo,
     roomCode,
@@ -328,35 +86,21 @@ export default function App(): JSX.Element {
     error,
     connection,
     myProgress,
-    gameOver,
     tableOrder,
     role,
     proposal,
-    confidence,
     confidenceHistory,
     mission,
     gameMeta,
     missionHistory,
-    score,
-    winner,
-    revealedRoles,
     setPseudo,
-    confirmPseudo,
     navigate,
     dismissError,
-    createRoom,
-    startGame,
     joinRoom,
     leaveRoom,
     tableOrderTap,
-    adjustTableOrder,
     confirmTableOrder,
-    resetTableOrder,
-    confirmRole,
-    proposeTeam,
-    sendConfidenceVote,
     confirmConfidenceResult,
-    sendMissionVote,
     confirmMissionResult,
     confirmEndGame,
     sendReplayChoice,
@@ -371,12 +115,7 @@ export default function App(): JSX.Element {
     dismissNotice,
     roomStatus,
     chatEnabled,
-    kickPlayer,
-    transferHost,
-    setChatMode,
-    setPublicRoom,
-    isPublic,
-  } = useGameSocket();
+  } = game;
   const account = useAccount();
   const route = useRoute();
   const friends = useFriends(account.status === "user");
@@ -452,7 +191,7 @@ export default function App(): JSX.Element {
   // Par défaut, partie sur place : pas de chat qui encombre l'écran.
   const [remotePlay, setRemotePlay] = useState(false);
   const [publicDraft, setPublicDraft] = useState(false);
-  const [rulesMode, setRulesMode] = useState<"default" | "preset" | "custom">("default");
+  const [rulesMode, setRulesMode] = useState<RulesMode>("default");
   const [presetDraft, setPresetDraft] = useState<RulesetPreset>("PRESET_5J");
   const [customPlayerCount, setCustomPlayerCount] = useState(5);
   const [customNaziCount, setCustomNaziCount] = useState(2);
@@ -460,7 +199,7 @@ export default function App(): JSX.Element {
   const [customMissionSizes, setCustomMissionSizes] = useState("2,3,2,3,3");
   const [customMissionCount, setCustomMissionCount] = useState(5);
   const [customWinThreshold, setCustomWinThreshold] = useState(3);
-  const [customInfoMode, setCustomInfoMode] = useState<"full" | "partial" | "blind">("full");
+  const [customInfoMode, setCustomInfoMode] = useState<InfoMode>("full");
   const [customExperimental, setCustomExperimental] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
   const [tableOrderAdjustPosition, setTableOrderAdjustPosition] = useState(1);
@@ -835,742 +574,70 @@ export default function App(): JSX.Element {
     );
   }
 
-  const screen = ((): JSX.Element => {
-  if (phase === "pseudo_entry") {
-    return (
-      <main className="screen">
-        <section className="panel">
-          <h1>Pseudo</h1>
-          {inviteCode !== null ? <p>Choisis un pseudo pour rejoindre la room {inviteCode}.</p> : null}
-          <input value={pseudo} maxLength={20} onChange={(event) => setPseudo(event.target.value)} placeholder="Votre pseudo" />
-          <button type="button" onClick={confirmPseudo}>
-            Valider
-          </button>
-        </section>
-      </main>
-    );
-  }
-
-  if (phase === "landing") {
-    return (
-      <main className="screen">
-        <section className="panel">
-          <p className="mono">{pseudo || "Sans pseudo"}</p>
-          <h1>Nazi Communiste</h1>
-          <button type="button" onClick={() => navigate("create_room")}>
-            Creer une room
-          </button>
-          <button type="button" onClick={() => navigate("join_room")}>Rejoindre une room</button>
-          <button type="button" className="secondary" onClick={() => navigate("pseudo_entry")}>Modifier pseudo</button>
-        </section>
-      </main>
-    );
-  }
-
-  if (phase === "create_room") {
-    return (
-      <main className="screen">
-        <section className="panel panel--scroll">
-          <h1>Creation room</h1>
-          <input
-            value={roomNameDraft}
-            onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
-            maxLength={24}
-            placeholder="Nom de room (optionnel)"
-          />
-
-          <span className="field-label" id="play-mode-label">Où jouez-vous ?</span>
-          <div className="segmented" role="radiogroup" aria-labelledby="play-mode-label">
-            <button type="button" role="radio" aria-checked={!remotePlay} className={remotePlay ? "secondary" : ""} onClick={() => setRemotePlay(false)}>
-              Sur place
-            </button>
-            <button type="button" role="radio" aria-checked={remotePlay} className={remotePlay ? "" : "secondary"} onClick={() => setRemotePlay(true)}>
-              À distance
-            </button>
-          </div>
-          <p className="field-hint">{remotePlay || publicDraft ? "Un chat est disponible pendant la partie." : "Pas de chat : tout se dit autour de la table."}</p>
-
-          <span className="field-label" id="visibility-label">Qui peut rejoindre ?</span>
-          <div className="segmented" role="radiogroup" aria-labelledby="visibility-label">
-            <button type="button" role="radio" aria-checked={!publicDraft} className={publicDraft ? "secondary" : ""} onClick={() => setPublicDraft(false)}>
-              Sur invitation
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={publicDraft}
-              className={publicDraft ? "" : "secondary"}
-              disabled={account.status !== "user"}
-              onClick={() => {
-                setPublicDraft(true);
-                setRemotePlay(true);
-              }}
-            >
-              Publique
-            </button>
-          </div>
-          {account.status !== "user" ? <p className="field-hint">Connecte-toi pour créer une partie publique, ouverte à tous.</p> : null}
-
-          <label className="field-label">Regles</label>
-          <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
-            <option value="default">Standard (de 4 à 11 joueurs)</option>
-            <option value="preset">Nombre de joueurs fixe</option>
-            <option value="custom">Règles personnalisées</option>
-          </select>
-
-          {rulesMode === "preset" ? (
-            <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
-              {PLAYABLE_PRESETS.map((preset) => (
-                <option key={preset} value={preset}>
-                  {preset.replace("PRESET_", "").replace("J", " joueurs")}
-                </option>
-              ))}
-            </select>
-          ) : null}
-
-          {rulesMode === "custom" ? (
-            <>
-              <input
-                type="number"
-                value={customPlayerCount}
-                min={4}
-                max={11}
-                onChange={(event) => setCustomPlayerCount(Number(event.target.value))}
-                placeholder="player_count"
-              />
-              <input
-                type="number"
-                value={customNaziCount}
-                min={1}
-                onChange={(event) => setCustomNaziCount(Number(event.target.value))}
-                placeholder="nazi_count"
-              />
-              <input
-                type="number"
-                value={customCommunistCount}
-                min={1}
-                onChange={(event) => setCustomCommunistCount(Number(event.target.value))}
-                placeholder="communist_count"
-              />
-              <input
-                value={customMissionSizes}
-                onChange={(event) => setCustomMissionSizes(event.target.value)}
-                placeholder="mission_sizes (ex: 2,3,2,3,3)"
-              />
-              <input
-                type="number"
-                value={customMissionCount}
-                min={1}
-                onChange={(event) => setCustomMissionCount(Number(event.target.value))}
-                placeholder="mission_count"
-              />
-              <input
-                type="number"
-                value={customWinThreshold}
-                min={1}
-                onChange={(event) => setCustomWinThreshold(Number(event.target.value))}
-                placeholder="win_threshold"
-              />
-              <select value={customInfoMode} onChange={(event) => setCustomInfoMode(event.target.value as "full" | "partial" | "blind")}>
-                <option value="full">full</option>
-                <option value="partial">partial</option>
-                <option value="blind">blind</option>
-              </select>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={customExperimental}
-                  onChange={(event) => setCustomExperimental(event.target.checked)}
-                />
-                experimental
-              </label>
-            </>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={() => {
-              const config =
-                rulesMode === "default"
-                  ? null
-                  : rulesMode === "preset"
-                  ? { ruleset_preset: presetDraft }
-                  : {
-                      ruleset: {
-                        player_count: customPlayerCount,
-                        nazi_count: customNaziCount,
-                        communist_count: customCommunistCount,
-                        mission_sizes: customMissionSizes
-                          .split(",")
-                          .map((entry) => Number(entry.trim()))
-                          .filter((entry) => Number.isFinite(entry) && entry > 0),
-                        mission_count: customMissionCount,
-                        win_threshold: customWinThreshold,
-                        info_mode: customInfoMode,
-                        experimental: customExperimental,
-                      },
-                    };
-
-              createRoom({ roomName: roomNameDraft, config, chatEnabled: remotePlay || publicDraft, isPublic: publicDraft });
-            }}
-          >
-            Creer
-          </button>
-          <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
-        </section>
-      </main>
-    );
-  }
-
-  if (phase === "join_room") {
-    return (
-      <main className="screen">
-        <section className="panel panel--scroll">
-          <h1>Rejoindre room</h1>
-          <input
-            value={joinCodeDraft}
-            onChange={(event) => setJoinCodeDraft(event.target.value.toUpperCase())}
-            maxLength={24}
-            placeholder="Code room"
-          />
-          <button type="button" onClick={() => joinRoom(joinCodeDraft)}>Rejoindre</button>
-          <PublicRooms signedIn={account.status === "user"} onJoin={joinRoom} />
-          <button type="button" className="secondary" onClick={() => navigate("landing")}>Retour</button>
-        </section>
-      </main>
-    );
-  }
-
-  if (phase === "waiting_room") {
-    return (
-      <main className="screen">
-        <section className="panel panel--scroll">
-          <RoomInvite code={roomCode} />
-          <h1>Salle d attente</h1>
-          <p className="mono">
-            {isPublic ? "Partie publique · " : ""}
-            {chatEnabled ? "à distance · chat activé" : "sur place · sans chat"}
-          </p>
-          {isHost && account.status === "user" ? (
-            <label className="checkbox-row">
-              <input type="checkbox" checked={isPublic} onChange={(event) => setPublicRoom(event.target.checked)} />
-              Partie publique (listée, comptes uniquement)
-            </label>
-          ) : null}
-          <p className="mono">
-            {flexibleRoom ? `${players.length} joueurs · de ${minPlayers} à ${targetPlayerCount}` : `${players.length} / ${targetPlayerCount} joueurs`}
-          </p>
-          {isHost ? (
-            <div className="segmented" role="radiogroup" aria-label="Mode de jeu">
-              <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>
-                Sur place
-              </button>
-              <button type="button" role="radio" aria-checked={chatEnabled} className={chatEnabled ? "" : "secondary"} onClick={() => setChatMode(true)}>
-                À distance
-              </button>
-            </div>
-          ) : null}
-          <ul className="plain-list lobby-players">
-            {players.map((player) => (
-              <li key={player.id} className="lobby-player">
-                <span className="lobby-player__name">
-                  {player.pseudo ?? player.id} {player.isHost ? "(hôte)" : ""} {player.isConnected === false ? "(déconnecté)" : ""}
-                </span>
-                {isHost && player.id !== myId ? (
-                  <>
-                    <button
-                      type="button"
-                      className="secondary icon-button"
-                      title="Donner le rôle d'hôte"
-                      aria-label={`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"}`}
-                      onClick={() => {
-                        if (window.confirm(`Donner le rôle d'hôte à ${player.pseudo ?? "ce joueur"} ?`)) transferHost(player.id);
-                      }}
-                    >
-                      ♔
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary icon-button"
-                      title="Exclure"
-                      aria-label={`Exclure ${player.pseudo ?? "ce joueur"}`}
-                      onClick={() => {
-                        if (window.confirm(`Exclure ${player.pseudo ?? "ce joueur"} de la room ?`)) kickPlayer(player.id);
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          <div className="lobby-actions">
-            {isHost ? (
-              <button type="button" disabled={!canStart} onClick={startGame}>
-                {canStart
-                  ? `Demarrer (${players.length} joueurs)`
-                  : `En attente : ${players.length} / ${minPlayers} joueurs minimum`}
-              </button>
-            ) : null}
-            <button type="button" className="secondary" onClick={leaveRoom}>
-              Quitter
-            </button>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  if (phase === "table_order") {
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={frontFooter}
-          front={
-            waitingValidationStep === "table_order" ? (
-              <WaitingCard message="En attente des autres joueurs pour confirmer l'ordre de table." />
-            ) : (
-              <>
-                <h2>
-                  {myOrderIndex === -1
-                    ? "Tap pour prendre votre numero d'ordre"
-                    : `Votre numero d'ordre: ${myOrderIndex + 1}`}
-                </h2>
-                <p>Progression: {orderReference.length > 0 ? orderLegend : "..."}</p>
-                <p>
-                  {allOrderChosen
-                    ? "Tap pour passer a la suite (confirmation collective)"
-                    : "En attente des joueurs selon l'ordre de table."}
-                </p>
-              </>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-          actions={
-            myOrderIndex !== -1 ? (
-              <div className="vote-stack">
-                {allOrderChosen ? (
-                  <button
-                    type="button"
-                    className="inline-action"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setShowOrderAdjustInput((current) => !current);
-                    }}
-                  >
-                    J'ai rate pardon
-                  </button>
-                ) : null}
-                {allOrderChosen && showOrderAdjustInput ? (
-                  <>
-                    <input
-                      type="number"
-                      min={1}
-                      max={Math.max(1, players.length)}
-                      value={tableOrderAdjustPosition}
-                      onChange={(event) => setTableOrderAdjustPosition(Number(event.target.value))}
-                    />
-                    <button
-                      type="button"
-                      className="inline-action"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        adjustTableOrder(tableOrderAdjustPosition);
-                        setShowOrderAdjustInput(false);
-                      }}
-                    >
-                      Valider correction
-                    </button>
-                  </>
-                ) : null}
-                {isHost ? (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      resetTableOrder();
-                    }}
-                  >
-                    Revenir en arriere
-                  </button>
-                ) : null}
-              </div>
-            ) : undefined
-          }
-        />
-      </main>
-    );
-  }
-
-  if (phase === "role_reveal") {
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={frontFooter}
-          front={
-            waitingValidationStep === "role_reveal" ? (
-              <WaitingCard message="En attente des autres joueurs." />
-            ) : (
-              <div>
-                <h2>Maintenez pour voir votre role</h2>
-                <p>Puis appuyez sur "C'est bon".</p>
-              </div>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-          onOverlayShown={() => {
-            if (!hasRevealedRoleOnce) {
-              setHasRevealedRoleOnce(true);
-            }
-          }}
-          actions={
-            hasRevealedRoleOnce ? (
-              <button
-                type="button"
-                className="inline-action"
-                onClick={() => {
-                  setWaitingValidationStep("role_reveal");
-                  confirmRole();
-                }}
-              >
-                C'est bon
-              </button>
-            ) : undefined
-          }
-        />
-      </main>
-    );
-  }
-
-  if (phase === "mission_proposal") {
-    const iAmChef = myId !== null && proposal.chefId === myId;
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={frontFooter}
-          front={
-            iAmChef ? (
-              <div>
-                <h2>Choisir equipe ({proposal.teamSize})</h2>
-                <div className="team-grid">
-                  {players.map((player) => {
-                    const selected = selectedTeam.includes(player.id);
-                    return (
-                      <button
-                        key={player.id}
-                        type="button"
-                        className={selected ? "chip chip--active" : "chip"}
-                        onClick={() => {
-                          setSelectedTeam((current) => {
-                            if (selected) {
-                              return current.filter((entry) => entry !== player.id);
-                            }
-                            if (current.length >= proposal.teamSize) {
-                              return current;
-                            }
-                            return [...current, player.id];
-                          });
-                        }}
-                      >
-                        {player.pseudo ?? player.id}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <h2>En attente de la proposition de {proposal.chefId ? nameById(proposal.chefId) : "Chef"}</h2>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-          actions={
-            iAmChef ? (
-              <button
-                type="button"
-                className="inline-action"
-                disabled={selectedTeam.length !== proposal.teamSize || waitingValidationStep === "proposal"}
-                onClick={() => {
-                  setWaitingValidationStep("proposal");
-                  proposeTeam(selectedTeam);
-                }}
-              >
-                Proposer equipe
-              </button>
-            ) : undefined
-          }
-        />
-      </main>
-    );
-  }
-
-  if (phase === "confidence_vote") {
-    const confidenceFooter = <div><p>{missionProgressLabel}</p></div>;
-
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={confidenceFooter}
-          front={
-            waitingValidationStep === "confidence_vote" ? (
-              <WaitingCard message="Vote enregistre, en attente des autres joueurs." />
-            ) : (
-              <div className="vote-phase">
-                <h2>Vote de confiance</h2>
-                <p>{proposal.proposedTeam.map(nameById).join(", ") || "Aucune equipe"}</p>
-                <VoteButtons
-                  first={{ vote: "yes", symbol: "✓" }}
-                  second={{ vote: "no", symbol: "✕" }}
-                  onVote={(value) => {
-                    if (waitingValidationStep === "confidence_vote") {
-                      return;
-                    }
-                    const parsed = value as ConfidenceVote;
-                    setSelectedConfidenceVote(parsed);
-                    setWaitingValidationStep("confidence_vote");
-                    sendConfidenceVote(parsed);
-                  }}
-                  disabled={waitingValidationStep === "confidence_vote"}
-                  selectedVote={selectedConfidenceVote}
-                  split
-                />
-              </div>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-        />
-      </main>
-    );
-  }
-
-  if (phase === "confidence_result") {
-    const confidenceDetails = Object.entries(confidence.votes)
-      .map(([id, vote]) => `${nameById(id)}: ${vote === "yes" ? "Pour" : "Contre"}`)
-      .join(" | ");
-
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={<div><p>{missionProgressLabel}</p></div>}
-          front={
-            waitingValidationStep === "confidence_result" ? (
-              <WaitingCard message="Validation envoyee, en attente des autres." />
-            ) : (
-              <div className="result-panel">
-                <h2>{confidence.approved ? "Majorite POUR" : "Majorite CONTRE"}</h2>
-                <p>{confidenceDetails || "Aucun vote recu"}</p>
-                <p>Tap pour passer a la suite.</p>
-              </div>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-        />
-      </main>
-    );
-  }
-
-  if (phase === "mission_execution") {
-    const onTeam = myId !== null && mission.team.includes(myId);
-    const hasSubmittedMissionVote = myId !== null && mission.submittedPlayerIds.includes(myId);
-    const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
-    const missionFooter = <div><p>{missionProgressLabel}</p></div>;
-
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={missionProgress}
-          meta={frontMeta}
-          footer={missionFooter}
-          front={
-            waitingValidationStep === "mission_vote" || hasSubmittedMissionVote ? (
-              <WaitingCard message="En attente." />
-            ) : onTeam ? (
-              <div className="vote-phase vote-phase--mission">
-                <VoteButtons
-                  first={{ vote: "communist", symbol: <FactionIcon faction="communist" /> }}
-                  second={{ vote: "nazi", symbol: <FactionIcon faction="nazi" /> }}
-                  onVote={(value) => {
-                    if (waitingValidationStep === "mission_vote" || hasSubmittedMissionVote) {
-                      return;
-                    }
-                    const parsed = value as MissionVote;
-                    setSelectedMissionVote(parsed);
-                    setWaitingValidationStep("mission_vote");
-                    sendMissionVote(parsed);
-                  }}
-                  disabled={waitingValidationStep === "mission_vote" || hasSubmittedMissionVote}
-                  selectedVote={selectedMissionVote}
-                  disabledVotes={role.faction === "communist" ? ["nazi"] : role.faction === "nazi" ? [] : ["communist", "nazi"]}
-                  split
-                  randomize
-                />
-              </div>
-            ) : (
-              <WaitingCard message="En attente." />
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-        />
-      </main>
-    );
-  }
-
-  if (phase === "mission_result") {
-    const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
-    const naziVotes = mission.naziVoteCount ?? 0;
-    const communistVotes = Math.max(0, mission.team.length - naziVotes);
-    const roundWinner = mission.result;
-
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={missionProgress}
-          meta={frontMeta}
-          footer={<div><p>{missionProgressLabel}</p></div>}
-          front={
-            waitingValidationStep === "mission_result" ? (
-              <WaitingCard message="Validation envoyee, en attente des autres." />
-            ) : (
-              <div className="result-panel result-panel--mission">
-                <h2>{roundWinner === "nazi" ? "Victoire Nazi" : "Victoire Communiste"}</h2>
-                <p>Votes Nazi: {naziVotes}</p>
-                <p>Votes Communist: {communistVotes}</p>
-                <p>Tap pour passer a la suite.</p>
-              </div>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={roleOverlay}
-        />
-      </main>
-    );
-  }
-
-  if (phase === "end_game" || phase === "replay_waiting") {
-    const sendReplayNow = (): void => {
-      if (waitingValidationStep === "replay_choice") {
-        return;
-      }
-
-      if (phase === "end_game") {
-        if (waitingValidationStep === "end_game") {
-          return;
-        }
-        setQueuedReplayChoice("replay");
-        setWaitingValidationStep("end_game");
-        confirmEndGame();
-        return;
-      }
-
-      setQueuedReplayChoice(null);
-      setWaitingValidationStep("replay_choice");
-      sendReplayChoice("replay");
-    };
-
-    const quitGameNow = (): void => {
-      if (waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game") {
-        return;
-      }
-      setQueuedReplayChoice(null);
-      setWaitingValidationStep("replay_choice");
-      sendReplayChoice("quit");
-    };
-
-    return (
-      <main className="game-screen">
-        <CardSurface
-          scoreLeft={scoreChip("communist", score.communist)}
-          scoreRight={scoreChip("nazi", score.nazi)}
-          scoreCenter={orderReference.length > 0 ? orderLegend : "..."}
-          meta={frontMeta}
-          footer={frontFooter}
-          front={
-            waitingValidationStep === "end_game" ? (
-              <WaitingCard message="Validation envoyee, en attente des autres." />
-            ) : waitingValidationStep === "replay_choice" ? (
-              <WaitingCard message="Choix rejouer envoye, en attente des autres joueurs." />
-            ) : (
-              <div className="result-panel">
-                <h2>Victoire {winner === "nazi" ? "Nazi" : "Communiste"}</h2>
-                {gameOver?.reason === "forfeit" && gameOver.forfeitedBy !== null ? (
-                  <p>Abandon de {nameById(gameOver.forfeitedBy)}</p>
-                ) : null}
-                <p>Rejouer ?</p>
-              </div>
-            )
-          }
-          back={showFullHistory ? expandedBackContent : defaultBackContent}
-          overlay={
-            <div>
-              {roleOverlay}
-              <p>{Object.entries(revealedRoles).map(([id, playerFaction]) => `${nameById(id)}:${playerFaction}`).join(" | ") || "Roles a venir"}</p>
-              {role.faction === "nazi" ? <p>Allies nazis: {naziAllies.length > 0 ? naziAllies.join(", ") : "aucun"}</p> : null}
-            </div>
-          }
-          actions={
-            <div className="vote-stack">
-              <button
-                type="button"
-                className="vote-btn"
-                disabled={waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game"}
-                onClick={sendReplayNow}
-              >
-                Rejouer
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={waitingValidationStep === "replay_choice" || waitingValidationStep === "end_game"}
-                onClick={quitGameNow}
-              >
-                Quitter la game
-              </button>
-            </div>
-          }
-        />
-      </main>
-    );
-  }
-
-  return (
-    <main className="screen">
-      <section className="panel">
-        <h1>Etat de jeu inconnu</h1>
-      </section>
-    </main>
-  );
-  })();
+  const screenContext: ScreenContextValue = {
+    ...game,
+    account,
+    inviteCode,
+    joinCodeDraft,
+    setJoinCodeDraft,
+    roomNameDraft,
+    setRoomNameDraft,
+    remotePlay,
+    setRemotePlay,
+    publicDraft,
+    setPublicDraft,
+    rulesMode,
+    setRulesMode,
+    presetDraft,
+    setPresetDraft,
+    customPlayerCount,
+    setCustomPlayerCount,
+    customNaziCount,
+    setCustomNaziCount,
+    customCommunistCount,
+    setCustomCommunistCount,
+    customMissionSizes,
+    setCustomMissionSizes,
+    customMissionCount,
+    setCustomMissionCount,
+    customWinThreshold,
+    setCustomWinThreshold,
+    customInfoMode,
+    setCustomInfoMode,
+    customExperimental,
+    setCustomExperimental,
+    selectedTeam,
+    setSelectedTeam,
+    tableOrderAdjustPosition,
+    setTableOrderAdjustPosition,
+    showOrderAdjustInput,
+    setShowOrderAdjustInput,
+    showFullHistory,
+    waitingValidationStep,
+    setWaitingValidationStep,
+    setQueuedReplayChoice,
+    selectedConfidenceVote,
+    setSelectedConfidenceVote,
+    selectedMissionVote,
+    setSelectedMissionVote,
+    hasRevealedRoleOnce,
+    setHasRevealedRoleOnce,
+    isHost,
+    canStart,
+    flexibleRoom,
+    nameById,
+    naziAllies,
+    orderReference,
+    orderLegend,
+    myOrderIndex,
+    allOrderChosen,
+    roleOverlay,
+    defaultBackContent,
+    expandedBackContent,
+    frontMeta,
+    frontFooter,
+    missionProgressLabel,
+  };
 
   const page =
     route.page === "auth" ? (
@@ -1623,7 +690,7 @@ export default function App(): JSX.Element {
         connection={connection}
         inRoom={roomCode !== ""}
       />
-      {screen}
+      <ScreenProvider value={screenContext}>{renderScreen(phase)}</ScreenProvider>
       {roomCode !== "" && myId !== null && chatEnabled && route.page === "game" ? (
         <ChatPanel
           messages={chat}
