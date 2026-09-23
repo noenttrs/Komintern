@@ -14,7 +14,7 @@ export class ModerationService {
   public constructor(private readonly store: GameLogStore) {}
 
   public async openCase(input: {
-    trigger: { type: "flagged_word"; words: string[] } | { type: "report"; reporter: Participant; reason: string };
+    trigger: { type: "flagged_word"; words: string[]; categories?: string[] } | { type: "report"; reporter: Participant; reason: string };
     roomCode: string;
     gameId: string | null;
     messages: CaseMessage[];

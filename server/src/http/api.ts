@@ -4,7 +4,7 @@ import { parse as parseCookie, serialize as serializeCookie } from "cookie";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import type { AdminService } from "../admin/service";
+import type { AdminService, Staff } from "../admin/service";
 import { ApiError, PENDING_REGISTRATION_SECONDS, accountView } from "../auth/accounts";
 import { allow } from "../auth/rateLimit";
 import type { User } from "../store/users";
@@ -338,30 +338,36 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
   }));
 
   // ---------------------------------------------------------------- administration
-  // Rôle admin + session élevée par TOTP ; tout autre visiteur reçoit 404 (la zone n'existe pas).
-  const requireAdmin = async (request: AuthedRequest): Promise<void> => {
-    if (!(await admin.isAdmin(request.userId))) throw new ApiError(404, "not_found");
+  // Équipe (admin ou modérateur) + session élevée par TOTP ; tout autre visiteur reçoit 404.
+  // Admin : tout. Modérateur : signalements, comptes (sanctions limitées) et parties anonymes.
+  const requireStaff = async (request: AuthedRequest) => {
+    const member = await admin.staff(request.userId);
+    if (member === null) throw new ApiError(404, "not_found");
+    return member;
   };
-  const requireElevated = async (request: AuthedRequest): Promise<void> => {
-    await requireAdmin(request);
-    if (!(await admin.isElevated(request.userId, request.sessionId))) throw new ApiError(401, "totp_required");
+  const requireElevated = async (request: AuthedRequest, adminOnly = false): Promise<Staff> => {
+    const member = await requireStaff(request);
+    if (adminOnly && member.role !== "admin") throw new ApiError(404, "not_found");
+    const elevated = await admin.elevatedStaff(request.userId, request.sessionId);
+    if (elevated === null) throw new ApiError(401, "totp_required");
+    return elevated;
   };
 
   router.get("/admin/session", route(async (request, response) => {
-    await requireAdmin(request);
-    response.json({ elevated: await admin.isElevated(request.userId, request.sessionId) });
+    const member = await requireStaff(request);
+    response.json({ elevated: await admin.isElevated(request.userId, request.sessionId), role: member.role, totpEnabled: member.totpEnabled });
   }));
   router.post("/admin/session", route(async (request, response) => {
-    await requireAdmin(request);
+    await requireStaff(request);
     await admin.elevate(request.userId as string, request.sessionId as string, request.body?.code);
     response.json({ elevated: true });
   }));
   router.get("/admin/stats", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json(await admin.stats());
   }));
   router.get("/admin/audience", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json(await services.audience.summary(30));
   }));
   router.get("/admin/reports", route(async (request, response) => {
@@ -369,29 +375,34 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.json({ reports: await admin.listReports(request.query.status) });
   }));
   router.get("/admin/reports/:id", route(async (request, response) => {
-    await requireElevated(request);
-    response.json(await admin.report(String(request.params.id)));
+    const actor = await requireElevated(request);
+    response.json(await admin.report(String(request.params.id), actor));
   }));
   router.post("/admin/reports/:id/reveal", route(async (request, response) => {
-    await requireElevated(request);
-    response.json({ identities: await admin.revealReport(String(request.params.id)) });
+    const actor = await requireElevated(request);
+    response.json({ identities: await admin.revealReport(String(request.params.id), actor) });
   }));
   router.post("/admin/reports/:id/resolve", route(async (request, response) => {
-    await requireElevated(request);
-    await admin.resolveReport(String(request.params.id), request.body?.note);
+    const actor = await requireElevated(request);
+    await admin.resolveReport(String(request.params.id), request.body?.note, actor);
     response.status(204).end();
   }));
   router.post("/admin/users/:id/ban", route(async (request, response) => {
-    await requireElevated(request);
-    response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days, request.body?.reason) });
+    const actor = await requireElevated(request);
+    response.json({ bannedUntil: await admin.ban(String(request.params.id), request.body?.days, request.body?.reason, actor) });
   }));
   router.post("/admin/users/:id/warn", route(async (request, response) => {
-    await requireElevated(request);
-    response.json({ warning: await admin.warn(String(request.params.id), request.body?.reason) });
+    const actor = await requireElevated(request);
+    response.json({ warning: await admin.warn(String(request.params.id), request.body?.reason, actor) });
   }));
   router.delete("/admin/users/:id/warnings/:warningId", route(async (request, response) => {
-    await requireElevated(request);
-    await admin.removeWarning(String(request.params.id), String(request.params.warningId));
+    const actor = await requireElevated(request);
+    await admin.removeWarning(String(request.params.id), String(request.params.warningId), actor);
+    response.status(204).end();
+  }));
+  router.post("/admin/users/:id/role", route(async (request, response) => {
+    const actor = await requireElevated(request, true);
+    await admin.setRole(String(request.params.id), request.body?.role ?? null, actor);
     response.status(204).end();
   }));
   router.get("/admin/users", route(async (request, response) => {
@@ -403,11 +414,11 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     response.json({ games: await admin.recentGames(request.query.before) });
   }));
   router.get("/admin/contact", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     response.json({ messages: await admin.listContact() });
   }));
   router.post("/admin/contact/:id/read", route(async (request, response) => {
-    await requireElevated(request);
+    await requireElevated(request, true);
     await admin.markContact(String(request.params.id), request.body?.read);
     response.status(204).end();
   }));

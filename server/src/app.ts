@@ -15,7 +15,7 @@ import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
 import { clientIp, createApi, sessionIdFrom } from "./http/api";
 import { log } from "./logger";
-import { filterMessage } from "./moderation/filter";
+import { scanMessage } from "./moderation/filter";
 import { EngineError } from "./PythonBridge";
 import { RoomManager } from "./RoomManager";
 import type { AnySession, RoomManagerOptions } from "./RoomManager";
@@ -321,12 +321,15 @@ export function createKominternApp(options: AppOptions): KominternApp {
       if (chatCount > 5) {
         throw new Error("too many messages, slow down");
       }
-      const { masked, flagged } = filterMessage(text, services.wordList);
-      roomManager.addChatMessage(context.roomId, context.playerId, masked, text, flagged.length > 0);
+      // Pas de censure : le message s'affiche tel quel ; un terme signalé ouvre seulement un
+      // dossier que les modérateurs vérifient à la main.
+      const flagged = scanMessage(text, services.wordList);
+      roomManager.addChatMessage(context.roomId, context.playerId, text, text, flagged.length > 0);
       // Un dossier par joueur et par room toutes les 10 minutes au plus (les suivants s'y ajoutent via le log).
       if (flagged.length > 0 && (await allow(services.kv, "flag-case", `${context.roomId}:${context.playerId}`, 1, 600))) {
         const author = roomManager.getIdentity(context.roomId, context.playerId);
-        void openModerationCase(context.roomId, { type: "flagged_word", words: flagged }, author === null ? [] : [author]);
+        const trigger = { type: "flagged_word" as const, words: flagged.map((entry) => entry.term), categories: [...new Set(flagged.map((entry) => entry.category))] };
+        void openModerationCase(context.roomId, trigger, author === null ? [] : [author]);
       }
     });
 
@@ -575,7 +578,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
   async function openModerationCase(
     roomId: string,
-    trigger: { type: "flagged_word"; words: string[] } | { type: "report"; reporter: { playerId: string; userId: string | null; pseudo: string }; reason: string },
+    trigger: { type: "flagged_word"; words: string[]; categories?: string[] } | { type: "report"; reporter: { playerId: string; userId: string | null; pseudo: string }; reason: string },
     involved: Array<{ playerId: string; userId: string | null; pseudo: string }>,
   ): Promise<void> {
     try {

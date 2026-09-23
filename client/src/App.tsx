@@ -702,7 +702,7 @@ export default function App(): JSX.Element {
     ) : route.page === "rules" ? (
       <RulesPage playerCount={isGamePhaseUi(phase) ? players.length : null} />
     ) : route.page === "admin" ? (
-      <AdminPage isAdmin={account.user?.isAdmin === true} />
+      <AdminPage isStaff={account.user?.isAdmin === true || account.user?.isModerator === true} />
     ) : null;
 
   return (
@@ -711,6 +711,7 @@ export default function App(): JSX.Element {
         signedIn={account.status === "user"}
         displayName={accountName}
         isAdmin={account.user?.isAdmin === true}
+        isModerator={account.user?.isModerator === true}
         pendingRequests={friends.view.incoming.length}
         alerts={{ settings: alertSettings, update: setAlertSettings }}
         install={install}

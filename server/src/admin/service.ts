@@ -7,7 +7,13 @@ import type { GameLogStore } from "../store/gamelog";
 import type { Kv } from "../store/kv";
 import crypto from "crypto";
 
-import type { AccountWarning, User, UserStore } from "../store/users";
+import type { AccountWarning, StaffRole, User, UserStore } from "../store/users";
+
+/** Membre de l'équipe qui agit : tracé dans le journal de modération. */
+export type Staff = { id: string; name: string; role: StaffRole };
+
+/** Durée maximale d'un bannissement décidé par un modérateur (au-delà : admin). */
+const MODERATOR_MAX_BAN_DAYS = 30;
 
 export type LiveStats = { rooms: number; players: number; connectedPlayers: number; gamesInProgress: number };
 
@@ -23,6 +29,7 @@ export type AdminUserView = {
   banReason: string | null;
   warnings: Array<{ id: string; at: string; reason: string; seen: boolean }>;
   gamesPlayed: number;
+  role: StaffRole | null;
 };
 
 function adminUserView(user: User): AdminUserView {
@@ -35,7 +42,12 @@ function adminUserView(user: User): AdminUserView {
     banReason: user.bannedUntil !== null && user.bannedUntil > new Date() ? user.banReason : null,
     warnings: user.warnings.map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason, seen: warning.seenAt !== null })),
     gamesPlayed: user.stats.wins + user.stats.losses,
+    role: user.role,
   };
+}
+
+function actorLabel(actor: Staff): string {
+  return `${actor.name} (${actor.role === "admin" ? "admin" : "modérateur"})`;
 }
 
 function parseReason(raw: unknown, fallback: string): string {
@@ -62,20 +74,37 @@ export class AdminService {
   ) {}
 
   public async isAdmin(userId: string | undefined): Promise<boolean> {
-    if (userId === undefined) return false;
-    return (await this.users.findById(userId))?.role === "admin";
+    return (await this.staff(userId))?.role === "admin";
+  }
+
+  /** Admin ou modérateur ; null pour tout autre compte. */
+  public async staff(userId: string | undefined): Promise<(Staff & { totpEnabled: boolean }) | null> {
+    if (userId === undefined) return null;
+    const user = await this.users.findById(userId);
+    if (user === null || user.role === null) return null;
+    return { id: user.id, name: user.displayName ?? user.email ?? user.id, role: user.role, totpEnabled: user.totpSecret !== null };
+  }
+
+  /** Membre de l'équipe dont la session a été élevée par un code TOTP, ou null. */
+  public async elevatedStaff(userId: string | undefined, sessionId: string | undefined): Promise<Staff | null> {
+    const member = await this.staff(userId);
+    if (member === null || sessionId === undefined) return null;
+    return (await this.kv.get(`sessadm:${sessionId}`)) === member.id ? { id: member.id, name: member.name, role: member.role } : null;
   }
 
   public async isElevated(userId: string | undefined, sessionId: string | undefined): Promise<boolean> {
-    if (userId === undefined || sessionId === undefined || !(await this.isAdmin(userId))) return false;
-    return (await this.kv.get(`sessadm:${sessionId}`)) === userId;
+    return (await this.elevatedStaff(userId, sessionId)) !== null;
   }
 
   /** Vérifie le code TOTP et élève la session courante (12 h). Un code ne sert qu'une fois. */
   public async elevate(userId: string, sessionId: string, rawCode: unknown): Promise<void> {
     const user = await this.users.findById(userId);
-    if (user === null || user.role !== "admin" || user.totpSecret === null) {
+    if (user === null || user.role === null) {
       throw new ApiError(403, "forbidden");
+    }
+    // La double authentification est obligatoire pour l'équipe (levée d'anonymat, sanctions).
+    if (user.totpSecret === null) {
+      throw new ApiError(403, "totp_setup_required");
     }
     if (!(await allow(this.kv, "totp", userId, 5, 900))) {
       throw new ApiError(429, "too_many_requests");
@@ -99,16 +128,16 @@ export class AdminService {
     return this.gameLogs.listCases(status === "open" || status === "resolved" ? status : undefined);
   }
 
-  public async report(id: string) {
+  public async report(id: string, actor: Staff) {
     const moderationCase = await this.gameLogs.getCase(id);
     if (moderationCase === null) throw new ApiError(404, "not_found");
-    await this.gameLogs.audit({ caseId: id, action: "show", at: new Date(), detail: "admin web" });
+    await this.gameLogs.audit({ caseId: id, action: "show", at: new Date(), actor: actorLabel(actor) });
     return { case: moderationCase, audit: await this.gameLogs.auditTrail(id) };
   }
 
-  public async revealReport(id: string) {
+  public async revealReport(id: string, actor: Staff) {
     if ((await this.gameLogs.getCase(id)) === null) throw new ApiError(404, "not_found");
-    await this.gameLogs.audit({ caseId: id, action: "reveal", at: new Date(), detail: "admin web" });
+    await this.gameLogs.audit({ caseId: id, action: "reveal", at: new Date(), actor: actorLabel(actor) });
     const identities = await this.gameLogs.getIdentities(id);
     const accounts = await this.users.findManyByIds(identities.map((i) => i.userId).filter((u): u is string => u !== null));
     return identities.map((identity) => {
@@ -117,39 +146,50 @@ export class AdminService {
     });
   }
 
-  public async resolveReport(id: string, rawNote: unknown): Promise<void> {
+  public async resolveReport(id: string, rawNote: unknown, actor: Staff): Promise<void> {
     const note = typeof rawNote === "string" && rawNote.trim() !== "" ? rawNote.trim().slice(0, 500) : "résolu";
     if (!(await this.gameLogs.resolveCase(id, note))) throw new ApiError(404, "not_found");
-    await this.gameLogs.audit({ caseId: id, action: "resolve", at: new Date(), detail: note });
+    await this.gameLogs.audit({ caseId: id, action: "resolve", at: new Date(), detail: note, actor: actorLabel(actor) });
   }
 
-  public async ban(userId: string, rawDays: unknown, rawReason?: unknown): Promise<Date | null> {
+  public async ban(userId: string, rawDays: unknown, rawReason: unknown, actor: Staff): Promise<Date | null> {
     const days = Number(rawDays);
     if (!Number.isFinite(days) || days < 0 || days > 3650) throw new ApiError(400, "invalid_input");
-    const target = await this.requireTarget(userId);
+    if (actor.role === "moderator" && days > MODERATOR_MAX_BAN_DAYS) throw new ApiError(403, "ban_too_long_for_moderator");
+    const target = await this.requireTarget(userId, actor);
     const until = days === 0 ? null : new Date(Date.now() + days * 24 * 3600 * 1000);
     const reason = until === null ? null : parseReason(rawReason, "bannissement");
     await this.users.update(userId, { bannedUntil: until, banReason: reason });
-    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: until === null ? "unban" : "ban", at: new Date(), detail: until === null ? undefined : `${days} j · ${reason}` });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: until === null ? "unban" : "ban", at: new Date(), detail: until === null ? undefined : `${days} j · ${reason}`, actor: actorLabel(actor) });
     if (until !== null) await this.onBan(userId);
     return until;
   }
 
-  public async warn(userId: string, rawReason: unknown): Promise<AccountWarning> {
-    const target = await this.requireTarget(userId);
+  public async warn(userId: string, rawReason: unknown, actor: Staff): Promise<AccountWarning> {
+    const target = await this.requireTarget(userId, actor);
     const warning: AccountWarning = { id: `w_${crypto.randomBytes(6).toString("hex")}`, at: new Date(), reason: parseReason(rawReason, "") , seenAt: null };
     if (warning.reason === "") throw new ApiError(400, "invalid_input");
     await this.users.update(userId, { warnings: [...target.warnings, warning].slice(-50) });
-    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "warn", at: warning.at, detail: warning.reason });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "warn", at: warning.at, detail: warning.reason, actor: actorLabel(actor) });
     this.onWarn(userId);
     return warning;
   }
 
-  public async removeWarning(userId: string, warningId: string): Promise<void> {
-    const target = await this.requireTarget(userId);
+  public async removeWarning(userId: string, warningId: string, actor: Staff): Promise<void> {
+    const target = await this.requireTarget(userId, actor);
     if (!target.warnings.some((warning) => warning.id === warningId)) throw new ApiError(404, "not_found");
     await this.users.update(userId, { warnings: target.warnings.filter((warning) => warning.id !== warningId) });
-    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "remove_warning", at: new Date(), detail: warningId });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: "remove_warning", at: new Date(), detail: warningId, actor: actorLabel(actor) });
+  }
+
+  /** Nommer ou retirer un modérateur : réservé à l'admin. Le rôle admin ne se donne qu'en ligne de commande. */
+  public async setRole(userId: string, rawRole: unknown, actor: Staff): Promise<void> {
+    if (actor.role !== "admin") throw new ApiError(403, "forbidden");
+    if (rawRole !== "moderator" && rawRole !== null) throw new ApiError(400, "invalid_input");
+    const target = await this.requireTarget(userId, actor);
+    if (rawRole === "moderator" && (target.displayName === null || !target.emailVerified)) throw new ApiError(400, "invalid_input");
+    await this.users.update(userId, { role: rawRole });
+    await this.gameLogs.audit({ caseId: `user:${target.id}`, action: rawRole === null ? "remove_moderator" : "make_moderator", at: new Date(), actor: actorLabel(actor) });
   }
 
   public async searchUsers(rawQuery: unknown): Promise<AdminUserView[]> {
@@ -167,10 +207,12 @@ export class AdminService {
     return this.gameLogs.recentGames(50, before);
   }
 
-  private async requireTarget(userId: string): Promise<User> {
+  /** Personne ne sanctionne l'admin ; un modérateur ne sanctionne pas un autre membre de l'équipe. */
+  private async requireTarget(userId: string, actor: Staff): Promise<User> {
     const target = await this.users.findById(userId);
     if (target === null) throw new ApiError(404, "not_found");
-    if (target.role === "admin") throw new ApiError(400, "invalid_input");
+    if (target.role === "admin" || target.id === actor.id) throw new ApiError(400, "invalid_input");
+    if (target.role === "moderator" && actor.role !== "admin") throw new ApiError(403, "forbidden");
     return target;
   }
 

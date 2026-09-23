@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiRequestError } from "../api";
 import { PageShell } from "../components/PageShell";
 import { translate, useI18n } from "../i18n";
+import { navigate } from "../router";
 import { GamesTab, UsersTab } from "./AdminModeration";
 
 type Stats = {
@@ -27,7 +28,7 @@ type Report = {
   id: string;
   createdAt: string;
   status: "open" | "resolved";
-  trigger: { type: "flagged_word"; words: string[] } | { type: "report"; reporter: string; reason: string };
+  trigger: { type: "flagged_word"; words: string[]; categories?: string[] } | { type: "report"; reporter: string; reason: string };
   roomCode: string;
   messages: Array<{ pseudonym: string; text: string; at: string; flagged: boolean }>;
   resolution: string | null;
@@ -40,32 +41,70 @@ type ContactMessage = { id: string; createdAt: string; email: string; subject: s
 type Tab = "stats" | "audience" | "games" | "reports" | "users" | "contact";
 
 const TABS: Tab[] = ["stats", "audience", "games", "reports", "users", "contact"];
+/** Le modérateur ne voit que la modération : signalements, comptes et parties anonymes. */
+const MODERATOR_TABS: Tab[] = ["reports", "users", "games"];
+
+export type StaffRole = "admin" | "moderator";
 const TAB_LABELS = { stats: "admin.tabStats", audience: "admin.tabAudience", games: "admin.tabGames", reports: "admin.tabReports", users: "admin.tabUsers", contact: "admin.tabContact" } as const;
+
+const CATEGORY_KEYS = {
+  racisme: "admin.catRacism",
+  antisemitisme: "admin.catAntisemitism",
+  homophobie: "admin.catHomophobia",
+  validisme: "admin.catAbleism",
+  menaces: "admin.catThreats",
+  "incitation-au-suicide": "admin.catSuicide",
+  "harcelement-sexuel": "admin.catSexual",
+  "donnees-personnelles": "admin.catPersonalData",
+} as const;
+
+function categoryLabel(category: string): string {
+  const key = CATEGORY_KEYS[category as keyof typeof CATEGORY_KEYS];
+  return key === undefined ? category : translate(key);
+}
 
 const fmt = (date: string, locale: string): string => new Date(date).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
 
 /** Administration : rôle admin (attribué côté serveur) + double authentification TOTP. */
-export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
+export function AdminPage({ isStaff }: { isStaff: boolean }): JSX.Element {
   const { t } = useI18n();
   const [elevated, setElevated] = useState<boolean | null>(null);
+  const [role, setRole] = useState<StaffRole | null>(null);
+  const [totpEnabled, setTotpEnabled] = useState(true);
   const [code, setCode] = useState("");
-  const [tab, setTab] = useState<Tab>("stats");
+  const [tab, setTab] = useState<Tab | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
-    api<{ elevated: boolean }>("/admin/session")
-      .then((result) => setElevated(result.elevated))
+    if (!isStaff) return;
+    api<{ elevated: boolean; role: StaffRole; totpEnabled: boolean }>("/admin/session")
+      .then((result) => {
+        setElevated(result.elevated);
+        setRole(result.role);
+        setTotpEnabled(result.totpEnabled);
+      })
       .catch(() => setElevated(false));
-  }, [isAdmin]);
+  }, [isStaff]);
 
-  if (!isAdmin) {
+  if (!isStaff) {
     return <PageShell title={t("admin.notFoundTitle")}><p>{t("admin.notFound")}</p></PageShell>;
+  }
+
+  const title = role === "moderator" ? t("admin.moderationTitle") : t("admin.title");
+  if (!totpEnabled) {
+    return (
+      <PageShell title={title}>
+        <div className="panel page-panel">
+          <p>{t("admin.totpSetupRequired")}</p>
+          <button type="button" onClick={() => navigate("/profil")}>{t("admin.openSecurity")}</button>
+        </div>
+      </PageShell>
+    );
   }
 
   if (elevated !== true) {
     return (
-      <PageShell title={t("admin.title")}>
+      <PageShell title={title}>
         <div className="panel page-panel">
           <p>{t("admin.codePrompt")}</p>
           {error !== null ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
@@ -91,16 +130,19 @@ export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
     );
   }
 
+  const tabs = role === "admin" ? TABS : MODERATOR_TABS;
+  const current: Tab = tab !== null && tabs.includes(tab) ? tab : (tabs[0] as Tab);
+
   return (
-    <PageShell title={t("admin.title")} wide>
+    <PageShell title={title} wide>
       <div className="admin-tabs" role="tablist">
-        {TABS.map((entry) => (
-          <button key={entry} type="button" role="tab" aria-selected={tab === entry} className={tab === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
+        {tabs.map((entry) => (
+          <button key={entry} type="button" role="tab" aria-selected={current === entry} className={current === entry ? "" : "secondary"} onClick={() => setTab(entry)}>
             {t(TAB_LABELS[entry])}
           </button>
         ))}
       </div>
-      {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab /> : tab === "users" ? <UsersTab /> : <ContactTab />}
+      {current === "stats" ? <StatsTab /> : current === "audience" ? <AudienceTab /> : current === "games" ? <GamesTab /> : current === "reports" ? <ReportsTab isAdmin={role === "admin"} /> : current === "users" ? <UsersTab isAdmin={role === "admin"} /> : <ContactTab />}
     </PageShell>
   );
 }
@@ -202,7 +244,7 @@ function AudienceTab(): JSX.Element {
   );
 }
 
-function ReportsTab(): JSX.Element {
+function ReportsTab({ isAdmin }: { isAdmin: boolean }): JSX.Element {
   const { t, locale } = useI18n();
   const [status, setStatus] = useState<"open" | "resolved">("open");
   const { data, error, reload } = useLoad<{ reports: Report[] }>(`/admin/reports?status=${status}`);
@@ -231,7 +273,7 @@ function ReportsTab(): JSX.Element {
         </p>
         <p>
           {selected.trigger.type === "flagged_word"
-            ? t("admin.flaggedWords", { words: selected.trigger.words.join(", ") })
+            ? `${t("admin.flaggedWords", { words: selected.trigger.words.join(", ") })}${selected.trigger.categories?.length ? ` · ${selected.trigger.categories.map(categoryLabel).join(", ")}` : ""}`
             : `${t("admin.reportedBy", { reporter: selected.trigger.reporter })}${selected.trigger.reason !== "" ? t("admin.reportReason", { reason: selected.trigger.reason }) : ""}`}
         </p>
         <ol className="admin-log">
@@ -267,9 +309,10 @@ function ReportsTab(): JSX.Element {
                     type="button"
                     className="secondary"
                     onClick={() => {
-                      const days = window.prompt(t("admin.banPrompt", { name: identity.displayName ?? identity.pseudo }), "7");
+                      const days = window.prompt(t(isAdmin ? "admin.banPrompt" : "admin.banPromptModerator", { name: identity.displayName ?? identity.pseudo }), "7");
+                      const reason = days === null || Number(days) === 0 ? "" : window.prompt(t("admin.banReasonPrompt")) ?? "";
                       if (days !== null) {
-                        api(`/admin/users/${identity.userId}/ban`, { body: { days: Number(days) } })
+                        api(`/admin/users/${identity.userId}/ban`, { body: { days: Number(days), reason } })
                           .then(() => setMessage(Number(days) === 0 ? t("admin.unbanned") : t("admin.bannedDays", { days })))
                           .catch((banError: unknown) => setMessage(banError instanceof Error ? banError.message : t("common.error")));
                       }
@@ -311,7 +354,9 @@ function ReportsTab(): JSX.Element {
         {data?.reports.map((report) => (
           <li key={report.id} className="friend-row">
             <button type="button" className="link-button friend-row__name" onClick={() => open(report)}>
-              {report.trigger.type === "flagged_word" ? `⚑ ${report.trigger.words.join(", ")}` : t("admin.reportItem", { reason: report.trigger.reason || t("admin.noReason") })}
+              {report.trigger.type === "flagged_word"
+                ? `⚑ ${report.trigger.categories?.length ? `${report.trigger.categories.map(categoryLabel).join(", ")} · ` : ""}${report.trigger.words.join(", ")}`
+                : t("admin.reportItem", { reason: report.trigger.reason || t("admin.noReason") })}
             </button>
             <span className="mono">{fmt(report.createdAt, locale)}</span>
           </li>

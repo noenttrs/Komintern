@@ -85,6 +85,7 @@ export type Account = {
   hasPassword?: boolean;
   hasGoogle?: boolean;
   isAdmin?: boolean;
+  isModerator?: boolean;
   totpEnabled?: boolean;
   pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
 };

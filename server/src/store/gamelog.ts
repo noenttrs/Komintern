@@ -35,7 +35,7 @@ export type ModerationCase = {
   id: string;
   createdAt: Date;
   status: "open" | "resolved";
-  trigger: { type: "flagged_word"; words: string[] } | { type: "report"; reporter: string; reason: string };
+  trigger: { type: "flagged_word"; words: string[]; categories?: string[] } | { type: "report"; reporter: string; reason: string };
   roomCode: string;
   gameId: string | null;
   messages: ModerationMessage[];
@@ -46,7 +46,8 @@ export type ModerationCase = {
 /** Correspondance pseudonyme ↔ personne, stockée à part et lue seulement en cas de recours. */
 export type ModerationIdentity = { pseudonym: string; playerId: string; userId: string | null; pseudo: string };
 
-export type AuditEntry = { caseId: string; action: string; at: Date; detail?: string };
+/** Journal des actions de modération ; `actor` : qui l'a faite (pseudo et rôle). */
+export type AuditEntry = { caseId: string; action: string; at: Date; detail?: string; actor?: string };
 
 /** Une partie vue par un joueur : ce qu'il a le droit de revoir sur son profil. */
 export type PlayedGame = {

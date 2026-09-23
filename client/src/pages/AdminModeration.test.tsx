@@ -40,7 +40,7 @@ describe("admin moderation tabs", () => {
       },
     });
     vi.spyOn(window, "prompt").mockReturnValue("Récidive");
-    render(<UsersTab />);
+    render(<UsersTab isAdmin />);
     expect(await screen.findByText("Karl")).toBeTruthy();
     expect(screen.getByText(/Insultes/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Avertir" }));

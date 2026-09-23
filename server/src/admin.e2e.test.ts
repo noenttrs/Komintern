@@ -74,7 +74,7 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
   // Admin : mot de passe puis TOTP obligatoire
   const login = await api("/auth/login", { body: { email: "admin@example.org", password: "admin password 123" } });
   assert.equal((await api("/me", { cookie: login.cookie })).body.user.isAdmin, true);
-  assert.deepEqual((await api("/admin/session", { cookie: login.cookie })).body, { elevated: false });
+  assert.deepEqual((await api("/admin/session", { cookie: login.cookie })).body, { elevated: false, role: "admin", totpEnabled: true });
   assert.deepEqual((await api("/admin/stats", { cookie: login.cookie })).body, { error: { code: "totp_required" } });
   assert.equal((await api("/admin/session", { body: { code: "000000" }, cookie: login.cookie })).status, 401);
   const code = totpCode(secret, currentCounter());
@@ -131,4 +131,50 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
     app.services.accounts.loginWithGoogle({ sub: "g-admin", email: "admin@example.org", emailVerified: true, name: null }),
     /admin_password_only/,
   );
+});
+
+test("moderators: named by the admin, need 2FA, and only see moderation with limited bans", async () => {
+  const login = async (email: string, password: string) => (await api("/auth/login", { body: { email, password } })).cookie as string;
+  const make = async (email: string, name: string) =>
+    stores.users.create({ email, emailVerified: true, passwordHash: await hashPassword("some password 123"), googleSub: null, displayName: name });
+  const mod = await make("mod@example.org", "Modo");
+  const target = await make("t@example.org", "Target");
+
+  // L'admin (code suivant : un code ne sert qu'une fois) nomme le modérateur
+  const adminCookie = await login("admin@example.org", "admin password 123");
+  assert.equal((await api("/admin/session", { body: { code: totpCode(secret, currentCounter() + 1) }, cookie: adminCookie })).status, 200);
+  assert.equal((await api(`/admin/users/${mod.id}/role`, { body: { role: "moderator" }, cookie: adminCookie })).status, 204);
+
+  // Sans double authentification, pas d'accès au panel
+  let modCookie = await login("mod@example.org", "some password 123");
+  assert.equal((await api("/me", { cookie: modCookie })).body.user.isModerator, true);
+  assert.deepEqual((await api("/admin/session", { cookie: modCookie })).body, { elevated: false, role: "moderator", totpEnabled: false });
+  assert.equal((await api("/admin/session", { body: { code: "123456" }, cookie: modCookie })).body.error.code, "totp_setup_required");
+
+  // Avec la 2FA : signalements, comptes et parties, mais ni statistiques, ni audience, ni contact, ni rôles
+  const modSecret = generateTotpSecret();
+  await stores.users.update(mod.id, { totpSecret: modSecret });
+  modCookie = await login("mod@example.org", "some password 123");
+  const challenge = (await api("/auth/login", { body: { email: "mod@example.org", password: "some password 123" } })).body;
+  if (challenge.totpRequired === true) {
+    modCookie = (await api("/auth/login/totp", { body: { token: challenge.token, code: totpCode(modSecret, currentCounter()) } })).cookie as string;
+  }
+  assert.equal((await api("/admin/session", { body: { code: totpCode(modSecret, currentCounter() + 1) }, cookie: modCookie })).status, 200);
+  for (const path of ["/admin/reports", "/admin/games", "/admin/users?sanctioned=1"]) {
+    assert.equal((await api(path, { cookie: modCookie })).status, 200, path);
+  }
+  for (const path of ["/admin/stats", "/admin/audience", "/admin/contact"]) {
+    assert.equal((await api(path, { cookie: modCookie })).status, 404, path);
+  }
+  assert.equal((await api(`/admin/users/${target.id}/role`, { body: { role: "moderator" }, cookie: modCookie })).status, 404);
+
+  // Bannissements limités à 30 jours ; personne de l'équipe ne peut être sanctionné par un modérateur
+  assert.equal((await api(`/admin/users/${target.id}/ban`, { body: { days: 60, reason: "x" }, cookie: modCookie })).body.error.code, "ban_too_long_for_moderator");
+  assert.equal((await api(`/admin/users/${target.id}/ban`, { body: { days: 7, reason: "Menaces" }, cookie: modCookie })).status, 200);
+  const adminUser = await stores.users.findByEmail("admin@example.org");
+  assert.equal((await api(`/admin/users/${adminUser!.id}/warn`, { body: { reason: "x" }, cookie: modCookie })).status, 400);
+
+  // L'admin retire le rôle : la zone disparaît pour l'ancien modérateur
+  assert.equal((await api(`/admin/users/${mod.id}/role`, { body: { role: null }, cookie: adminCookie })).status, 204);
+  assert.equal((await api("/admin/reports", { cookie: modCookie })).status, 404);
 });

@@ -1,44 +1,112 @@
-# Mots et expressions signalés dans le chat (un par ligne, insensible à la casse et aux accents).
-# Un message qui en contient est diffusé masqué et ouvre un dossier de modération pseudonymisé.
-# Les expressions de plusieurs mots sont reconnues telles quelles. Les lignes # sont ignorées.
-# Note : le vocabulaire du jeu (nazi, communiste, fasciste…) n'est volontairement pas signalé.
+# Termes signalés dans le chat (un par ligne, insensible à la casse, aux accents, au leetspeak et
+# aux lettres étirées). Rien n'est censuré : le message s'affiche tel quel, mais il ouvre un dossier
+# de modération pseudonymisé, vérifié à la main par un modérateur.
+#
+# Une ligne « @catégorie » range les termes qui suivent. Les expressions de plusieurs mots sont
+# reconnues telles quelles. Les lignes # sont ignorées. Liste relue au démarrage du serveur.
+#
+# Choix assumés :
+# - le vocabulaire du jeu (nazi, communiste, facho, traître, saboteur…) n'est jamais signalé ;
+# - les insultes courantes entre amis (connard, putain, enfoiré…) ne sont pas signalées non plus :
+#   elles noieraient les modérateurs. On signale ce qui justifie un regard humain : haine envers un
+#   groupe, menaces, incitation au suicide, harcèlement sexuel. Les coordonnées personnelles
+#   (téléphone, email) sont détectées à part, dans le code.
 
-# Insultes
-connard
-connasse
-salope
-salaud
-pute
-putain de ta mere
-fils de pute
-fdp
-encule
-enculee
-ntm
-nique ta mere
-batard
-# Homophobie / sexisme
+@racisme
+negre
+negresse
+negro
+bougnoule
+bicot
+raton
+chinetoque
+chintok
+niakoue
+bamboula
+youpin
+youtre
+romanichel
+sale arabe
+sale noir
+sale noire
+sale juif
+sale juive
+sale rom
+sale bougnoule
+retourne dans ton pays
+rentre dans ton pays
+nigger
+nigga
+kike
+chink
+spic
+wetback
+gook
+paki
+towelhead
+raghead
+
+@antisemitisme
+heil hitler
+sieg heil
+1488
+zyklon
+shoah bidon
+la shoah n a pas existe
+les juifs controlent
+four crematoire pour
+gazer les juifs
+
+@homophobie
 pd
 pede
 tapette
 tarlouze
+tafiole
+fiotte
 gouine
-# Racisme
-negre
-negro
-bougnoule
-bicot
-youpin
-chinetoque
-nigger
-nigga
-# Harcèlement / incitation
+travelo
+sale pd
+sale gouine
+faggot
+fag
+dyke
+tranny
+
+@validisme
+sale triso
+sale mongol
+sale handicape
+
+@menaces
+je vais te tuer
+je vais te buter
+je vais te crever
+je vais te retrouver
+je sais ou tu habites
+je sais ou tu vis
+je connais ton adresse
+on va te retrouver
+i will find you
+i know where you live
+i will kill you
+
+@incitation-au-suicide
 suicide toi
+suicides toi
 va te suicider
-va mourir
+tue toi
+pends toi
+va te pendre
+jette toi sous un train
 kys
 kill yourself
-je vais te tuer
-je sais ou tu habites
-faggot
-retard
+
+@harcelement-sexuel
+envoie des nudes
+envoie tes nudes
+montre tes seins
+montre ta chatte
+suce moi
+je vais te violer
+send nudes

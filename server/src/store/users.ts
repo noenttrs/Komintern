@@ -29,10 +29,13 @@ export type User = {
   /** Avertissements de modération ; le joueur les voit à sa prochaine visite (seenAt). */
   warnings: AccountWarning[];
   /** Rôle attribué uniquement en ligne de commande côté serveur, jamais depuis le site. */
-  role: "admin" | null;
+  role: StaffRole | null;
   /** Secret TOTP (base32) de la double authentification, obligatoire pour les admins. */
   totpSecret: string | null;
 };
+
+/** Admin : tout le panel. Modérateur : signalements, comptes (sanctions limitées) et parties anonymes. */
+export type StaffRole = "admin" | "moderator";
 
 export type AccountWarning = { id: string; at: Date; reason: string; seenAt: Date | null };
 

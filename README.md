@@ -40,8 +40,8 @@ Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`doc
 - **Sécurité du compte** : double authentification TOTP facultative, changement d'email confirmé par code.
 - **Prise en main** : règles consultables en pleine partie, astuces de première partie, vibration et son quand c'est son tour.
 - **Notifications Web Push** (même écran verrouillé, iPhone compris en web app) : ton tour, et un avertissement 20 s avant d'être compté absent. Quand un joueur se déconnecte, les autres peuvent choisir de l'attendre ; il est prévenu et retrouve sa place en touchant la notification.
-- **Chat de room repliable** pour jouer à distance, avec **modération** : filtre de termes et signalements, puis dossiers pseudonymisés avec levée d'anonymat tracée.
-- **Administration** protégée par une double authentification (TOTP) : statistiques globales, audience, parties anonymes, signalements, avertissements et bannissements, messages de contact.
+- **Chat de room repliable** pour jouer à distance, **sans censure** : les termes signalés (haine, menaces, harcèlement, coordonnées personnelles) et les signalements ouvrent un dossier pseudonymisé, vérifié à la main par l'équipe, avec levée d'anonymat tracée.
+- **Administration et modération** protégées par une double authentification (TOTP) : l'admin voit tout (statistiques, audience, contact) et nomme des **modérateurs**, qui traitent signalements, avertissements et bannissements (30 jours au plus), chaque action étant tracée.
 - **Mesure d'audience anonyme**, sans cookie ni service tiers (empreinte hachée avec un sel quotidien jamais conservé).
 - **Web app installable** (PWA) et **responsive**, du 320 px au grand écran, dans une direction artistique monochrome.
 - **Pages pour les agents IA** : [`llms.txt`](https://fascismwontget.me/llms.txt) et [`agents.html`](https://fascismwontget.me/agents.html).

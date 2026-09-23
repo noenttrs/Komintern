@@ -51,6 +51,7 @@ export type AccountView = {
   hasPassword?: boolean;
   hasGoogle?: boolean;
   isAdmin?: boolean;
+  isModerator?: boolean;
   totpEnabled?: boolean;
   /** Avertissements de modération pas encore lus (visibles par le joueur lui-même). */
   pendingWarnings?: Array<{ id: string; at: string; reason: string }>;
@@ -101,6 +102,7 @@ export function accountView(user: User, self: boolean): AccountView {
         hasPassword: user.passwordHash !== null,
         hasGoogle: user.googleSub !== null,
         isAdmin: user.role === "admin",
+        isModerator: user.role === "moderator",
         totpEnabled: user.totpSecret !== null,
         pendingWarnings: user.warnings.filter((warning) => warning.seenAt === null).map((warning) => ({ id: warning.id, at: warning.at.toISOString(), reason: warning.reason })),
       }

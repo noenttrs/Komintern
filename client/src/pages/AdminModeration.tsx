@@ -15,6 +15,7 @@ type AdminUser = {
   banReason: string | null;
   warnings: Array<{ id: string; at: string; reason: string; seen: boolean }>;
   gamesPlayed: number;
+  role: "admin" | "moderator" | null;
 };
 
 type AdminGame = {
@@ -40,7 +41,7 @@ function errorText(error: unknown): string {
   return error instanceof ApiRequestError ? error.message : translate("common.error");
 }
 
-export function UsersTab(): JSX.Element {
+export function UsersTab({ isAdmin }: { isAdmin: boolean }): JSX.Element {
   const { t, locale } = useI18n();
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<AdminUser[] | null>(null);
@@ -66,7 +67,7 @@ export function UsersTab(): JSX.Element {
     if (reason !== null && reason.trim() !== "") act(api(`/admin/users/${user.id}/warn`, { body: { reason } }), t("admin.warned"));
   };
   const ban = (user: AdminUser): void => {
-    const days = window.prompt(t("admin.banPrompt", { name: user.displayName ?? user.email ?? "?" }), "7");
+    const days = window.prompt(t(isAdmin ? "admin.banPrompt" : "admin.banPromptModerator", { name: user.displayName ?? user.email ?? "?" }), "7");
     if (days === null) return;
     const reason = Number(days) === 0 ? "" : window.prompt(t("admin.banReasonPrompt")) ?? "";
     act(api(`/admin/users/${user.id}/ban`, { body: { days: Number(days), reason } }), Number(days) === 0 ? t("admin.unbanned") : t("admin.bannedDays", { days }));
@@ -83,6 +84,7 @@ export function UsersTab(): JSX.Element {
           <li key={user.id} className="admin-user">
             <div className="admin-user__head">
               <strong>{user.displayName ?? t("admin.noPseudo")}</strong>
+              {user.role === "moderator" ? <span className="mono">{t("admin.roleModerator")}</span> : null}
               <span className="mono">{user.email ?? ""}</span>
               <span className="mono">{t("admin.userMeta", { date: fmt(user.createdAt, locale), games: user.gamesPlayed })}</span>
             </div>
@@ -102,6 +104,20 @@ export function UsersTab(): JSX.Element {
               </ul>
             ) : null}
             <div className="admin-user__actions">
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    const makeModerator = user.role !== "moderator";
+                    if (window.confirm(makeModerator ? t("admin.makeModeratorConfirm", { name: user.displayName ?? "?" }) : t("admin.removeModeratorConfirm", { name: user.displayName ?? "?" }))) {
+                      act(api(`/admin/users/${user.id}/role`, { body: { role: makeModerator ? "moderator" : null } }), makeModerator ? t("admin.moderatorAdded") : t("admin.moderatorRemoved"));
+                    }
+                  }}
+                >
+                  {user.role === "moderator" ? t("admin.removeModerator") : t("admin.makeModerator")}
+                </button>
+              ) : null}
               <button type="button" className="secondary" onClick={() => warn(user)}>{t("admin.warn")}</button>
               {user.bannedUntil !== null ? (
                 <button type="button" className="secondary" onClick={() => act(api(`/admin/users/${user.id}/ban`, { body: { days: 0 } }), t("admin.unbanned"))}>{t("admin.unban")}</button>

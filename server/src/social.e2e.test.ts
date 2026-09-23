@@ -144,13 +144,16 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
     players.push({ account, socket, playerId: (await done).playerId });
   }
 
-  // --- Chat : message normal, mot signalé masqué, signalement
+  // --- Chat : message normal, insulte entre amis (rien), terme signalé (affiché tel quel, dossier ouvert), signalement
   const normal = next<{ text: string; pseudo: string }>(karlSocket, "chat_message");
   rosaSocket.emit("chat_send", { text: "  salut   tout le monde " });
   assert.deepEqual(await normal.then((m) => [m.pseudo, m.text]), ["Rosa", "salut tout le monde"]);
-  const masked = next<{ text: string }>(rosaSocket, "chat_message");
+  const banter = next<{ text: string }>(rosaSocket, "chat_message");
   karlSocket.emit("chat_send", { text: "Rosa espèce de connard" });
-  assert.equal((await masked).text, "Rosa espèce de *******");
+  assert.equal((await banter).text, "Rosa espèce de connard");
+  const flaggedMessage = next<{ text: string }>(rosaSocket, "chat_message");
+  karlSocket.emit("chat_send", { text: "je sais où tu habites Rosa" });
+  assert.equal((await flaggedMessage).text, "je sais où tu habites Rosa", "no censorship: shown as is");
   const reported = next(rosaSocket, "report_received");
   rosaSocket.emit("report", { playerId: players[1]!.playerId, reason: "insulte" });
   await reported;
@@ -158,6 +161,8 @@ test("accounts, friends, presence, invitations, moderated chat and stats", { tim
   await new Promise((resolve) => setTimeout(resolve, 50));
   const cases = [...logs.cases.values()];
   assert.deepEqual(cases.map((c) => c.trigger.type).sort(), ["flagged_word", "report"]);
+  const flaggedCase = cases.find((c) => c.trigger.type === "flagged_word");
+  assert.deepEqual(flaggedCase?.trigger, { type: "flagged_word", words: ["je sais ou tu habites"], categories: ["menaces"] });
   assert.ok(!JSON.stringify(cases).includes("Rosa") && !JSON.stringify(cases).includes("Karl"), "cases are pseudonymized");
   assert.ok(JSON.stringify([...logs.identities.values()]).includes(karl!.id), "the server keeps the link to the accounts");
 

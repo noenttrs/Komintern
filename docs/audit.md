@@ -226,3 +226,13 @@ Relecture complète (comptes et API, temps réel et fuites d'information, bases 
 Vérifié sans problème : aucune fuite de rôle ou de vote secret (émissions, resync, duel), aucun secret de reconnexion ni userId diffusé, pas d'injection d'opérateurs Mongo, utilisateurs Mongo cloisonnés, bases non exposées, pas de secret dans l'historique Git, sessions et mots de passe (argon2id), TOTP, CSRF par contrôle de l'`Origin`, push limité aux services des navigateurs, aucun rendu HTML de texte utilisateur.
 
 Limites assumées : un invité exclu peut revenir avec une nouvelle identité (bloquer l'IP exclurait aussi ses voisins de table sur le même Wi-Fi) ; la double authentification se bloque 15 min après 5 codes faux, y compris pour le propriétaire si son mot de passe est connu d'un tiers (il doit alors le changer).
+
+---
+
+# v6 — modération sans censure et rôle modérateur (2026-09-23)
+
+| Sujet | Choix |
+|---|---|
+| Liberté d'expression | Plus aucun masquage dans le chat : un terme signalé ouvre seulement un dossier pseudonymisé, vérifié à la main. |
+| Liste des termes | Rangée par catégorie (racisme, antisémitisme, homophobie, validisme, menaces, incitation au suicide, harcèlement sexuel) ; coordonnées personnelles (téléphone, email) détectées à part. Le vocabulaire du jeu et les insultes courantes entre amis ne sont pas signalés, pour ne pas noyer les modérateurs. |
+| Rôle modérateur | Nommé par l'admin depuis le panel. Double authentification obligatoire. Accès limité aux signalements, comptes et parties anonymes ; bannissements de 30 jours au plus ; ne peut sanctionner ni l'admin ni un autre modérateur. Chaque action (consultation, levée d'anonymat, avertissement, bannissement, nomination) est tracée avec son auteur. |

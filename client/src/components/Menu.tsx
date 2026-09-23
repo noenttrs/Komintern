@@ -9,6 +9,7 @@ type MenuProps = {
   signedIn: boolean;
   displayName: string | null;
   isAdmin?: boolean;
+  isModerator?: boolean;
   pendingRequests: number;
   alerts?: { settings: AlertSettings; update: (settings: AlertSettings) => void };
   install: { canPrompt: boolean; isIos: boolean; installed: boolean; install: () => Promise<void> };
@@ -17,7 +18,7 @@ type MenuProps = {
 };
 
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
-export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, alerts, install, pushPublicKey }: MenuProps): JSX.Element {
+export function Menu({ signedIn, displayName, isAdmin = false, isModerator = false, pendingRequests, alerts, install, pushPublicKey }: MenuProps): JSX.Element {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
@@ -97,7 +98,9 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
         ) : (
           <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>{t("menu.login")}</button>
         )}
-        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{t("menu.admin")}</button> : null}
+        {isAdmin || isModerator ? (
+          <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{isAdmin ? t("menu.admin") : t("menu.moderation")}</button>
+        ) : null}
         <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>{t("menu.support")}</button>
         {!install.installed && (install.canPrompt || install.isIos) ? (
           <button
