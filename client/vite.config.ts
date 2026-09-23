@@ -35,6 +35,8 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/agents\.html$/, /^\/llms\.txt$/, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
         runtimeCaching: [],
+        // Gestion des notifications de partie (push, clic) dans le service worker.
+        importScripts: ["/push-sw.js"],
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,

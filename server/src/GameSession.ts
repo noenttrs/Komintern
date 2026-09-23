@@ -45,7 +45,11 @@ export type SessionConfig = {
   engineTimeoutMs?: number;
   /** Pause laissée aux clients pour leur animation de révélation. */
   revealPauseMs?: number;
+  /** Des joueurs doivent agir (proposer, voter, jouer la mission) : notifications. */
+  onTurn?: (playerIds: string[], kind: TurnKind) => void;
 };
+
+export type TurnKind = "proposal" | "vote" | "mission";
 
 type SessionPhase =
   | "table_order"
@@ -349,10 +353,18 @@ export class GameSession {
       if (!this.playerIds.includes(playerId)) {
         return;
       }
-      const inProgress = this.engineStarted && this.phase !== "end_game" && this.phase !== "finished";
-      const faction = this.roleMap[playerId];
-      if (!inProgress || faction === undefined) {
+      if (this.phase === "end_game" || this.phase === "finished") {
         await this.reevaluate();
+        return;
+      }
+      const faction = this.roleMap[playerId];
+      if (!this.engineStarted || faction === undefined) {
+        // Parti avant la distribution des rôles : il resterait dans l'ordre des chefs et pourrait
+        // bloquer la partie. On l'annule et la room revient au salon, sans lui.
+        log.info("game aborted: player absent before roles", { roomId: this.roomId, playerId });
+        this.toRoom(SERVER_EVENTS.GAME_ABORTED, { reason: "player_absent", playerId });
+        this.dispose();
+        this.config.onAborted("player_absent", this.summary());
         return;
       }
 
@@ -775,6 +787,7 @@ export class GameSession {
       return;
     }
     this.io.to(this.roomId).emit(event, payload);
+    this.notifyTurn(event);
   }
 
   private toPlayer(playerId: string, event: string, payload?: unknown): void {
@@ -802,6 +815,18 @@ export class GameSession {
 
   private engine(command: string, args: Record<string, unknown>): Promise<unknown> {
     return this.bridge.send(command, args);
+  }
+
+  /** Qui doit agir après cet événement ; la room décide qui prévenir (écran éteint, déconnecté). */
+  private notifyTurn(event: string): void {
+    if (this.config.onTurn === undefined || this.disposed) return;
+    if (event === SERVER_EVENTS.PROPOSAL_PHASE && this.phase === "proposing" && this.round !== null) {
+      this.config.onTurn([this.round.chefId], "proposal");
+    } else if (event === SERVER_EVENTS.CONFIDENCE_PHASE) {
+      this.config.onTurn(this.activeIds(), "vote");
+    } else if (event === SERVER_EVENTS.MISSION_PHASE) {
+      this.config.onTurn(this.activeTeam(), "mission");
+    }
   }
 
   private activeIds(): string[] {

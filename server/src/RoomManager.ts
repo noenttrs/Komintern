@@ -4,11 +4,11 @@ import type { Server } from "socket.io";
 
 import { SERVER_EVENTS } from "./events";
 import { GameSession } from "./GameSession";
-import type { BridgeLike, GameSummary } from "./GameSession";
+import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
 import { MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
 import type { RulesetPreset } from "./rulesets";
-import type { RoomStatus, RoomUpdatedPayload } from "./types";
+import type { PlayerSummary, PushSubscriptionData, RoomStatus, RoomUpdatedPayload } from "./types";
 
 export type ChatMessage = { id: string; playerId: string; pseudo: string; text: string; at: number };
 
@@ -40,6 +40,22 @@ export type RoomHooks = {
   onGameRecorded?: (game: RecordedGame) => Promise<void> | void;
   /** Des comptes entrent en partie ou en sortent (présence « en partie »). */
   onUsersInGame?: (userIds: string[], inGame: boolean) => void;
+  /** Notification à un joueur (écran éteint ou déconnecté) ; la room fournit son abonnement. */
+  onNotify?: (code: string, playerId: string, notification: PlayerNotification) => void;
+};
+
+export type PlayerNotification =
+  | { kind: TurnKind }
+  | { kind: "absence_warning"; secondsLeft: number }
+  | { kind: "absence_hold"; by: string };
+
+/** Absence d'un joueur en pleine partie : compte à rebours avant l'abandon, ou mise en attente. */
+type Absence = {
+  since: number;
+  kickAt: number;
+  /** Pseudo du joueur qui a choisi d'attendre, ou null pendant le compte à rebours normal. */
+  heldBy: string | null;
+  timers: NodeJS.Timeout[];
 };
 
 const CHAT_HISTORY_LIMIT = 100;
@@ -62,6 +78,10 @@ type RoomRecord = {
   pseudoByPlayer: Map<string, string>;
   afkTimers: Map<string, NodeJS.Timeout>;
   afkPlayers: Set<string>;
+  absences: Map<string, Absence>;
+  /** Joueurs connectés dont l'écran est caché (téléphone verrouillé, autre app). */
+  hiddenPlayers: Set<string>;
+  pushByPlayer: Map<string, PushSubscriptionData>;
   replayRequests: Set<string>;
   /** Secrets de reconnexion des joueurs exclus : ils ne peuvent pas revenir dans cette room. */
   kickedUids: Set<string>;
@@ -78,6 +98,10 @@ export type RoomManagerOptions = {
   pythonPath: string;
   enginePath: string;
   afkTimeoutMs?: number;
+  /** Durée d'une mise en attente d'un joueur absent, choisie par les autres. */
+  absenceHoldMs?: number;
+  /** Avertissement (notification) envoyé à l'absent avant son abandon. */
+  absenceWarningMs?: number;
   emptyRoomGraceMs?: number;
   maxRooms?: number;
   engineTimeoutMs?: number;
@@ -104,6 +128,8 @@ export type JoinResult = {
 };
 
 const DEFAULT_AFK_TIMEOUT_MS = 60_000;
+const DEFAULT_ABSENCE_HOLD_MS = 5 * 60_000;
+const DEFAULT_ABSENCE_WARNING_MS = 20_000;
 const DEFAULT_EMPTY_ROOM_GRACE_MS = 120_000;
 const DEFAULT_MAX_ROOMS = 200;
 
@@ -165,6 +191,9 @@ export class RoomManager {
       pseudoByPlayer: new Map(),
       afkTimers: new Map(),
       afkPlayers: new Set(),
+      absences: new Map(),
+      hiddenPlayers: new Set(),
+      pushByPlayer: new Map(),
       replayRequests: new Set(),
       kickedUids: new Set(),
       kickedUserIds: new Set(),
@@ -195,6 +224,7 @@ export class RoomManager {
         room.playerByUid.set(playerUid, knownPlayerId);
       }
       this.cancelEmptyTimer(room);
+      room.hiddenPlayers.delete(knownPlayerId);
       this.clearAfk(room, knownPlayerId);
       this.reassignHostIfNeeded(room);
       this.emitRoomUpdated(room);
@@ -211,7 +241,9 @@ export class RoomManager {
     if ((playerUid !== undefined && room.kickedUids.has(playerUid)) || (userId !== undefined && room.kickedUserIds.has(userId))) {
       throw new Error("you were removed from this room by the host");
     }
-    if (room.status !== "waiting" || room.starting) {
+    // Entre deux parties (écran de fin), la room accueille de nouveau : un joueur compté absent
+    // retrouve ses amis au lieu d'une erreur.
+    if ((room.status !== "waiting" && room.status !== "finished") || room.starting) {
       throw new Error("the game has already started in this room");
     }
     if (room.isPublic && userId === undefined) {
@@ -245,6 +277,7 @@ export class RoomManager {
 
     if (room.session !== undefined && room.session.hasPlayer(playerId) && room.status !== "finished") {
       // Quitter en pleine partie = abandon immédiat, comme un AFK.
+      this.clearAbsence(room, playerId);
       room.afkPlayers.add(playerId);
       room.socketByPlayer.delete(playerId);
       this.io.to(code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
@@ -395,6 +428,7 @@ export class RoomManager {
       },
       onGameFinished: (nextChefId, summary) => this.onGameFinished(room, session, nextChefId, summary),
       onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
+      onTurn: (playerIds, kind) => this.notifyAway(room, playerIds, { kind }),
       randomIndexProvider: this.options.randomIndexProvider,
       bridge: this.options.bridgeFactory?.(),
       pythonPath: this.options.pythonPath,
@@ -468,6 +502,7 @@ export class RoomManager {
         isHost: room.hostPlayerId === playerId,
         isAfk: room.afkPlayers.has(playerId),
         isConnected: room.socketByPlayer.has(playerId),
+        absence: this.absencePayload(room, playerId),
       })),
       code,
       hostPlayerId: room.hostPlayerId,
@@ -537,6 +572,53 @@ export class RoomManager {
       if (room.session !== undefined) gamesInProgress += 1;
     }
     return { rooms: this.rooms.size, players, connectedPlayers, gamesInProgress };
+  }
+
+  // ---------------------------------------------------------------- absences et notifications
+
+  /** Un joueur présent choisit d'attendre un absent : l'abandon est repoussé. */
+  public holdForPlayer(code: string, byPlayerId: string, targetId: string): void {
+    const room = this.requireRoom(code);
+    this.requirePresentPlayer(room, byPlayerId);
+    if (!room.absences.has(targetId)) {
+      throw new Error("this player is not away");
+    }
+    const holdMs = this.options.absenceHoldMs ?? DEFAULT_ABSENCE_HOLD_MS;
+    const by = room.pseudoByPlayer.get(byPlayerId) ?? byPlayerId;
+    this.startAbsence(room, targetId, holdMs, by);
+    this.options.hooks?.onNotify?.(code, targetId, { kind: "absence_hold", by });
+  }
+
+  /** Fin de l'attente : l'absent a encore le délai d'avertissement pour revenir (et il est prévenu). */
+  public releaseHold(code: string, byPlayerId: string, targetId: string): void {
+    const room = this.requireRoom(code);
+    this.requirePresentPlayer(room, byPlayerId);
+    if (room.absences.get(targetId)?.heldBy == null) {
+      throw new Error("nobody is waiting for this player");
+    }
+    this.startAbsence(room, targetId, this.options.absenceWarningMs ?? DEFAULT_ABSENCE_WARNING_MS, null);
+  }
+
+  /** Écran visible ou caché (téléphone verrouillé) : les notifications ne vont qu'aux écrans cachés. */
+  public setVisibility(code: string, playerId: string, visible: boolean): void {
+    const room = this.rooms.get(code);
+    if (room === undefined || !room.playerIds.includes(playerId)) return;
+    if (visible) room.hiddenPlayers.delete(playerId);
+    else room.hiddenPlayers.add(playerId);
+  }
+
+  /** Abonnement Web Push du joueur, gardé en mémoire le temps de la room. null : désabonnement. */
+  public setPushSubscription(code: string, playerId: string, subscription: PushSubscriptionData | null): void {
+    const room = this.requireRoom(code);
+    if (!room.playerIds.includes(playerId)) {
+      throw new Error("unknown player for this room");
+    }
+    if (subscription === null) room.pushByPlayer.delete(playerId);
+    else room.pushByPlayer.set(playerId, subscription);
+  }
+
+  public getPushSubscription(code: string, playerId: string): PushSubscriptionData | undefined {
+    return this.rooms.get(code)?.pushByPlayer.get(playerId);
   }
 
   public getCurrentGameId(code: string): string | null {
@@ -659,6 +741,8 @@ export class RoomManager {
     room.pseudoByPlayer.delete(playerId);
     room.userIdByPlayer.delete(playerId);
     room.replayRequests.delete(playerId);
+    room.hiddenPlayers.delete(playerId);
+    room.pushByPlayer.delete(playerId);
     for (const [uid, mapped] of room.playerByUid) {
       if (mapped === playerId) {
         room.playerByUid.delete(uid);
@@ -698,6 +782,10 @@ export class RoomManager {
   }
 
   private scheduleAfk(room: RoomRecord, playerId: string): void {
+    if (this.inGame(room)) {
+      this.startAbsence(room, playerId, this.options.afkTimeoutMs ?? DEFAULT_AFK_TIMEOUT_MS, null);
+      return;
+    }
     const existing = room.afkTimers.get(playerId);
     if (existing !== undefined) {
       clearTimeout(existing);
@@ -719,6 +807,7 @@ export class RoomManager {
       this.removePlayer(room, playerId);
       return;
     }
+    this.clearAbsence(room, playerId);
     room.afkPlayers.add(playerId);
     this.io.to(room.code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
     this.emitRoomUpdated(room);
@@ -732,6 +821,71 @@ export class RoomManager {
       room.afkTimers.delete(playerId);
     }
     room.afkPlayers.delete(playerId);
+    this.clearAbsence(room, playerId);
+  }
+
+  private inGame(room: RoomRecord): boolean {
+    return room.session !== undefined && room.status !== "waiting" && room.status !== "finished";
+  }
+
+  private requirePresentPlayer(room: RoomRecord, playerId: string): void {
+    if (!room.playerIds.includes(playerId) || !room.socketByPlayer.has(playerId) || room.afkPlayers.has(playerId)) {
+      throw new Error("unknown player for this room");
+    }
+    if (!this.inGame(room)) {
+      throw new Error("only possible during a game");
+    }
+  }
+
+  /** (Re)lance le compte à rebours d'un absent : avertissement avant la fin, puis abandon. */
+  private startAbsence(room: RoomRecord, playerId: string, durationMs: number, heldBy: string | null): void {
+    const previous = room.absences.get(playerId);
+    previous?.timers.forEach(clearTimeout);
+    const now = Date.now();
+    const absence: Absence = { since: previous?.since ?? now, kickAt: now + durationMs, heldBy, timers: [] };
+    const warningMs = this.options.absenceWarningMs ?? DEFAULT_ABSENCE_WARNING_MS;
+    const stillAway = () => this.rooms.get(room.code) === room && room.absences.get(playerId) === absence && !room.socketByPlayer.has(playerId);
+    const warn = setTimeout(() => {
+      if (stillAway()) {
+        this.options.hooks?.onNotify?.(room.code, playerId, { kind: "absence_warning", secondsLeft: Math.round(Math.min(warningMs, durationMs) / 1000) });
+      }
+    }, Math.max(0, durationMs - warningMs));
+    const kick = setTimeout(() => {
+      if (!stillAway() || !room.playerIds.includes(playerId)) return;
+      room.absences.delete(playerId);
+      this.markAfk(room, playerId);
+    }, durationMs);
+    warn.unref();
+    kick.unref();
+    absence.timers.push(warn, kick);
+    room.absences.set(playerId, absence);
+    this.emitRoomUpdated(room);
+  }
+
+  private clearAbsence(room: RoomRecord, playerId: string): void {
+    const absence = room.absences.get(playerId);
+    if (absence === undefined) return;
+    absence.timers.forEach(clearTimeout);
+    room.absences.delete(playerId);
+  }
+
+  private absencePayload(room: RoomRecord, playerId: string): PlayerSummary["absence"] {
+    const absence = room.absences.get(playerId);
+    if (absence === undefined) return null;
+    const now = Date.now();
+    return { kickInMs: Math.max(0, absence.kickAt - now), awayForMs: now - absence.since, heldBy: absence.heldBy };
+  }
+
+  /** Prévient ceux qui ne regardent pas le jeu : écran caché ou déconnectés (mais pas abandonnés). */
+  private notifyAway(room: RoomRecord, playerIds: string[], notification: PlayerNotification): void {
+    const notify = this.options.hooks?.onNotify;
+    if (notify === undefined) return;
+    for (const playerId of playerIds) {
+      const away = !room.socketByPlayer.has(playerId) || room.hiddenPlayers.has(playerId);
+      if (away && !room.afkPlayers.has(playerId) && room.pushByPlayer.has(playerId)) {
+        notify(room.code, playerId, notification);
+      }
+    }
   }
 
   /** Si plus personne n'est connecté, la room (et son process Python) disparaît après un délai. */
@@ -761,6 +915,9 @@ export class RoomManager {
       clearTimeout(timer);
     }
     room.afkTimers.clear();
+    for (const playerId of [...room.absences.keys()]) {
+      this.clearAbsence(room, playerId);
+    }
   }
 
   /** L'hôte doit être un joueur présent ; on préfère un joueur connecté. */

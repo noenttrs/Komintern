@@ -14,6 +14,8 @@ export type Config = {
   google?: { clientId: string; clientSecret: string };
   legal: { editorName: string; contactEmail: string };
   donationUrl: string;
+  /** Clés VAPID des notifications Web Push ; absentes : notifications désactivées. */
+  vapid?: { publicKey: string; privateKey: string; subject: string };
   logRetentionAnonymizeDays: number;
 };
 
@@ -29,6 +31,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     .filter((entry) => entry.length > 0 && entry !== "*");
   const googleId = optional(env.GOOGLE_CLIENT_ID);
   const googleSecret = optional(env.GOOGLE_CLIENT_SECRET);
+  const vapidPublic = optional(env.VAPID_PUBLIC_KEY);
+  const vapidPrivate = optional(env.VAPID_PRIVATE_KEY);
+  const contact = optional(env.LEGAL_CONTACT_EMAIL);
 
   return {
     publicUrl,
@@ -41,8 +46,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     resendApiKey: optional(env.RESEND_API_KEY),
     emailFrom: optional(env.EMAIL_FROM) ?? "Nazi Communiste <noreply@localhost>",
     google: googleId !== undefined && googleSecret !== undefined ? { clientId: googleId, clientSecret: googleSecret } : undefined,
-    legal: { editorName: optional(env.LEGAL_EDITOR_NAME) ?? "", contactEmail: optional(env.LEGAL_CONTACT_EMAIL) ?? "" },
+    legal: { editorName: optional(env.LEGAL_EDITOR_NAME) ?? "", contactEmail: contact ?? "" },
     donationUrl: /^https:\/\/[^\s"<>]+$/.test(env.DONATION_URL ?? "") ? (env.DONATION_URL as string) : "",
+    vapid:
+      vapidPublic !== undefined && vapidPrivate !== undefined
+        ? { publicKey: vapidPublic, privateKey: vapidPrivate, subject: contact !== undefined ? `mailto:${contact}` : publicUrl }
+        : undefined,
     logRetentionAnonymizeDays: parsePositiveIntEnv(env.LOG_ANONYMIZE_AFTER_DAYS, 365),
   };
 }

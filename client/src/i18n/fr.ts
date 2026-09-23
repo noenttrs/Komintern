@@ -44,6 +44,9 @@ export const fr = {
     iosHelp: "Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».",
     vibration: "Vibrer quand c'est mon tour",
     sound: "Son quand c'est mon tour",
+    notifications: "Notifications (écran verrouillé)",
+    notificationsInstall: "Sur iPhone, installe l'app sur l'écran d'accueil pour recevoir les notifications.",
+    notificationsDenied: "Notifications bloquées : autorise-les dans les réglages du navigateur.",
     about: "À propos",
     contact: "Contact",
     legal: "Mentions légales",
@@ -243,7 +246,17 @@ export const fr = {
   pageShell: {
     back: "← Retour au jeu",
   },
+  absence: {
+    title: "{name} s'est déconnecté",
+    countdownForfeit: "Sans retour dans {left}, son camp perd la partie.",
+    countdownCancel: "Sans retour dans {left}, la partie est annulée.",
+    wait: "Attendre {name}",
+    dontWait: "Ne pas attendre",
+    held: "{by} attend {name} · encore {left}",
+    stopWaiting: "Ne plus attendre",
+  },
   notices: {
+    abortedAbsent: "Partie annulée : {name} est parti avant la distribution des rôles. Retour au salon.",
     friendFallback: "Un ami",
     reportSent: "Signalement envoyé. Merci, il sera examiné.",
     kicked: "L'hôte t'a retiré de la room.",
@@ -575,6 +588,9 @@ export const fr = {
     audience:
       "Le site compte ses visites de façon anonyme, sans cookie et sans service tiers : nombre de pages vues par page, et nombre de visiteurs distincts par jour. Ce dernier est calculé à partir d'une empreinte technique (adresse IP et navigateur) hachée avec une clé renouvelée chaque jour et jamais conservée : il est impossible de suivre un visiteur d'un jour à l'autre ou de l'identifier. Les compteurs sont conservés 13 mois. Base légale : l'intérêt légitime (mesure d'audience exemptée de consentement). Le signal « Do Not Track » de ton navigateur est respecté.",
     optOut: "Ne pas compter mes visites",
+    pushTitle: "Notifications",
+    push:
+      "Si tu actives les notifications, ton navigateur fournit une adresse d'abonnement qui passe par son service de push (Apple, Google ou Mozilla, selon l'appareil). Elle n'est gardée qu'en mémoire, le temps de la room, et sert uniquement à te prévenir de ton tour ou de ton absence. Le texte des notifications ne dévoile jamais de rôle. Tu peux les couper à tout moment dans le menu.",
     cookiesTitle: "Cookies",
     cookies:
       "Un seul cookie est utilisé : le cookie de session, strictement nécessaire à la connexion. Il n'y a ni cookie publicitaire ni mesure d'audience, donc pas de bandeau de consentement.",

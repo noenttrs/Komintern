@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AlertSettings } from "../hooks/useTurnAlerts";
 import { useI18n } from "../i18n";
 import { navigate } from "../router";
+import { PushToggle } from "./PushToggle";
 
 type MenuProps = {
   signedIn: boolean;
@@ -11,10 +12,12 @@ type MenuProps = {
   pendingRequests: number;
   alerts?: { settings: AlertSettings; update: (settings: AlertSettings) => void };
   install: { canPrompt: boolean; isIos: boolean; installed: boolean; install: () => Promise<void> };
+  /** Clé publique des notifications ; absente : option masquée. */
+  pushPublicKey?: string | null;
 };
 
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
-export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, alerts, install }: MenuProps): JSX.Element {
+export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, alerts, install, pushPublicKey }: MenuProps): JSX.Element {
   const { t, lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
@@ -127,6 +130,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, pendingRequests, 
               />
               {t("menu.sound")}
             </label>
+            {pushPublicKey ? <PushToggle publicKey={pushPublicKey} tabIndex={open ? 0 : -1} /> : null}
           </div>
         ) : null}
         <div className="segmented menu-lang" role="group" aria-label={t("menu.language")}>

@@ -28,6 +28,15 @@ export interface PlayerSummary {
   isHost: boolean;
   isAfk: boolean;
   isConnected: boolean;
+  /** Déconnecté en pleine partie : temps restant avant l'abandon, et qui l'attend éventuellement. */
+  absence: { kickInMs: number; awayForMs: number; heldBy: string | null } | null;
+}
+
+/** Abonnement Web Push validé (voir push/push.ts). */
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  lang: "fr" | "en";
 }
 
 export interface RoomUpdatedPayload {

@@ -4,6 +4,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { FactionIcon } from "./components/game/FactionIcon";
 import { formatMissionVotes, isGamePhaseUi, stepForPhase } from "./components/game/phases";
 import { StatusBanners } from "./components/game/StatusBanners";
+import { AbsencePrompt } from "./components/AbsencePrompt";
 import { Menu } from "./components/Menu";
 import { useAccount } from "./hooks/useAccount";
 import { useFriends } from "./hooks/useFriends";
@@ -521,7 +522,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const handleGlobalTap = (event: MouseEvent): void => {
       const target = event.target as HTMLElement | null;
-      if (target !== null && target.closest("button, input, select, textarea, label")) {
+      if (target !== null && target.closest("button, input, select, textarea, label, .absence-stack")) {
         return;
       }
 
@@ -693,6 +694,7 @@ export default function App(): JSX.Element {
         pendingRequests={friends.view.incoming.length}
         alerts={{ settings: alertSettings, update: setAlertSettings }}
         install={install}
+        pushPublicKey={account.config?.pushPublicKey ?? null}
       />
       <StatusBanners
         error={error}
@@ -723,6 +725,9 @@ export default function App(): JSX.Element {
         />
       ) : null}
       {route.page === "game" ? <Tutorial phase={phase} /> : null}
+      {route.page === "game" && isGamePhaseUi(phase) ? (
+        <AbsencePrompt players={players} myId={myId} phase={phase} onHold={game.holdForPlayer} onRelease={game.releaseHold} />
+      ) : null}
       {page}
     </>
   );

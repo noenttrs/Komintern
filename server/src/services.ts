@@ -5,6 +5,7 @@ import { MongoClient } from "mongodb";
 import { AccountService } from "./auth/accounts";
 import { EmailCodeService } from "./auth/codes";
 import { GoogleOAuth } from "./auth/google";
+import { PushService } from "./push/push";
 import { LogMailer, ResendMailer } from "./auth/mailer";
 import type { Mailer } from "./auth/mailer";
 import { AccountSecurity } from "./auth/security";
@@ -46,6 +47,7 @@ export type Services = Stores & {
   contactService: ContactService;
   wordList: WordList;
   google?: GoogleOAuth;
+  push: PushService;
   recordGame: (game: RecordedGame) => Promise<void>;
   close: () => Promise<void>;
 };
@@ -180,6 +182,7 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
       config.google === undefined
         ? undefined
         : new GoogleOAuth(config.google.clientId, config.google.clientSecret, `${config.publicUrl}/api/auth/google/callback`, stores.kv),
+    push: new PushService(config.vapid),
     recordGame,
     close: async () => {
       clearTimeout(firstRun);

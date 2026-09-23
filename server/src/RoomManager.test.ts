@@ -270,3 +270,108 @@ test("an engine crash sends the room back to the lobby", async () => {
   assert.equal(manager.getSession(code), undefined);
   await manager.startGame(code, players[0] as string);
 });
+
+// ---------------------------------------------------------------- absences en partie
+
+type Notified = { playerId: string; kind: string; detail?: unknown };
+
+async function gameWithRoles(options: Partial<RoomManagerOptions> = {}) {
+  const notified: Notified[] = [];
+  const context = setup({
+    afkTimeoutMs: 80,
+    absenceWarningMs: 40,
+    absenceHoldMs: 200,
+    ...options,
+    hooks: { onNotify: (_code, playerId, notification) => void notified.push({ playerId, kind: notification.kind, detail: notification }) },
+  });
+  const code = context.manager.createRoom();
+  const players = fill(context.manager, code, 5);
+  const session = await context.manager.startGame(code, players[0] as string);
+  return { ...context, code, players, session, notified };
+}
+
+async function revealRoles(session: Awaited<ReturnType<typeof gameWithRoles>>["session"], players: string[]) {
+  for (const id of players) await session.handleTableOrderTap(id);
+  for (const id of players) await session.confirmTableOrder(id);
+  for (const id of players) await session.confirmRoleReveal(id);
+}
+
+test("an absent player gets a warning before their side forfeits", async () => {
+  const { manager, code, players, session, notified } = await gameWithRoles();
+  await revealRoles(session, players);
+  const gone = players[4] as string;
+  manager.handleDisconnect(code, gone, "s5");
+  const absence = manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence;
+  assert.ok(absence !== null && absence !== undefined && absence.kickInMs > 0 && absence.heldBy === null);
+  await tick(60);
+  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), [[gone, "absence_warning"]]);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, false);
+  await tick(60);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, true);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence, null);
+});
+
+test("the others can wait for an absent player, then stop waiting", async () => {
+  const { manager, code, players, session, notified } = await gameWithRoles();
+  await revealRoles(session, players);
+  const [first, , , , gone] = players as [string, string, string, string, string];
+  assert.throws(() => manager.holdForPlayer(code, first, players[1] as string), /not away/);
+  manager.handleDisconnect(code, gone, "s5");
+  assert.throws(() => manager.holdForPlayer(code, gone, gone), /unknown player/, "the absent player cannot hold for themselves");
+  manager.holdForPlayer(code, first, gone);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence?.heldBy, "Joueur 1");
+  assert.deepEqual(notified.map((entry) => entry.kind), ["absence_hold"]);
+  await tick(120);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, false, "still waited for");
+
+  manager.releaseHold(code, first, gone);
+  await tick(10);
+  assert.deepEqual(notified.map((entry) => entry.kind), ["absence_hold", "absence_warning"], "warned right away");
+  await tick(60);
+  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, true);
+});
+
+test("coming back cancels the countdown", async () => {
+  const { manager, code, players, session, notified } = await gameWithRoles();
+  await revealRoles(session, players);
+  manager.handleDisconnect(code, players[4] as string, "s5");
+  manager.joinRoom(code, "s5-back", UIDS[4]);
+  await tick(120);
+  assert.deepEqual(notified, []);
+  assert.equal(manager.getRoomPayload(code).players[4]?.isAfk, false);
+  assert.equal(manager.getRoomPayload(code).players[4]?.absence, null);
+});
+
+test("a player absent before the roles are dealt cancels the game instead of blocking it", async () => {
+  const { manager, code, players, events } = await gameWithRoles({ afkTimeoutMs: 20, absenceWarningMs: 10 });
+  manager.handleDisconnect(code, players[4] as string, "s5");
+  await tick(60);
+  assert.equal(manager.getStatus(code), "waiting");
+  assert.equal(manager.getSession(code), undefined);
+  assert.deepEqual(manager.getRoomPayload(code).players.map((player) => player.playerId), players.slice(0, 4));
+  assert.ok(events.some((entry) => entry.event === "game_aborted"));
+});
+
+test("a finished room lets a returning or new player in, between two games", async () => {
+  const { manager, code, players, session } = await gameWithRoles();
+  await revealRoles(session, players);
+  manager.leaveRoom(code, players[4] as string);
+  await tick(20);
+  for (const id of players.slice(0, 4)) await session.confirmEndGame(id);
+  assert.equal(manager.getStatus(code), "finished");
+  const back = manager.joinRoom(code, "s5-back", UIDS[4]);
+  assert.equal(back.reconnected, false, "the forfeited seat was freed: a fresh seat");
+  assert.equal(manager.getRoomPayload(code).players.length, 5);
+});
+
+test("turn notifications only go to players who are not looking at the game", async () => {
+  const { manager, code, players, session, notified } = await gameWithRoles();
+  const subscription = { endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "a", auth: "b" }, lang: "fr" as const };
+  for (const id of players) manager.setPushSubscription(code, id, subscription);
+  const [looking, ...away] = players as [string, ...string[]];
+  for (const id of away) manager.setVisibility(code, id, false);
+  await revealRoles(session, players);
+  const chef = (session as unknown as { round: { chefId: string } }).round.chefId;
+  const expected = chef === looking ? [] : [[chef, "proposal"]];
+  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), expected, "only the chef, and only if their screen is hidden");
+});

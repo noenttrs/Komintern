@@ -39,6 +39,7 @@ Le premier camp à (joueurs ÷ 2) + 1 missions gagne. Règles complètes : [`doc
 - **Amis** : demandes, présence en ligne ou en partie, invitation dans sa room, classement, profil visible uniquement par les amis.
 - **Sécurité du compte** : double authentification TOTP facultative, changement d'email confirmé par code.
 - **Prise en main** : règles consultables en pleine partie, astuces de première partie, vibration et son quand c'est son tour.
+- **Notifications Web Push** (même écran verrouillé, iPhone compris en web app) : ton tour, et un avertissement 20 s avant d'être compté absent. Quand un joueur se déconnecte, les autres peuvent choisir de l'attendre ; il est prévenu et retrouve sa place en touchant la notification.
 - **Chat de room repliable** pour jouer à distance, avec **modération** : filtre de termes et signalements, puis dossiers pseudonymisés avec levée d'anonymat tracée.
 - **Administration** protégée par une double authentification (TOTP) : statistiques globales, audience, signalements, messages de contact.
 - **Mesure d'audience anonyme**, sans cookie ni service tiers (empreinte hachée avec un sel quotidien jamais conservé).

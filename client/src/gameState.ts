@@ -270,8 +270,13 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
         "table_order",
       );
 
-    case SERVER_EVENTS.GAME_ABORTED:
-      return withPhase({ ...state, ...gameReset(), roomStatus: "waiting" }, "waiting_room");
+    case SERVER_EVENTS.GAME_ABORTED: {
+      const next = withPhase({ ...state, ...gameReset(), roomStatus: "waiting" as const }, "waiting_room");
+      const absentId = payload.reason === "player_absent" ? stringValue(payload.playerId) : null;
+      if (absentId === null) return next;
+      const name = state.players.find((player) => player.id === absentId)?.pseudo ?? "?";
+      return { ...next, notice: { message: translate("notices.abortedAbsent", { name }), id: ++errorCounter } };
+    }
 
     case SERVER_EVENTS.TABLE_ORDER_UPDATED:
       return {

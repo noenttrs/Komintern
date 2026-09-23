@@ -129,6 +129,7 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
       emailDelivery: config.resendApiKey !== undefined,
       legal: config.legal,
       donationUrl: config.donationUrl,
+      pushPublicKey: services.push.publicKey ?? null,
     });
   });
 

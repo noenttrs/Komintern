@@ -203,20 +203,17 @@ test("a player going AFK after roles are dealt makes their faction forfeit", asy
   assert.notEqual(state.finished, undefined, "the game ends without waiting for the AFK player");
 });
 
-test("a player going AFK before roles are dealt is excluded from the table quorum", async () => {
-  const { session, bridge, active } = setup();
+test("a player going AFK before roles are dealt cancels the game (they would block the chef rotation)", async () => {
+  const { session, bridge, active, state, events } = setup();
   await session.start();
   for (const id of ["p1", "p2", "p3", "p4"]) {
     await session.handleTableOrderTap(id);
-    await session.confirmTableOrder(id).catch(() => undefined);
   }
   active.delete("p5");
   await session.handlePlayerAfk("p5");
-  for (const id of ["p1", "p2", "p3", "p4"]) {
-    await session.confirmTableOrder(id);
-  }
-  const start = bridge.calls.find((entry) => entry.command === "start_game");
-  assert.deepEqual(start?.args.player_ids, ["p1", "p2", "p3", "p4", "p5"]);
+  assert.equal(state.aborted, true);
+  assert.ok(events.some((entry) => entry.event === "game_aborted" && (entry.payload as { reason: string }).reason === "player_absent"));
+  assert.equal(bridge.calls.find((entry) => entry.command === "start_game"), undefined);
 });
 
 test("resync restores proposal, own vote, histories and the last mission result", async () => {

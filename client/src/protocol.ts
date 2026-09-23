@@ -7,6 +7,7 @@ import type {
   Faction,
   GameOverState,
   MissionHistoryEntry,
+  PlayerAbsence,
   RoomPlayer,
   RoomStatus,
   ScoreState,
@@ -86,6 +87,7 @@ export function parseRoom(value: unknown): RoomSnapshot {
         isHost: boolValue(row.isHost) ?? undefined,
         isAfk: boolValue(row.isAfk) ?? undefined,
         isConnected: boolValue(row.isConnected) ?? undefined,
+        absence: parseAbsence(row.absence),
       });
     }
   }
@@ -224,3 +226,13 @@ ERROR_TRANSLATIONS.push(
   [/public rooms always have chat/, "errors.publicAlwaysChat"],
   [/needs an account to make the room public/, "errors.publicNeedsAccounts"],
 );
+
+/** Durées relatives du serveur converties en échéances locales (pas de décalage d'horloge). */
+function parseAbsence(raw: unknown): PlayerAbsence | null {
+  const row = toRecord(raw);
+  const kickInMs = numberValue(row.kickInMs);
+  const awayForMs = numberValue(row.awayForMs);
+  if (kickInMs === null || awayForMs === null) return null;
+  const now = Date.now();
+  return { kickAt: now + kickInMs, since: now - awayForMs, heldBy: stringValue(row.heldBy) };
+}

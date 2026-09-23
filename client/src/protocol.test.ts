@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { normalizeRoomCode, parseConfidenceVotes, parseRoom, ROOM_CODE_PATTERN, translateError, uiPhaseFromServer } from "./protocol";
 
@@ -19,9 +19,17 @@ describe("protocol", () => {
       chatEnabled: null,
       minPlayers: null,
       isPublic: null,
-      players: [{ id: "p1", pseudo: "Rosa", isHost: false, isAfk: false, isConnected: true }],
+      players: [{ id: "p1", pseudo: "Rosa", isHost: false, isAfk: false, isConnected: true, absence: null }],
     });
     expect(parseRoom({ status: "hacked" }).status).toBeNull();
+  });
+
+  it("turns the server's relative absence durations into local deadlines", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const [player] = parseRoom({ players: [{ playerId: "p1", absence: { kickInMs: 40_000, awayForMs: 20_000, heldBy: "Rosa" } }] }).players;
+    expect(player?.absence).toEqual({ kickAt: 1_040_000, since: 980_000, heldBy: "Rosa" });
+    vi.useRealTimers();
   });
 
   it("parses confidence votes and ignores garbage", () => {

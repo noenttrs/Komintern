@@ -18,6 +18,7 @@ import { filterMessage } from "./moderation/filter";
 import { EngineError } from "./PythonBridge";
 import { RoomManager } from "./RoomManager";
 import type { RoomManagerOptions } from "./RoomManager";
+import { parsePushSubscription } from "./push/push";
 import { createServices, createStores } from "./services";
 import type { Services, Stores } from "./services";
 import { RedisKv } from "./store/kv";
@@ -119,6 +120,13 @@ export function createKominternApp(options: AppOptions): KominternApp {
     hooks: {
       onGameRecorded: (game) => services.recordGame(game),
       onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
+      onNotify: (code, playerId, notification) => {
+        const subscription = roomManager.getPushSubscription(code, playerId);
+        if (subscription === undefined) return;
+        void services.push.send(subscription, code, notification).then((alive) => {
+          if (!alive && roomManager.hasRoom(code)) roomManager.setPushSubscription(code, playerId, null);
+        });
+      },
     },
   });
   const admin = new AdminService(services.users, services.gameLogs, services.contact, services.kv, () => roomManager.liveStats());
@@ -320,6 +328,28 @@ export function createKominternApp(options: AppOptions): KominternApp {
         throw new Error("too many invitations, slow down");
       }
       notify(friendId, SERVER_EVENTS.ROOM_INVITE, { from: { userId: user.userId, displayName: user.displayName }, code: context.roomId });
+    });
+
+    on(socket, CLIENT_EVENTS.HOLD_PLAYER, "invalid_hold", (payload) => {
+      const context = requireContext(socket);
+      roomManager.holdForPlayer(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "");
+    });
+
+    on(socket, CLIENT_EVENTS.RELEASE_HOLD, "invalid_hold", (payload) => {
+      const context = requireContext(socket);
+      roomManager.releaseHold(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "");
+    });
+
+    on(socket, CLIENT_EVENTS.VISIBILITY, "invalid_visibility", (payload) => {
+      const context = socketContext.get(socket.id);
+      if (context !== undefined) roomManager.setVisibility(context.roomId, context.playerId, payload.visible !== false);
+    });
+
+    on(socket, CLIENT_EVENTS.PUSH_SUBSCRIBE, "invalid_push_subscription", (payload) => {
+      const context = requireContext(socket);
+      if (!services.push.enabled) throw new Error("notifications are not available");
+      const subscription = payload.subscription === null ? null : parsePushSubscription(payload.subscription);
+      roomManager.setPushSubscription(context.roomId, context.playerId, subscription);
     });
 
     on(socket, CLIENT_EVENTS.KICK_PLAYER, "invalid_kick", async (payload) => {

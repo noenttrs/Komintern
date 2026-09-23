@@ -1630,3 +1630,51 @@ textarea {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+
+/* Joueur déconnecté en partie : proposition d'attendre, sous le couloir du menu. */
+.absence-stack {
+  position: fixed;
+  top: calc(3.4rem + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(calc(100vw - 2 * var(--screen-gap)), 24rem);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.absence-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.absence-card--held {
+  border-width: 1px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.absence-card--held button {
+  width: auto;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.absence-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.absence-card__actions button {
+  min-height: 2.6rem;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+}

@@ -93,6 +93,8 @@ export type PublicConfig = {
   emailDelivery: boolean;
   legal: { editorName: string; contactEmail: string };
   donationUrl: string;
+  /** Clé publique VAPID ; null : notifications désactivées sur ce serveur. */
+  pushPublicKey?: string | null;
 };
 
 export type PresenceStatus = "online" | "in_game" | "offline";

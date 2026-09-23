@@ -45,6 +45,9 @@ export const en: Dictionary = {
     iosHelp: "On iPhone: tap Share, then “Add to Home Screen”.",
     vibration: "Vibrate when it's my turn",
     sound: "Sound when it's my turn",
+    notifications: "Notifications (locked screen)",
+    notificationsInstall: "On iPhone, add the app to your home screen to get notifications.",
+    notificationsDenied: "Notifications are blocked: allow them in your browser settings.",
     about: "About",
     contact: "Contact",
     legal: "Legal notice",
@@ -244,7 +247,17 @@ export const en: Dictionary = {
   pageShell: {
     back: "← Back to the game",
   },
+  absence: {
+    title: "{name} disconnected",
+    countdownForfeit: "Unless they're back within {left}, their side loses.",
+    countdownCancel: "Unless they're back within {left}, the game is cancelled.",
+    wait: "Wait for {name}",
+    dontWait: "Don't wait",
+    held: "{by} is waiting for {name} · {left} left",
+    stopWaiting: "Stop waiting",
+  },
   notices: {
+    abortedAbsent: "Game cancelled: {name} left before the roles were dealt. Back to the lobby.",
     friendFallback: "A friend",
     reportSent: "Report sent. Thanks, it will be reviewed.",
     kicked: "The host removed you from the room.",
@@ -576,6 +589,9 @@ export const en: Dictionary = {
     audience:
       "The site counts its visits anonymously, without cookies and without third-party services: number of page views per page, and number of distinct visitors per day. The latter is computed from a technical fingerprint (IP address and browser) hashed with a key renewed every day and never stored: it is impossible to follow a visitor from one day to the next or to identify them. Counters are kept for 13 months. Legal basis: legitimate interest (audience measurement exempt from consent). Your browser's “Do Not Track” signal is respected.",
     optOut: "Don't count my visits",
+    pushTitle: "Notifications",
+    push:
+      "If you turn notifications on, your browser provides a subscription address that goes through its push service (Apple, Google or Mozilla, depending on the device). It is only kept in memory for the life of the room and is used solely to tell you it's your turn or that you're away. Notification texts never reveal a role. You can turn them off at any time in the menu.",
     cookiesTitle: "Cookies",
     cookies:
       "Only one cookie is used: the session cookie, strictly necessary for logging in. There are no advertising cookies and no audience-measurement cookies, so no consent banner.",

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 
 import { CLIENT_EVENTS, SERVER_EVENTS } from "../events";
 import { gameReducer, initialGameState } from "../gameState";
-import { translate } from "../i18n";
+import { getLang, translate } from "../i18n";
+import { PUSH_CHANGED_EVENT, currentSubscription } from "../push";
 import type { GameState } from "../gameState";
 import { ROOM_CODE_PATTERN, normalizeRoomCode, stringValue, toRecord } from "../protocol";
 import { socket } from "../socket";
@@ -12,6 +13,10 @@ const PSEUDO_STORAGE_KEY = "komintern.pseudo";
 // Par onglet (sessionStorage) : un onglet = un joueur, et un rechargement garde sa place.
 const ROOM_STORAGE_KEY = "komintern.room_code";
 const PLAYER_UID_KEY = "komintern.player_uid";
+// Dernier siège occupé dans ce navigateur : une notification qui rouvre l'app (onglet neuf,
+// sessionStorage vide) ramène le joueur à sa place au lieu d'en créer une nouvelle.
+const LAST_SEAT_KEY = "komintern.last_seat";
+const LAST_SEAT_MAX_AGE_MS = 6 * 3600 * 1000;
 const PSEUDO_MAX_LENGTH = 20;
 
 type Storage = "local" | "session";
@@ -46,10 +51,29 @@ function generateUid(): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const UID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+
+function lastSeatFor(pathname: string): string | null {
+  const code = /^\/r\/([A-Za-z0-9_-]{3,24})\/?$/.exec(pathname)?.[1]?.toUpperCase();
+  if (code === undefined) return null;
+  try {
+    const seat = JSON.parse(readStorage("local", LAST_SEAT_KEY) || "{}") as { code?: unknown; uid?: unknown; at?: unknown };
+    const fresh = typeof seat.at === "number" && Date.now() - seat.at < LAST_SEAT_MAX_AGE_MS;
+    return fresh && seat.code === code && typeof seat.uid === "string" && UID_PATTERN.test(seat.uid) ? seat.uid : null;
+  } catch {
+    return null;
+  }
+}
+
 function getOrCreatePlayerUid(): string {
   const existing = readStorage("session", PLAYER_UID_KEY);
-  if (/^[A-Za-z0-9_-]{16,128}$/.test(existing)) {
+  if (UID_PATTERN.test(existing)) {
     return existing;
+  }
+  const resumed = lastSeatFor(window.location.pathname);
+  if (resumed !== null) {
+    writeStorage("session", PLAYER_UID_KEY, resumed);
+    return resumed;
   }
   const generated = generateUid();
   writeStorage("session", PLAYER_UID_KEY, generated);
@@ -90,6 +114,8 @@ export interface GameActions {
   transferHost: (playerId: string) => void;
   setChatMode: (enabled: boolean) => void;
   setPublicRoom: (isPublic: boolean) => void;
+  holdForPlayer: (playerId: string) => void;
+  releaseHold: (playerId: string) => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -110,6 +136,8 @@ export function useGameSocket(): UseGameSocketResult {
   // Demande de création/entrée en attente : envoyée à la connexion (et renvoyée après une
   // reconnexion) plutôt que confiée au tampon de Socket.IO, qui peut la perdre.
   const joinRequestRef = useRef<{ event: string; payload: Record<string, unknown> } | null>(null);
+  // Un abonnement a été envoyé pour ce siège (pour savoir s'il faut envoyer un désabonnement).
+  const pushSentRef = useRef(false);
 
   useEffect(() => {
     const sendPendingJoin = (): boolean => {
@@ -136,7 +164,23 @@ export function useGameSocket(): UseGameSocketResult {
       joinRequestRef.current = null;
       queueRef.current = [];
       writeStorage("session", ROOM_STORAGE_KEY, null);
+      writeStorage("local", LAST_SEAT_KEY, null);
       dispatch({ type: "left_room" });
+    };
+
+    /** Visibilité de l'écran et abonnement aux notifications, rattachés au siège courant. */
+    const syncVisibility = (): void => {
+      if (socket.connected && joinedRef.current) {
+        socket.emit(CLIENT_EVENTS.VISIBILITY, { visible: document.visibilityState !== "hidden" });
+      }
+    };
+    const syncPush = (): void => {
+      void currentSubscription(getLang()).then((subscription) => {
+        if (socket.connected && joinedRef.current && (subscription !== null || pushSentRef.current)) {
+          pushSentRef.current = subscription !== null;
+          socket.emit(CLIENT_EVENTS.PUSH_SUBSCRIBE, { subscription });
+        }
+      });
     };
 
     const onConnect = (): void => {
@@ -159,8 +203,12 @@ export function useGameSocket(): UseGameSocketResult {
       const code = stringValue(toRecord(payload).code);
       if (code !== null) {
         writeStorage("session", ROOM_STORAGE_KEY, code);
+        writeStorage("local", LAST_SEAT_KEY, JSON.stringify({ code, uid: uidRef.current, at: Date.now() }));
       }
       dispatch({ type: "server", event: SERVER_EVENTS.ROOM_JOINED, payload });
+      pushSentRef.current = false;
+      syncVisibility();
+      syncPush();
       const queued = queueRef.current;
       queueRef.current = [];
       for (const { event, payload: actionPayload } of queued) {
@@ -202,6 +250,8 @@ export function useGameSocket(): UseGameSocketResult {
       dispatch({ type: "notice", message: translate("notices.kicked") });
     };
     socket.on(SERVER_EVENTS.KICKED, onKicked);
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener(PUSH_CHANGED_EVENT, syncPush);
 
     // Rechargement en pleine partie : on se reconnecte et on reprend sa place.
     if (readStorage("session", ROOM_STORAGE_KEY) !== "" && stateRef.current.pseudo.trim() !== "") {
@@ -223,6 +273,8 @@ export function useGameSocket(): UseGameSocketResult {
       socket.off(SERVER_EVENTS.ROOM_JOINED, onRoomJoined);
       socket.off(SERVER_EVENTS.ERROR, onError);
       socket.off(SERVER_EVENTS.KICKED, onKicked);
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener(PUSH_CHANGED_EVENT, syncPush);
     };
   }, []);
 
@@ -260,6 +312,7 @@ export function useGameSocket(): UseGameSocketResult {
       joinRequestRef.current = null;
       queueRef.current = [];
       writeStorage("session", ROOM_STORAGE_KEY, null);
+      writeStorage("local", LAST_SEAT_KEY, null);
       dispatch({ type: "left_room" });
     };
 
@@ -300,6 +353,8 @@ export function useGameSocket(): UseGameSocketResult {
       transferHost: (playerId) => emitAction(CLIENT_EVENTS.TRANSFER_HOST, { playerId }),
       setChatMode: (enabled) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { chatEnabled: enabled }),
       setPublicRoom: (isPublic) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { isPublic }),
+      holdForPlayer: (playerId) => emitAction(CLIENT_EVENTS.HOLD_PLAYER, { playerId }),
+      releaseHold: (playerId) => emitAction(CLIENT_EVENTS.RELEASE_HOLD, { playerId }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });

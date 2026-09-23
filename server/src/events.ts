@@ -22,6 +22,10 @@ export const CLIENT_EVENTS = {
   KICK_PLAYER: "kick_player",
   TRANSFER_HOST: "transfer_host",
   SET_ROOM_OPTIONS: "set_room_options",
+  HOLD_PLAYER: "hold_player",
+  RELEASE_HOLD: "release_hold",
+  VISIBILITY: "visibility",
+  PUSH_SUBSCRIBE: "push_subscribe",
 } as const;
 
 export const SERVER_EVENTS = {

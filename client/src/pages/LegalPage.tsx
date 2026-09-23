@@ -56,6 +56,8 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
           />
           {t("legal.optOut")}
         </label>
+        <h3>{t("legal.pushTitle")}</h3>
+        <p>{t("legal.push")}</p>
         <h3>{t("legal.cookiesTitle")}</h3>
         <p>{t("legal.cookies")}</p>
         <h3>{t("legal.rightsTitle")}</h3>
