@@ -16,3 +16,4 @@ backups/
 README.perso.md
 .agents/
 skills-lock.json
+server/loadtest/out/

@@ -248,3 +248,19 @@ Limites assumées : un invité exclu peut revenir avec une nouvelle identité (b
 | Application | Le modérateur choisit une conséquence par pseudonyme ; le serveur retrouve la personne et l'applique (avertissement, mute 1 h / 24 h, ban du chat 7 / 30 j), et prévient le joueur. Les invités ne peuvent pas recevoir de sanction durable. |
 | Ban définitif | Seulement sur demande d'un modérateur, décidée par l'admin avec accès au dossier et à la personne ; sessions fermées tout de suite. L'admin peut abroger un ban définitif et lever toutes les sanctions d'un compte. |
 | Traçabilité | Chaque action est inscrite au journal du dossier ou du compte, avec son auteur. |
+
+---
+
+# Test de charge (2026-09-23)
+
+Instance de test isolée (vrai moteur Python, stockage en mémoire) sur la machine de prod : i7-6820HQ, 4 cœurs / 8 threads, 15 Go de RAM (dont ~7 Go libres, le reste occupé par d'autres services). Parties à 5 joueurs jouées par des robots, chacun avec sa propre IP, 400 ms de réflexion en moyenne entre deux actions (environ 140 fois plus vite que des humains). Scripts : `server/loadtest/`.
+
+| Parties simultanées | Joueurs | Actions / s | Latence p50 / p95 / p99 | CPU du serveur Node | RAM Node | RAM moteur Python |
+|---|---|---|---|---|---|---|
+| 10 | 50 | 95 | 3 / 4 / 6 ms | ~8 % d'un cœur | 166 Mo | 145 Mo |
+| 50 | 250 | 476 | 2 / 4 / 12 ms | ~20 % | 147 Mo | 0,7 Go |
+| 100 | 500 | 952 | 1 / 6 / 15 ms | ~30 % | 240 Mo | 1,4 Go |
+| 150 | 750 | 1 433 | 1 / 9 / 22 ms | ~35 % | 265 Mo | 2,1 Go |
+| 200 | 1 000 | 1 894 | 1 / 20 / 53 ms | ~45 % | 285 Mo | 2,8 Go |
+
+Aucune erreur. Le coût principal est la **mémoire du moteur** : un processus Python par partie, environ 14 Mo chacun. Le processeur est loin d'être saturé, d'autant que des humains jouent beaucoup moins vite que ces robots. Plafond actuel : `MAX_ROOMS=200` (réglable) et la RAM libre de la machine (environ 400 parties au maximum). Non mesuré ici : MongoDB et Redis (écritures en fin de partie seulement), la connexion internet de la machine et le tunnel Cloudflare.
