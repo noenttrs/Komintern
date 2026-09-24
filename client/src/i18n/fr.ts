@@ -51,6 +51,7 @@ export const fr = {
     about: "À propos",
     contact: "Contact",
     legal: "Mentions légales",
+    terms: "Conditions d'utilisation",
     language: "Langue",
   },
   game: {
@@ -652,6 +653,78 @@ export const fr = {
     tip1: "Carte de rôle : maintenez-la appuyée pour revoir votre rôle en toute discrétion.",
     tip2: "Faites-la glisser pour afficher l'historique des votes et des missions.",
     tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place. Un joueur absent a 60 s pour revenir (jusqu'à 5 min si les autres choisissent de l'attendre) ; au-delà, son camp perd.",
+  },
+  terms: {
+    title:
+      "Conditions d'utilisation",
+    version:
+      "Version 1 du 24 septembre 2026.",
+    intro:
+      "Ces conditions encadrent l'utilisation de Nazi Communiste (fascismwontget.me). Jouer sur le site, avec ou sans compte, vaut acceptation ; la création d'un compte les fait accepter expressément.",
+    serviceTitle:
+      "1. Le service",
+    service:
+      "Nazi Communiste est un jeu gratuit, sans publicité, édité à titre personnel et non commercial. Il est fourni tel quel, sans garantie de disponibilité : une partie peut être interrompue (panne, maintenance, mise à jour) et le service peut évoluer ou s'arrêter à tout moment.",
+    ageTitle:
+      "2. Âge",
+    age:
+      "Le site s'adresse aux personnes de <b>15 ans et plus</b>. En dessous, l'accord d'un parent ou d'un tuteur est nécessaire pour jouer et pour créer un compte.",
+    accountTitle:
+      "3. Pseudo et compte",
+    account:
+      "Ton pseudo ne doit ni usurper l'identité de quelqu'un, ni être injurieux ou haineux, ni contenir de données personnelles (les tiennes ou celles d'autrui). Ton compte est personnel : garde ton mot de passe secret. Tu peux le supprimer à tout moment depuis la page Profil.",
+    conductTitle:
+      "4. Règles de conduite",
+    conductIntro:
+      "Mentir, bluffer et accuser à tort font partie du jeu : c'est même tout l'intérêt. En revanche, sont interdits :",
+    conduct1:
+      "les propos haineux ou discriminatoires (racisme, antisémitisme, sexisme, homophobie, transphobie, validisme…), y compris sous couvert d'humour ;",
+    conduct2:
+      "l'apologie réelle du nazisme, du fascisme ou de crimes contre l'humanité : le thème du jeu est satirique et antifasciste, il ne sert pas de prétexte ;",
+    conduct3:
+      "le harcèlement, les menaces, l'incitation au suicide ou à la violence ;",
+    conduct4:
+      "les contenus sexuels non sollicités, et tout contenu sexuel impliquant des mineurs ;",
+    conduct5:
+      "la diffusion des coordonnées ou d'informations personnelles d'autrui ;",
+    conduct6:
+      "le spam, la publicité et les liens malveillants ;",
+    conduct7:
+      "la triche (robots, comptes multiples pour fausser une partie, exploitation d'un bug) et le contournement d'une sanction ;",
+    conduct8:
+      "toute tentative de perturber le service ou d'accéder à des données qui ne te sont pas destinées.",
+    moderationTitle:
+      "5. Modération et sanctions",
+    moderation:
+      "Le chat n'est pas censuré a priori. Les signalements des joueurs et les messages contenant certains termes ouvrent un dossier examiné par une personne de l'équipe de modération, sans connaître l'identité des joueurs (voir les <legal>mentions légales</legal>). Selon la gravité et la répétition, les sanctions sont : avertissement ; chat coupé 1 heure ou 24 heures ; chat interdit 7 ou 30 jours ; bannissement temporaire ; bannissement définitif, décidé par l'administrateur seul après examen du dossier. Les sanctions visent les comptes ; sans compte, l'hôte d'une room peut exclure un joueur.",
+    reasons:
+      "Chaque sanction est notifiée avec son motif et sa durée. Tu peux la contester via la page <contact>Contact</contact> : le recours est examiné par l'administrateur, qui peut la lever. Les contenus manifestement illicites peuvent être signalés aux autorités (par exemple sur la plateforme Pharos).",
+    reportTitle:
+      "6. Signaler un contenu",
+    report:
+      "En partie, utilise le bouton de signalement du chat. Pour tout autre contenu (pseudo, profil…), écris via la page <contact>Contact</contact> en décrivant le contenu, l'endroit où il se trouve et la raison du signalement. L'équipe agit promptement dès qu'elle a connaissance d'un contenu illicite.",
+    ipTitle:
+      "7. Propriété intellectuelle",
+    ip:
+      "Le code du site est sous licence AGPL-3.0 et les règles du jeu sous licence CC BY-NC-SA 4.0 (voir les <legal>mentions légales</legal>). Tu restes propriétaire de tes messages ; tu autorises leur affichage aux autres joueurs de la partie et leur conservation dans les conditions décrites dans les mentions légales.",
+    liabilityTitle:
+      "8. Responsabilité",
+    liability:
+      "Chaque joueur est responsable de ce qu'il écrit. L'éditeur n'est pas responsable des messages des joueurs tant qu'il n'en a pas connaissance, et agit promptement pour retirer un contenu illicite qui lui est signalé. Il ne peut être tenu responsable d'une interruption du service ou de la perte d'une partie en cours.",
+    dataTitle:
+      "9. Données personnelles",
+    data:
+      "Les données traitées, leurs durées de conservation et tes droits sont décrits dans les <legal>mentions légales et confidentialité</legal>.",
+    changesTitle:
+      "10. Modifications",
+    changes:
+      "Ces conditions peuvent évoluer ; la version et sa date figurent en haut de cette page. Une modification importante est annoncée sur le site. Continuer à jouer après une modification vaut acceptation de la nouvelle version.",
+    lawTitle:
+      "11. Droit applicable",
+    law:
+      "Ces conditions sont soumises au droit français. En cas de désaccord, écris d'abord via la page <contact>Contact</contact> pour chercher une solution amiable ; à défaut, les tribunaux français sont compétents.",
+    accept:
+      "En créant un compte, tu acceptes les <terms>conditions d'utilisation</terms>.",
   },
   legal: {
     title: "Mentions légales et confidentialité",

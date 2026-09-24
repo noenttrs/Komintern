@@ -25,6 +25,7 @@ import { LegalPage } from "./pages/LegalPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { Tutorial } from "./components/Tutorial";
 import { RulesPage } from "./pages/RulesPage";
+import { TermsPage } from "./pages/TermsPage";
 import { recordPageView } from "./audience";
 import { joinCodeFromPath, navigate as goTo, useRoute } from "./router";
 import { EndGameScreen } from "./screens/EndGameScreen";
@@ -702,6 +703,8 @@ export default function App(): JSX.Element {
       <AboutPage />
     ) : route.page === "legal" ? (
       <LegalPage editorName={account.config?.legal.editorName ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
+    ) : route.page === "terms" ? (
+      <TermsPage />
     ) : route.page === "contact" ? (
       <ContactPage defaultEmail={account.user?.email ?? ""} contactEmail={account.config?.legal.contactEmail ?? ""} />
     ) : route.page === "support" ? (

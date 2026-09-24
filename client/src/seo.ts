@@ -37,6 +37,11 @@ export const PAGE_SEO = {
     title: "Contact · Nazi Communiste",
     description: "Une question, un bug, une idée ? Écrivez à l'équipe de Nazi Communiste.",
   },
+  terms: {
+    path: "/conditions-utilisation",
+    title: "Conditions d'utilisation · Nazi Communiste",
+    description: "Conditions d'utilisation de Nazi Communiste : âge minimum, règles de conduite, modération, sanctions et recours, signalement de contenus.",
+  },
   legal: {
     path: "/mentions-legales",
     title: "Mentions légales et confidentialité · Nazi Communiste",

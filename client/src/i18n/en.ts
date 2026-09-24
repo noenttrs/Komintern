@@ -52,6 +52,7 @@ export const en: Dictionary = {
     about: "About",
     contact: "Contact",
     legal: "Legal notice",
+    terms: "Terms of use",
     language: "Language",
   },
   game: {
@@ -653,6 +654,78 @@ export const en: Dictionary = {
     tip1: "Role card: press and hold it to check your role discreetly.",
     tip2: "Swipe it to show the history of votes and missions.",
     tip3: "Reloading the page or losing your connection doesn't lose your seat. An absent player has 60 s to come back (up to 5 min if the others choose to wait); after that, their side loses.",
+  },
+  terms: {
+    title:
+      "Terms of use",
+    version:
+      "Version 1, 24 September 2026.",
+    intro:
+      "These terms govern the use of Nazi Communiste (fascismwontget.me). Playing on the site, with or without an account, means accepting them; creating an account means accepting them expressly.",
+    serviceTitle:
+      "1. The service",
+    service:
+      "Nazi Communiste is a free, ad-free game published on a personal, non-commercial basis. It is provided as is, with no availability guarantee: a game may be interrupted (outage, maintenance, update) and the service may change or stop at any time.",
+    ageTitle:
+      "2. Age",
+    age:
+      "The site is intended for people aged <b>15 and over</b>. Below that age, a parent's or guardian's consent is needed to play and to create an account.",
+    accountTitle:
+      "3. Nickname and account",
+    account:
+      "Your nickname must not impersonate anyone, must not be insulting or hateful, and must not contain personal data (yours or anyone else's). Your account is personal: keep your password secret. You can delete it at any time from the Profile page.",
+    conductTitle:
+      "4. Code of conduct",
+    conductIntro:
+      "Lying, bluffing and false accusations are part of the game: that is the whole point. The following, however, are forbidden:",
+    conduct1:
+      "hateful or discriminatory speech (racism, antisemitism, sexism, homophobia, transphobia, ableism…), including as a joke;",
+    conduct2:
+      "genuine glorification of Nazism, fascism or crimes against humanity: the game's theme is satirical and anti-fascist, not an excuse;",
+    conduct3:
+      "harassment, threats, incitement to suicide or violence;",
+    conduct4:
+      "unsolicited sexual content, and any sexual content involving minors;",
+    conduct5:
+      "sharing other people's contact details or personal information;",
+    conduct6:
+      "spam, advertising and malicious links;",
+    conduct7:
+      "cheating (bots, multiple accounts to rig a game, exploiting a bug) and evading a sanction;",
+    conduct8:
+      "any attempt to disrupt the service or access data not meant for you.",
+    moderationTitle:
+      "5. Moderation and sanctions",
+    moderation:
+      "The chat is not censored in advance. Player reports and messages containing certain terms open a case reviewed by a member of the moderation team, without knowing the players' identities (see the <legal>legal notice</legal>). Depending on severity and repetition, sanctions are: warning; chat muted for 1 hour or 24 hours; chat banned for 7 or 30 days; temporary ban; permanent ban, decided by the administrator alone after reviewing the case. Sanctions apply to accounts; without an account, a room's host can remove a player.",
+    reasons:
+      "Every sanction is notified with its reason and duration. You can appeal through the <contact>Contact</contact> page: the appeal is reviewed by the administrator, who can lift it. Manifestly illegal content may be reported to the authorities (for example on the French Pharos platform).",
+    reportTitle:
+      "6. Reporting content",
+    report:
+      "In a game, use the chat's report button. For any other content (nickname, profile…), write through the <contact>Contact</contact> page describing the content, where it is and why you are reporting it. The team acts promptly once it becomes aware of illegal content.",
+    ipTitle:
+      "7. Intellectual property",
+    ip:
+      "The site's code is under the AGPL-3.0 licence and the game rules under the CC BY-NC-SA 4.0 licence (see the <legal>legal notice</legal>). You keep ownership of your messages; you allow them to be shown to the other players of the game and kept as described in the legal notice.",
+    liabilityTitle:
+      "8. Liability",
+    liability:
+      "Each player is responsible for what they write. The publisher is not liable for players' messages until made aware of them, and acts promptly to remove illegal content reported to it. It cannot be held liable for a service interruption or the loss of a game in progress.",
+    dataTitle:
+      "9. Personal data",
+    data:
+      "The data processed, how long it is kept and your rights are described in the <legal>legal notice and privacy</legal>.",
+    changesTitle:
+      "10. Changes",
+    changes:
+      "These terms may change; the version and its date are shown at the top of this page. A significant change is announced on the site. Continuing to play after a change means accepting the new version.",
+    lawTitle:
+      "11. Governing law",
+    law:
+      "These terms are governed by French law. In case of disagreement, first write through the <contact>Contact</contact> page to seek an amicable solution; failing that, the French courts have jurisdiction.",
+    accept:
+      "By creating an account, you accept the <terms>terms of use</terms>.",
   },
   legal: {
     title: "Legal notice and privacy",

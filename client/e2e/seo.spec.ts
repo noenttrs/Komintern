@@ -7,6 +7,7 @@ const PAGES = [
   { path: "/a-propos", title: /^À propos/, text: "déduction sociale" },
   { path: "/soutenir", title: /^Soutenir le projet/, text: "sans publicité" },
   { path: "/contact", title: /^Contact/, text: "Message" },
+  { path: "/conditions-utilisation", title: /^Conditions d'utilisation/, text: "Règles de conduite" },
   { path: "/mentions-legales", title: /^Mentions légales/, text: "Hébergement" },
 ];
 

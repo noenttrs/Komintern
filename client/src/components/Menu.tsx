@@ -153,6 +153,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
         <div className="menu-footer">
           <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>{t("menu.about")}</button>
           <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>{t("menu.contact")}</button>
+          <button type="button" className="secondary" onClick={() => go("/conditions-utilisation")} tabIndex={open ? 0 : -1}>{t("menu.terms")}</button>
           <button type="button" className="secondary" onClick={() => go("/mentions-legales")} tabIndex={open ? 0 : -1}>{t("menu.legal")}</button>
         </div>
       </nav>

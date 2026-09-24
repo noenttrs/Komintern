@@ -9,6 +9,7 @@ export type Route =
   | { page: "friends" }
   | { page: "about" }
   | { page: "legal" }
+  | { page: "terms" }
   | { page: "contact" }
   | { page: "support" }
   | { page: "admin" }
@@ -21,6 +22,7 @@ export function parseRoute(pathname: string, search = ""): Route {
   if (path === "/amis") return { page: "friends" };
   if (path === "/a-propos") return { page: "about" };
   if (path === "/mentions-legales") return { page: "legal" };
+  if (path === "/conditions-utilisation") return { page: "terms" };
   if (path === "/contact") return { page: "contact" };
   if (path === "/soutenir") return { page: "support" };
   if (path === "/admin") return { page: "admin" };

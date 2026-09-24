@@ -52,17 +52,21 @@ des polices servies par le site (commit SEO).
      redevient valable, et on indique ses coordonnées ;
    - c) garder tel quel en connaissance de cause (risque faible en pratique, mais la mention
      n'est pas exacte).
+
+   **Décision (24/09/2026) : option c, l'anonymat est conservé pour l'instant.**
 2. **Conservation des données de connexion.** Un service qui héberge des contenus d'utilisateurs
    (le chat) peut être tenu de conserver 1 an les données permettant d'identifier leurs auteurs
    (décret n° 2021-1362). Le site a fait le choix inverse (minimisation : pas d'IP dans les
    journaux). À trancher : rester minimal, ou conserver l'IP de l'auteur de chaque message 1 an,
    à part et avec accès restreint.
-3. **Conditions d'utilisation.** Il n'y a pas de CGU. Or les sanctions (chat coupé,
+3. **Conditions d'utilisation — fait (24/09/2026) :** page `/conditions-utilisation` (règles de
+   conduite, sanctions, recours, signalement, âge minimum), acceptée à la création d'un compte.
+   Constat d'origine : il n'y avait pas de CGU. Or les sanctions (chat coupé,
    bannissement) s'appuient sur des règles de conduite, et le règlement européen sur les services
    numériques (DSA, art. 14) demande que la politique de modération figure dans les conditions
    d'un service d'hébergement. Recommandé : une page courte (règles de conduite, sanctions,
    recours, âge minimum, absence de garantie).
-4. **Âge minimum.** Chat ouvert, thème adulte : recommandé de fixer 15 ans (majorité numérique en
+4. **Âge minimum — fait :** 15 ans, ou accord parental, dans les conditions d'utilisation. Constat d'origine : chat ouvert, thème adulte : recommandé de fixer 15 ans (majorité numérique en
    France) ou d'indiquer l'accord parental, dans les CGU.
 5. **Modérateurs bénévoles.** Ils accèdent à des données pseudonymisées sous l'autorité de
    l'éditeur (art. 29 RGPD) : leur faire accepter un engagement de confidentialité écrit

@@ -114,6 +114,7 @@ Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. U
 - [À propos](https://fascismwontget.me/a-propos)
 - [Soutenir le projet](https://fascismwontget.me/soutenir)
 - [Contact](https://fascismwontget.me/contact)
+- [Conditions d'utilisation (âge minimum 15 ans, règles de conduite, sanctions, recours)](https://fascismwontget.me/conditions-utilisation)
 - [Mentions légales et confidentialité](https://fascismwontget.me/mentions-legales)
 - [Version HTML de cette description](https://fascismwontget.me/agents.html)
 - [Code source (AGPL-3.0)](https://github.com/noenttrs/Komintern)

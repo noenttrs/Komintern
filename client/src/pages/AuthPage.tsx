@@ -11,7 +11,7 @@ type Mode = "login" | "register" | "verify" | "forgot" | "reset" | "totp";
 
 /** Connexion / inscription. Un compte est facultatif : on peut toujours jouer en invité. */
 export function AuthPage({ account }: { account: AccountState & AccountActions }): JSX.Element {
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
   // Retour de Google avec la double authentification active : /connexion?totp=<jeton>
   const googleChallenge = new URLSearchParams(window.location.search).get("totp");
   const [mode, setMode] = useState<Mode>(googleChallenge !== null ? "totp" : "login");
@@ -107,6 +107,7 @@ export function AuthPage({ account }: { account: AccountState & AccountActions }
               <span className="field-label">{t("auth.newPasswordHint")}</span>
               <input type="password" autoComplete="new-password" required minLength={10} maxLength={200} value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
+            <p className="form-note">{tr("terms.accept", { terms: (chunk) => <a href="/conditions-utilisation" target="_blank" rel="noopener">{chunk}</a> })}</p>
             <button type="submit" disabled={busy}>{t("auth.createAccount")}</button>
             <button type="button" className="secondary" onClick={() => { setMode("login"); setMessage(null); }}>{t("auth.haveAccount")}</button>
           </form>

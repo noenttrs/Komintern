@@ -9,6 +9,7 @@ import { ContactPage } from "./pages/ContactPage";
 import { LegalPage } from "./pages/LegalPage";
 import { RulesPage } from "./pages/RulesPage";
 import { SupportPage } from "./pages/SupportPage";
+import { TermsPage } from "./pages/TermsPage";
 import { PAGE_SEO } from "./seo";
 
 export { HOME_SEO, PAGE_SEO, SITE_NAME, SITE_URL } from "./seo";
@@ -22,6 +23,7 @@ export function renderPages(config: PrerenderConfig): Array<{ key: keyof typeof 
     about: <AboutPage />,
     support: <SupportPage donationUrl={config.donationUrl} />,
     contact: <ContactPage defaultEmail="" contactEmail={config.contactEmail} />,
+    terms: <TermsPage />,
     legal: <LegalPage editorName={config.editorName} contactEmail={config.contactEmail} />,
   };
   return (Object.keys(pages) as Array<keyof typeof PAGE_SEO>).map((key) => ({ key, html: renderToStaticMarkup(pages[key]) }));
