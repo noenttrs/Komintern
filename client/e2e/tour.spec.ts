@@ -30,7 +30,7 @@ async function holdCard(page: Page, name?: string): Promise<void> {
   await expect(page.locator(".card-overlay")).toBeVisible();
   if (name !== undefined) await shot(page, name);
   await page.mouse.up();
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(800);
 }
 
 /** Fait glisser la carte vers la gauche : dos de carte (historique). */
@@ -113,7 +113,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
       await shot(page, "09-role-communiste");
     }
     await page.mouse.up();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(800);
     await page.getByRole("button", { name: "C'est bon" }).first().click();
   }
   await shot(host, "10-attente-confirmation-roles");

@@ -155,7 +155,7 @@ for (const device of DEVICES) {
       await expect(player.page.locator(".card-overlay")).toBeVisible();
       if (index === 0) await check(player.page, tag("04-role-maintenu"));
       await player.page.mouse.up();
-      await player.page.waitForTimeout(400); // garde anti-mauvais clic après l'appui long
+      await player.page.waitForTimeout(800); // garde anti-mauvais clic après l'appui long
       await player.page.getByRole("button", { name: "C'est bon" }).first().click();
     }
 
@@ -221,7 +221,7 @@ for (const device of DEVICES) {
           await tapCard(player.page);
         }
       }
-      await host.page.waitForTimeout(400);
+      await host.page.waitForTimeout(800);
       if (over || (await host.page.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false))) break;
     }
 

@@ -1,0 +1,11 @@
+/* Contenu statique de index.html : affiché avant le chargement de React, lu par les agents IA
+   (fichier séparé : la politique de sécurité du site interdit les styles écrits dans la page). */
+.static-page { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; font: 16px/1.55 "IBM Plex Sans", Arial, sans-serif; color: #0f0f0f; background: #fff; }
+.static-page h1 { font-size: 2rem; margin: 0 0 .5rem; }
+.static-page h2 { font-size: 1.2rem; margin: 1.6rem 0 .4rem; }
+.static-page .lead { font-size: 1.1rem; }
+.static-page .table { overflow-x: auto; }
+.static-page table { border-collapse: collapse; font-size: .9rem; }
+.static-page th, .static-page td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; }
+.static-page a { color: #0f0f0f; }
+.static-page .static-note { font-weight: 700; }

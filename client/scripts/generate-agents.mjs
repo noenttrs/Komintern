@@ -67,6 +67,7 @@ const start = "<!-- static:start -->";
 const end = "<!-- static:end -->";
 const block = `${start}
       <article class="static-page">
+<noscript><p class="static-note">JavaScript est désactivé : le jeu ne peut pas se lancer, mais voici sa description complète.</p></noscript>
 ${body}
       </article>
       ${end}`;

@@ -71,7 +71,7 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
     await page.mouse.down();
     await expect(page.locator(".card-overlay")).toBeVisible();
     await page.mouse.up();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(800);
     await page.getByRole("button", { name: "C'est bon" }).first().click();
   }
 
