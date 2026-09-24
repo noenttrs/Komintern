@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from gameengine.types import InfoMode, Ruleset
-from gameengine_entry import EngineBridge, handle_line
+from gameengine_entry import EngineBridge, EngineSessions, handle_line
 
 ROOT = Path(__file__).resolve().parent.parent
 PLAYERS_5 = ["a", "b", "c", "d", "e"]
@@ -325,6 +325,25 @@ class ProtocolTests(unittest.TestCase):
         self.assertFalse(lines[1]["ok"])
         self.assertNotIn("id", lines[1])
         self.assertEqual(lines[2]["result"]["chef_id"], "a")
+
+
+    def test_sessions_are_isolated_and_closable(self) -> None:
+        sessions = EngineSessions()
+
+        def call(session: str, command: str, args: dict | None = None, request_id: int = 1) -> dict:
+            return sessions.handle_line(json.dumps({"id": request_id, "session": session, "command": command, "args": args or {}}))
+
+        self.assertTrue(call("g1", "start_game", {"player_ids": PLAYERS_5, "chef_cursor": 0, "seed": 1})["ok"])
+        self.assertTrue(call("g2", "start_game", {"player_ids": ["v", "w", "x", "y", "z"], "chef_cursor": 2, "seed": 2})["ok"])
+        self.assertEqual(call("g1", "get_round_state")["result"]["chef_id"], "a")
+        self.assertEqual(call("g2", "get_round_state")["result"]["chef_id"], "x")
+        self.assertEqual(len(sessions), 2)
+        closed = call("g1", "close_session", request_id=9)
+        self.assertEqual((closed["ok"], closed["id"]), (True, 9))
+        self.assertEqual(len(sessions), 1)
+        # Une partie fermée repart de zéro : plus d'état.
+        self.assertFalse(call("g1", "get_round_state")["ok"])
+        self.assertFalse(sessions.handle_line(json.dumps({"session": 3, "command": "get_round_state"}))["ok"])
 
 
 if __name__ == "__main__":

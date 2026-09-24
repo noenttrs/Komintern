@@ -40,6 +40,8 @@ export type SessionConfig = {
   randomIndexProvider?: (length: number) => number;
   /** Injecté par les tests ; sinon un vrai process Python est lancé. */
   bridge?: BridgeLike;
+  /** Process Python partagés (EnginePool) ; à défaut, un process dédié à la partie. */
+  engine?: { open(onUnexpectedExit: (reason: string) => void): BridgeLike };
   pythonPath?: string;
   enginePath?: string;
   engineTimeoutMs?: number;
@@ -146,6 +148,7 @@ export class GameSession {
       config.randomIndexProvider ?? ((length) => (length <= 1 ? 0 : Math.floor(Math.random() * length)));
     this.bridge =
       config.bridge ??
+      config.engine?.open((reason) => this.handleEngineFailure(reason)) ??
       new PythonBridge(config.pythonPath ?? "python3", config.enginePath ?? "", {
         timeoutMs: config.engineTimeoutMs,
         onUnexpectedExit: (reason) => this.handleEngineFailure(reason),

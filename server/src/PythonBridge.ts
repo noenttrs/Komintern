@@ -82,7 +82,8 @@ export class PythonBridge {
     this.child.on("error", (error) => this.fail(`python process error: ${error.message}`));
   }
 
-  public send(command: string, args: Record<string, unknown>): Promise<unknown> {
+  /** `session` : partie visée quand le process en sert plusieurs (EnginePool). */
+  public send(command: string, args: Record<string, unknown>, session?: string): Promise<unknown> {
     if (this.closed) {
       return Promise.reject(new BridgeFailure("bridge is closed"));
     }
@@ -93,7 +94,7 @@ export class PythonBridge {
         this.fail(`command ${command} timed out after ${this.timeoutMs}ms`);
       }, this.timeoutMs);
       this.pending.set(id, { id, command, resolve, reject, timer });
-      this.child.stdin.write(`${JSON.stringify({ id, command, args })}\n`, "utf8");
+      this.child.stdin.write(`${JSON.stringify(session === undefined ? { id, command, args } : { id, session, command, args })}\n`, "utf8");
     });
   }
 

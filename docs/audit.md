@@ -264,3 +264,24 @@ Instance de test isolée (vrai moteur Python, stockage en mémoire) sur la machi
 | 200 | 1 000 | 1 894 | 1 / 20 / 53 ms | ~45 % | 285 Mo | 2,8 Go |
 
 Aucune erreur. Le coût principal est la **mémoire du moteur** : un processus Python par partie, environ 14 Mo chacun. Le processeur est loin d'être saturé, d'autant que des humains jouent beaucoup moins vite que ces robots. Plafond actuel : `MAX_ROOMS=200` (réglable) et la RAM libre de la machine (environ 400 parties au maximum). Non mesuré ici : MongoDB et Redis (écritures en fin de partie seulement), la connexion internet de la machine et le tunnel Cloudflare.
+
+## Moteur partagé (2026-09-24)
+
+Avant : un process Python par partie (~14 Mo chacun, surtout l'interpréteur), soit 2,8 Go pour
+200 parties. Désormais `EnginePool` répartit les parties sur `ENGINE_WORKERS` process (4 par
+défaut) ; chaque requête porte l'identifiant de sa partie (`session`) et l'état de chaque partie
+reste isolé dans son propre `EngineBridge`. Un crash n'interrompt que les parties du process
+concerné ; un process sans partie s'arrête au bout d'une minute.
+
+Même protocole que ci-dessus (robots ~140 fois plus rapides que des humains) :
+
+| Parties simultanées | Joueurs | Actions / s | Latence p50 / p95 / p99 | CPU Node | RAM Node | RAM Python (total) |
+|---|---|---|---|---|---|---|
+| 100 | 500 | 950 | 2 / 4 / 6 ms | ~25 % | 190 Mo | 59 Mo |
+| 200 | 1 000 | 1 906 | 1 / 4 / 7 ms | ~45 % | 280 Mo | 59 Mo |
+| 400 | 2 000 | 3 820 | 1 / 5 / 10 ms | ~55 % | 350 Mo | 60 Mo |
+| 600 | 3 000 | 5 732 | 1 / 6 / 10 ms | ~73 % | 430 Mo | 60 Mo |
+
+Zéro erreur à tous les paliers. La RAM n'est plus la limite (≈ 0,6 Mo par partie côté Node) ;
+la prochaine limite est un cœur de CPU pour Node, loin d'être atteinte au rythme d'humains.
+`MAX_ROOMS` passe de 200 à 1 000 par défaut.

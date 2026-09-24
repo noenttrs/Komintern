@@ -5,6 +5,8 @@ cd "$(dirname "$0")/.."
 mkdir -p loadtest/out
 npx tsx loadtest/server.ts > loadtest/out/server.jsonl 2> loadtest/out/server.err &
 SERVER=$!
+# Toujours arrêter l'instance de test, même si la montée en charge échoue (sinon elle garde le port).
+trap 'kill $SERVER 2>/dev/null' EXIT
 sleep 5
 ( while kill -0 $SERVER 2>/dev/null; do
     py=$(ps -eo rss,args | awk '/gameengine_entry.py/ && !/awk/ {s+=$1; n++} END {printf "%d %d", n, s/1024}')

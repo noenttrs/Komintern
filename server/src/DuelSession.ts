@@ -18,6 +18,8 @@ export type DuelConfig = {
   onAborted: (reason: string, summary: GameSummary) => void;
   onTurn?: (playerIds: string[], kind: TurnKind) => void;
   bridge?: BridgeLike;
+  /** Process Python partagés (EnginePool) ; à défaut, un process dédié à la partie. */
+  engine?: { open(onUnexpectedExit: (reason: string) => void): BridgeLike };
   pythonPath?: string;
   enginePath?: string;
   engineTimeoutMs?: number;
@@ -61,6 +63,7 @@ export class DuelSession {
     this.playerIds = [...playerIds];
     this.bridge =
       config.bridge ??
+      config.engine?.open((reason) => this.handleEngineFailure(reason)) ??
       new PythonBridge(config.pythonPath ?? "python3", config.enginePath ?? "", {
         timeoutMs: config.engineTimeoutMs,
         onUnexpectedExit: (reason) => this.handleEngineFailure(reason),

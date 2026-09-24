@@ -4,6 +4,7 @@ import type { Server } from "socket.io";
 
 import { SERVER_EVENTS } from "./events";
 import { DuelSession } from "./DuelSession";
+import { EnginePool } from "./EnginePool";
 import { GameSession } from "./GameSession";
 import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
@@ -129,6 +130,8 @@ export type RoomManagerOptions = {
   emptyRoomGraceMs?: number;
   maxRooms?: number;
   engineTimeoutMs?: number;
+  /** Nombre max de process Python partagés entre les parties. */
+  engineWorkers?: number;
   revealPauseMs?: number;
   /** Tests : remplace le process Python. */
   bridgeFactory?: () => BridgeLike;
@@ -159,16 +162,24 @@ const DEFAULT_AFK_TIMEOUT_MS = 60_000;
 const DEFAULT_ABSENCE_HOLD_MS = 5 * 60_000;
 const DEFAULT_ABSENCE_WARNING_MS = 20_000;
 const DEFAULT_EMPTY_ROOM_GRACE_MS = 120_000;
-const DEFAULT_MAX_ROOMS = 200;
+const DEFAULT_MAX_ROOMS = 1_000;
 
 export class RoomManager {
   private readonly io: Server;
   private readonly options: RoomManagerOptions;
   private readonly rooms = new Map<string, RoomRecord>();
 
+  private readonly engine: EnginePool;
+
   public constructor(io: Server, options: RoomManagerOptions) {
     this.io = io;
     this.options = options;
+    this.engine = new EnginePool(options.pythonPath, options.enginePath, { workers: options.engineWorkers, timeoutMs: options.engineTimeoutMs });
+  }
+
+  /** Process Python et parties qu'ils servent (supervision). */
+  public engineStats(): { workers: number; sessions: number } {
+    return this.engine.stats();
   }
 
   // ---------------------------------------------------------------- rooms
@@ -491,6 +502,7 @@ export class RoomManager {
       revealRolesAtEnd: () => room.revealRoles,
       randomIndexProvider: this.options.randomIndexProvider,
       bridge: this.options.bridgeFactory?.(),
+      engine: this.engine,
       pythonPath: this.options.pythonPath,
       enginePath: this.options.enginePath,
       engineTimeoutMs: this.options.engineTimeoutMs,
@@ -548,6 +560,7 @@ export class RoomManager {
       onAborted: (_reason, summary) => this.onGameAborted(room, session, summary),
       onTurn: (playerIds, kind) => this.notifyAway(room, playerIds, { kind }),
       bridge: this.options.bridgeFactory?.(),
+      engine: this.engine,
       pythonPath: this.options.pythonPath,
       enginePath: this.options.enginePath,
       engineTimeoutMs: this.options.engineTimeoutMs,
@@ -755,6 +768,7 @@ export class RoomManager {
       room.session = undefined;
     }
     this.rooms.clear();
+    this.engine.dispose();
   }
 
   // ---------------------------------------------------------------- interne

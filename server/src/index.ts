@@ -19,8 +19,9 @@ const app = createKominternApp({
   rateLimitWindowMs: parsePositiveIntEnv(process.env.SOCKET_RATE_LIMIT_WINDOW_MS, 10_000),
   afkTimeoutMs: parsePositiveIntEnv(process.env.AFK_TIMEOUT_MS, 60_000),
   emptyRoomGraceMs: parsePositiveIntEnv(process.env.EMPTY_ROOM_GRACE_MS, 120_000),
-  maxRooms: parsePositiveIntEnv(process.env.MAX_ROOMS, 200),
+  maxRooms: parsePositiveIntEnv(process.env.MAX_ROOMS, 1000),
   engineTimeoutMs: parsePositiveIntEnv(process.env.ENGINE_TIMEOUT_MS, 5_000),
+  engineWorkers: parsePositiveIntEnv(process.env.ENGINE_WORKERS, 4),
 });
 
 app.httpServer.listen(port, host, () => {

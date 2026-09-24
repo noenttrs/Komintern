@@ -411,14 +411,7 @@ def handle_line(bridge: EngineBridge, line: str) -> dict[str, Any]:
         if not isinstance(payload, dict):
             raise ValueError("command payload must be an object")
         request_id = payload.get("id")
-        command = payload.get("command")
-        args = payload.get("args", {})
-        if not isinstance(command, str):
-            raise ValueError("missing command")
-        if not isinstance(args, dict):
-            raise ValueError("args must be an object")
-
-        response: dict[str, Any] = {"ok": True, "result": bridge.dispatch(command, args)}
+        response = _dispatch_payload(bridge, payload)
     except Exception as error:  # noqa: BLE001 - le process ne doit jamais mourir sur une commande
         response = {"ok": False, "error": str(error) or type(error).__name__}
 
@@ -427,15 +420,66 @@ def handle_line(bridge: EngineBridge, line: str) -> dict[str, Any]:
     return response
 
 
+def _dispatch_payload(bridge: EngineBridge, payload: dict[str, Any]) -> dict[str, Any]:
+    command = payload.get("command")
+    args = payload.get("args", {})
+    if not isinstance(command, str):
+        raise ValueError("missing command")
+    if not isinstance(args, dict):
+        raise ValueError("args must be an object")
+    return {"ok": True, "result": bridge.dispatch(command, args)}
+
+
+class EngineSessions:
+    """Un process pour plusieurs parties : chaque requête porte l'identifiant de sa partie
+    (`session`), dont l'état vit dans son propre EngineBridge. Sans `session`, une partie par
+    défaut (comportement historique, une partie par process)."""
+
+    MAX_SESSIONS = 10_000
+
+    def __init__(self) -> None:
+        self._bridges: dict[str, EngineBridge] = {}
+
+    def __len__(self) -> int:
+        return len(self._bridges)
+
+    def handle_line(self, line: str) -> dict[str, Any]:
+        request_id: Any = None
+        try:
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise ValueError("command payload must be an object")
+            request_id = payload.get("id")
+            session = payload.get("session", "")
+            if not isinstance(session, str) or len(session) > 64:
+                raise ValueError("session must be a short string")
+            if payload.get("command") == "close_session":
+                self._bridges.pop(session, None)
+                response: dict[str, Any] = {"ok": True, "result": None}
+            else:
+                bridge = self._bridges.get(session)
+                if bridge is None:
+                    if len(self._bridges) >= self.MAX_SESSIONS:
+                        raise RuntimeError("too many sessions")
+                    bridge = self._bridges[session] = EngineBridge()
+                response = _dispatch_payload(bridge, payload)
+        except Exception as error:  # noqa: BLE001 - le process ne doit jamais mourir sur une commande
+            response = {"ok": False, "error": str(error) or type(error).__name__}
+
+        if request_id is not None:
+            response["id"] = request_id
+        return response
+
+
 def main() -> int:
-    bridge = EngineBridge()
+    sessions = EngineSessions()
 
     for line in sys.stdin:
         stripped = line.strip()
         if not stripped:
             continue
 
-        response = handle_line(bridge, stripped)
+        response = sessions.handle_line(stripped)
         sys.stdout.write(json.dumps(response) + "\n")
         sys.stdout.flush()
 
