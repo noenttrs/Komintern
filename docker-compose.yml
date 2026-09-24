@@ -53,6 +53,9 @@ services:
       context: ./client
       args:
         VITE_SERVER_URL: ${VITE_SERVER_URL:-}
+        LEGAL_EDITOR_NAME: ${LEGAL_EDITOR_NAME:-}
+        LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+        DONATION_URL: ${DONATION_URL:-}
     image: komintern-web:latest
     restart: always
     # Publié sur la boucle locale uniquement : le public passe par le tunnel Cloudflare (HTTPS),

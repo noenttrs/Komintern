@@ -9,3 +9,4 @@
 .static-page th, .static-page td { border-bottom: 1px solid #ccc; padding: .3rem .5rem; text-align: left; }
 .static-page a { color: #0f0f0f; }
 .static-page .static-note { font-weight: 700; }
+.static-nav { margin-top: 2rem; font-size: .9rem; line-height: 2; }

@@ -35,6 +35,7 @@ import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
 import { DuelResultScreen, DuelVoteScreen } from "./screens/DuelScreens";
 import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
 import { SERVER_EVENTS } from "./events";
+import { seoFor } from "./seo";
 import { socket } from "./socket";
 import { availableStorage, recordFinishedGame } from "./supportBanner";
 
@@ -141,6 +142,12 @@ export default function App(): JSX.Element {
     };
   }, [refreshAccount]);
   const route = useRoute();
+  // Titre et description suivent la page ouverte (onglet, moteurs de recherche qui exécutent le JS).
+  useEffect(() => {
+    const seo = seoFor(route);
+    document.title = seo.title;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", seo.description);
+  }, [route]);
   useEffect(() => {
     recordPageView(window.location.pathname);
   }, [route]);

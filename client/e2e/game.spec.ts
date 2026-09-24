@@ -73,7 +73,8 @@ async function check(page: Page, file: string): Promise<void> {
 /** Ferme l'astuce de première partie si elle est affichée (joueur 1 uniquement). */
 async function dismissTip(page: Page): Promise<void> {
   const tip = page.getByRole("button", { name: "Compris" });
-  if (await tip.isVisible().catch(() => false)) await tip.click();
+  // L'astuce peut disparaître d'elle-même (changement de phase) : clic borné, sinon le test attend jusqu'au bout.
+  if (await tip.isVisible().catch(() => false)) await tip.click({ timeout: 2_000 }).catch(() => undefined);
 }
 
 async function tapCard(page: Page): Promise<void> {

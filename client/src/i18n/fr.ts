@@ -644,7 +644,7 @@ export const fr = {
     wins: "Victoires",
     teams: "Équipes",
     quickTitle: "Partie rapide",
-    quickIntro: "Au choix à la création d'une room sans format imposé : toujours 5 missions, premier camp à 3, avec des équipes plus grandes quand on est nombreux. De 3 à 5 joueurs, c'est identique au classique.",
+    quickIntro: "À partir de 6 joueurs, l'hôte peut choisir une partie rapide dans le salon : toujours 5 missions, premier camp à 3, avec des équipes plus grandes quand on est nombreux.",
     yourGame: "Votre partie : {count} joueurs (ligne surlignée).",
     duelIntro: "À 2 joueurs, pas de missions : un duel. Chaque rôle est tiré à pile ou face (25 % deux communistes, 25 % deux nazis, 50 % un de chaque) et chacun ne connaît que le sien, nazi compris. On discute, puis chacun vote en secret « Confiance » ou « Nazi ! » :",
     license: "Règles © Komintern, sous licence <cc>CC BY-NC-SA 4.0</cc>.",

@@ -31,7 +31,7 @@ export default defineConfig({
       },
       workbox: {
         // App shell en cache ; le jeu (Socket.IO) et l'API ne sont jamais mis en cache.
-        globPatterns: ["**/*.{js,css,html,svg,png}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/agents\.html$/, /^\/llms\.txt$/, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
         runtimeCaching: [],
