@@ -36,6 +36,7 @@ test("old logs are anonymized except those under an open moderation case", async
   const anonymized = store.games.get("old");
   assert.deepEqual(anonymized?.players.map((p) => [p.userId, p.pseudo]), [[null, "Joueur A"], [null, "Joueur B"]]);
   assert.equal(anonymized?.chat[0]?.pseudo, "Joueur A");
+  assert.equal(anonymized?.chat[0]?.text, "");
   assert.equal(store.games.get("kept")?.players[0]?.pseudo, "Rosa");
   assert.equal(store.games.get("recent")?.anonymizedAt, null);
 });
@@ -74,4 +75,22 @@ test("the admin game list is anonymous: no pseudo, account or message", async ()
   const text = JSON.stringify(rows);
   for (const secret of ["Rosa", "Karl", "u_rosa", "salut", "p1"]) assert.equal(text.includes(secret), false, secret);
   assert.deepEqual((await store.recentGames(10, new Date("2026-01-03T00:00:00Z"))).map((row) => row.id), ["g1"]);
+});
+
+test("resolved cases lose their messages and identities after the retention period", async () => {
+  const store = new MemoryGameLogStore();
+  const message = { pseudonym: "Joueur A", text: "mon numéro : 06…", at: new Date(), flagged: true };
+  const identities = [{ pseudonym: "Joueur A", playerId: "p1", userId: "u_rosa", pseudo: "Rosa" }];
+  const base = { trigger: { type: "flagged_word" as const, words: ["x"] }, roomCode: "R", gameId: null, resolution: null, resolvedAt: null };
+  await store.createCase({ ...base, id: "old", createdAt: new Date("2020-01-01"), status: "open", messages: [message] }, identities);
+  await store.createCase({ ...base, id: "open", createdAt: new Date("2020-01-01"), status: "open", messages: [message] }, identities);
+  await store.resolveCase("old", "averti");
+  store.cases.get("old")!.resolvedAt = new Date("2020-02-01");
+
+  assert.equal(await store.purgeResolvedCasesBefore(new Date("2021-01-01")), 1);
+  assert.deepEqual((await store.getCase("old"))?.messages, []);
+  assert.equal((await store.getCase("old"))?.resolution, "averti");
+  assert.deepEqual(await store.getIdentities("old"), []);
+  assert.equal((await store.getCase("open"))?.messages.length, 1);
+  assert.equal((await store.getIdentities("open")).length, 1);
 });

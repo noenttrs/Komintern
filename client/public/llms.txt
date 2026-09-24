@@ -95,8 +95,8 @@ Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. U
 ## Modération et vie privée
 
 - Le chat n'est pas censuré. Les propos graves (haine, menaces, incitation au suicide, harcèlement sexuel, coordonnées personnelles) et les signalements ouvrent un dossier anonymisé, vérifié à la main par une équipe de modération qui ne voit jamais l'identité des joueurs ; les sanctions (avertissement, chat coupé, bannissement) sont appliquées par le serveur.
-- Pas de publicité, pas de revente de données, pas de cookie de suivi : un seul cookie de session pour les comptes, et une mesure d'audience anonyme sans cookie.
-- Les journaux de parties sont anonymisés au bout de 12 mois ; la suppression du compte est en libre-service.
+- Pas de publicité, pas de revente de données, pas de cookie de suivi : seulement des cookies strictement nécessaires (connexion), et une mesure d'audience anonyme sans cookie.
+- Les journaux de parties sont anonymisés au bout de 12 mois (pseudos et texte du chat effacés) ; la suppression du compte est en libre-service.
 
 ## Questions fréquentes
 

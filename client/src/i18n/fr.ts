@@ -654,7 +654,7 @@ export const fr = {
     tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place. Un joueur absent a 60 s pour revenir (jusqu'à 5 min si les autres choisissent de l'attendre) ; au-delà, son camp perd.",
   },
   legal: {
-    title: "Mentions légales",
+    title: "Mentions légales et confidentialité",
     translationNotice: "",
     editorPlaceholder: "[nom de l'éditeur à compléter]",
     contactPlaceholder: "[email de contact à compléter]",
@@ -666,21 +666,26 @@ export const fr = {
     hosting: "Le site est hébergé sur un serveur personnel de l'éditeur, situé en France.",
     traffic:
       "Le trafic transite par <b>Cloudflare, Inc.</b> (101 Townsend St, San Francisco, CA 94107, États-Unis — cloudflare.com), qui assure le chiffrement HTTPS et la protection du site. Les emails sont envoyés via <b>Resend</b> (resend.com) et les emails reçus sont redirigés par <b>Cloudflare Email Routing</b> vers la boîte de l'éditeur.",
+    techLogTitle:
+      "Journaux techniques et sauvegardes",
+    techLog:
+      "Pour diagnostiquer les pannes, le serveur tient des journaux techniques (date, page demandée, navigateur), sans adresse IP ; les plus anciens sont effacés automatiquement au fil de l'eau. Contre les abus (connexions, rooms créées, essais de mot de passe…), l'adresse IP est comptée pendant 24 heures au plus, sans être enregistrée ailleurs. Les bases sont sauvegardées chaque nuit sur le serveur ; une sauvegarde est gardée 14 jours, si bien qu'une donnée supprimée peut y subsister jusqu'à 14 jours.",
     dataTitle: "Données personnelles",
     controller:
       "Le responsable du traitement est l'éditeur ci-dessus, joignable à {mail}. Aucune donnée n'est vendue ni utilisée à des fins publicitaires.",
     guestTitle: "Sans compte",
     guest:
-      "Seuls ton pseudo et tes actions de jeu sont traités, le temps de la partie. Un identifiant technique aléatoire est stocké dans ton navigateur (stockage de session) pour te permettre de retrouver ta place après un rechargement.",
+      "Ton pseudo, tes actions de jeu et tes messages de chat sont traités pour faire fonctionner la partie, et enregistrés dans le journal des parties (voir plus bas). Un identifiant technique aléatoire est stocké dans ton navigateur pour te permettre de retrouver ta place après un rechargement.",
     accountTitle: "Avec un compte",
     accountData:
-      "<b>Email</b> (connexion, codes de validation), <b>mot de passe</b> (stocké uniquement sous forme chiffrée argon2), <b>pseudo</b>, identifiant Google si tu utilises cette connexion.",
-    accountStats: "<b>Statistiques</b> de jeu et <b>liste d'amis</b>.",
+      "<b>Email</b> (connexion, codes de validation), <b>mot de passe</b> (jamais stocké en clair : seule une empreinte argon2 est conservée), <b>pseudo</b>, identifiant Google si tu utilises cette connexion, secret de double authentification si tu l'actives.",
+    accountStats:
+      "<b>Statistiques</b> de jeu, succès, <b>liste d'amis</b>, et le cas échéant les avertissements et sanctions de modération.",
     accountBasis:
-      "Base légale : l'exécution du service que tu demandes en créant un compte. Ces données sont conservées jusqu'à la suppression du compte, possible à tout moment depuis la page Profil.",
+      "Base légale : l'exécution du service que tu demandes en créant un compte. Ces données sont conservées jusqu'à la suppression du compte, possible à tout moment depuis la page Profil (compte, amis, sessions et lien avec tes parties sont alors supprimés). Une session de connexion expire après 30 jours sans visite.",
     logTitle: "Journal des parties et modération",
     log:
-      "Chaque partie est journalisée (joueurs, votes, résultats, messages du chat) afin de pouvoir traiter les signalements de harcèlement ou de propos haineux et permettre des recours. Base légale : l'intérêt légitime à protéger les joueurs. Ce journal n'est consultable par l'administration que sous forme anonyme (date, durée, format, résultat, nombre de messages, sans pseudo, compte ni contenu des messages) ; il est conservé sans limite de durée mais <b>anonymisé au bout de 12 mois</b> (pseudos et liens vers les comptes supprimés), sauf dossier de modération en cours.",
+      "Chaque partie est journalisée (pseudos, votes, résultats, messages du chat) afin de pouvoir traiter les signalements de harcèlement ou de propos haineux et permettre des recours. Base légale : l'intérêt légitime à protéger les joueurs. L'administration ne consulte ce journal que sous forme anonyme (date, durée, format, résultat, nombre de messages). <b>Au bout de 12 mois</b>, les pseudos, les liens vers les comptes et le texte des messages sont supprimés ; il ne reste que des statistiques anonymes (format, votes, résultat). Les dossiers de modération sont conservés 12 mois après leur clôture, puis vidés de leurs messages et de leurs identités.",
     moderation:
       "Le chat n'est pas censuré : les messages s'affichent tels quels. Ceux qui contiennent des termes signalés (propos haineux, menaces, incitation au suicide, harcèlement sexuel, coordonnées personnelles) et les signalements de joueurs ouvrent un dossier de modération<b> pseudonymisé</b>, examiné à la main par l'équipe de modération (l'administrateur et des modérateurs bénévoles) : la conversation y est examinée sans les noms, et le lien avec les personnes concernées n'est consulté qu'en cas de besoin, chaque consultation étant tracée. Les modérateurs ne voient jamais l'identité des joueurs : ils choisissent une conséquence pour un pseudonyme (avertissement, chat coupé quelques heures ou quelques jours, demande de bannissement définitif), et le serveur l'applique. Seul l'administrateur peut bannir définitivement, après avoir consulté le dossier, et lever une sanction. Le joueur est informé de chaque sanction ; elle est conservée sur le compte (motif et date) et supprimée avec lui. Chaque sanction est tracée, et peut être contestée via la page Contact.",
     contactTitle: "Formulaire de contact et dons",
@@ -693,14 +698,19 @@ export const fr = {
     pushTitle: "Notifications",
     push:
       "Si tu actives les notifications, ton navigateur fournit une adresse d'abonnement qui passe par son service de push (Apple, Google ou Mozilla, selon l'appareil). Elle n'est gardée qu'en mémoire, le temps de la room, et sert uniquement à te prévenir de ton tour ou de ton absence. Le texte des notifications ne dévoile jamais de rôle. Tu peux les couper à tout moment dans le menu.",
-    cookiesTitle: "Cookies",
+    transfersTitle:
+      "Transferts hors de l'Union européenne",
+    transfers:
+      "Certains prestataires sont établis aux États-Unis : Cloudflare (acheminement du trafic et des emails reçus), Resend (envoi des emails), Google (si tu utilises la connexion Google) et le service de push de ton navigateur (si tu actives les notifications). Ces transferts sont encadrés par le cadre de protection des données UE–États-Unis (Data Privacy Framework) ou par les clauses contractuelles types de la Commission européenne.",
+    cookiesTitle: "Cookies et stockage local",
     cookies:
-      "Un seul cookie est utilisé : le cookie de session, strictement nécessaire à la connexion. Il n'y a ni cookie publicitaire ni mesure d'audience, donc pas de bandeau de consentement.",
+      "Trois cookies strictement nécessaires, sans consentement requis : le cookie de session (connexion, 30 jours), un cookie temporaire pendant la validation de l'inscription, et un cookie de 10 minutes pendant la connexion Google (protection contre la falsification). Le site garde aussi dans ton navigateur (stockage local) tes préférences et de quoi retrouver ta place : langue, pseudo, dernière room, alertes, notifications, astuces vues, date du dernier message de soutien, refus de la mesure d'audience. Rien de tout cela ne sert au suivi ni à la publicité, d'où l'absence de bandeau de consentement.",
     rightsTitle: "Tes droits",
     rights:
       "Tu disposes d'un droit d'accès, de rectification, d'effacement, de limitation, d'opposition et de portabilité de tes données. Écris à {mail}. Tu peux aussi introduire une réclamation auprès de la CNIL (cnil.fr).",
     ipTitle: "Propriété intellectuelle",
-    ip: "Le code, les textes et les éléments graphiques du site sont la propriété de l'éditeur, sauf mention contraire.",
+    ip:
+      "Le code du site est un logiciel libre sous licence AGPL-3.0 (github.com/noenttrs/Komintern). Les règles du jeu sont sous licence CC BY-NC-SA 4.0. Les polices IBM Plex sont sous licence SIL Open Font License. Les autres textes et éléments graphiques appartiennent à l'éditeur.",
   },
   admin: {
     notFoundTitle: "Page introuvable",

@@ -149,7 +149,8 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
     }
   };
 
-  // Anonymisation des logs de plus de N jours, sauf ceux liés à un dossier de modération ouvert.
+  // Anonymisation des logs de plus de N jours, sauf ceux liés à un dossier de modération ouvert ;
+  // les dossiers clos depuis aussi longtemps perdent leurs messages et leurs identités.
   const anonymize = async (): Promise<void> => {
     try {
       if (!(await stores.kv.setIfAbsent("job:anonymize", "1", 3600))) {
@@ -157,8 +158,9 @@ export function createServices(config: Config, stores: Stores, notify: Notifier,
       }
       const before = new Date(Date.now() - config.logRetentionAnonymizeDays * 24 * 3600 * 1000);
       const count = await stores.gameLogs.anonymizeGamesBefore(before, await stores.gameLogs.openCaseGameIds());
-      if (count > 0) {
-        log.info("game logs anonymized", { count });
+      const cases = await stores.gameLogs.purgeResolvedCasesBefore(before);
+      if (count > 0 || cases > 0) {
+        log.info("game logs anonymized", { count, cases });
       }
     } catch (error) {
       log.warn("anonymization job failed", { error });

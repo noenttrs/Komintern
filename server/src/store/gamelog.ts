@@ -169,8 +169,10 @@ export interface GameLogStore {
   /** Administration : dernières parties, anonymes, les plus récentes d'abord. */
   recentGames(limit: number, before?: Date): Promise<AdminGameRow[]>;
   insertGame(log: GameLog): Promise<void>;
-  /** Remplace pseudos et comptes par « Joueur A, B… » ; renvoie le nombre de parties traitées. */
+  /** Remplace pseudos et comptes par « Joueur A, B… » et efface le texte du chat ; renvoie le nombre de parties traitées. */
   anonymizeGamesBefore(before: Date, keepGameIds: string[]): Promise<number>;
+  /** Dossiers clos avant `before` : messages et identités supprimés (décision et audit gardés). */
+  purgeResolvedCasesBefore(before: Date): Promise<number>;
   /** Suppression de compte : retire le lien vers le compte dans tous les logs. */
   detachUser(userId: string): Promise<void>;
   createCase(moderationCase: ModerationCase, identities: ModerationIdentity[]): Promise<void>;
@@ -210,7 +212,8 @@ export function anonymizeGame(log: GameLog, now: Date): GameLog {
   return {
     ...log,
     players: log.players.map((player) => ({ ...player, userId: null, pseudo: names.get(player.playerId) ?? "Joueur ?" })),
-    chat: log.chat.map((message) => ({ ...message, pseudo: names.get(message.playerId) ?? "Joueur ?" })),
+    // Le texte des messages peut contenir des données personnelles : seul leur nombre est gardé.
+    chat: log.chat.map((message) => ({ ...message, pseudo: names.get(message.playerId) ?? "Joueur ?", text: "" })),
     anonymizedAt: now,
   };
 }
@@ -294,6 +297,14 @@ export class MongoGameLogStore implements GameLogStore {
 
   public async openCaseGameIds(): Promise<string[]> {
     return (await this.cases.distinct("gameId", { status: "open", gameId: { $ne: null } })) as string[];
+  }
+
+  public async purgeResolvedCasesBefore(before: Date): Promise<number> {
+    const ids = (await this.cases.find({ status: "resolved", resolvedAt: { $lt: before }, "messages.0": { $exists: true } }, { projection: { _id: 1 } }).toArray()).map((doc) => doc._id);
+    if (ids.length === 0) return 0;
+    await this.cases.updateMany({ _id: { $in: ids } }, { $set: { messages: [] } });
+    await this.identities.deleteMany({ _id: { $in: ids } });
+    return ids.length;
   }
 
   public async createBanRequest(request: BanRequest): Promise<void> {
@@ -420,6 +431,18 @@ export class MemoryGameLogStore implements GameLogStore {
 
   public async openCaseGameIds(): Promise<string[]> {
     return [...this.cases.values()].filter((c) => c.status === "open" && c.gameId !== null).map((c) => c.gameId as string);
+  }
+
+  public async purgeResolvedCasesBefore(before: Date): Promise<number> {
+    let count = 0;
+    for (const moderationCase of this.cases.values()) {
+      if (moderationCase.status === "resolved" && moderationCase.resolvedAt !== null && moderationCase.resolvedAt < before && moderationCase.messages.length > 0) {
+        moderationCase.messages = [];
+        this.identities.delete(moderationCase.id);
+        count += 1;
+      }
+    }
+    return count;
   }
 
   public readonly banRequests = new Map<string, BanRequest>();

@@ -41,6 +41,8 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
         <h3>{t("legal.logTitle")}</h3>
         <p>{tr("legal.log")}</p>
         <p>{tr("legal.moderation")}</p>
+        <h3>{t("legal.techLogTitle")}</h3>
+        <p>{t("legal.techLog")}</p>
         <h3>{t("legal.contactTitle")}</h3>
         <p>{tr("legal.contact")}</p>
         <h3>{t("legal.audienceTitle")}</h3>
@@ -58,6 +60,8 @@ export function LegalPage({ editorName, contactEmail }: LegalPageProps): JSX.Ele
         </label>
         <h3>{t("legal.pushTitle")}</h3>
         <p>{t("legal.push")}</p>
+        <h3>{t("legal.transfersTitle")}</h3>
+        <p>{t("legal.transfers")}</p>
         <h3>{t("legal.cookiesTitle")}</h3>
         <p>{t("legal.cookies")}</p>
         <h3>{t("legal.rightsTitle")}</h3>

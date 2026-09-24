@@ -1,7 +1,15 @@
 name: komintern
 
+# Journaux des conteneurs : rotation par taille (sinon ils grossissent sans limite).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   server:
+    logging: *logging
     build:
       context: .
       dockerfile: server/Dockerfile
@@ -49,6 +57,7 @@ services:
       retries: 3
 
   web:
+    logging: *logging
     build:
       context: ./client
       args:
@@ -76,6 +85,7 @@ services:
 
   # Bases de données : aucun port publié, joignables uniquement depuis le réseau Docker.
   mongo:
+    logging: *logging
     image: mongo:7
     restart: always
     environment:
@@ -96,6 +106,7 @@ services:
       retries: 5
 
   redis:
+    logging: *logging
     image: redis:7-alpine
     restart: always
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
@@ -115,6 +126,7 @@ services:
   # Activé par COMPOSE_PROFILES=tunnel et CLOUDFLARE_TUNNEL_TOKEN dans .env.
   # Dans Cloudflare, le hostname public doit pointer vers le service http://web:8080.
   cloudflared:
+    logging: *logging
     image: cloudflare/cloudflared:latest
     profiles: ["tunnel"]
     restart: always

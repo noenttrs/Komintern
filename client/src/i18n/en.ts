@@ -655,7 +655,7 @@ export const en: Dictionary = {
     tip3: "Reloading the page or losing your connection doesn't lose your seat. An absent player has 60 s to come back (up to 5 min if the others choose to wait); after that, their side loses.",
   },
   legal: {
-    title: "Legal notice",
+    title: "Legal notice and privacy",
     translationNotice: "This is a translation; the French version is the legally binding one.",
     editorPlaceholder: "[publisher name to be completed]",
     contactPlaceholder: "[contact email to be completed]",
@@ -667,21 +667,26 @@ export const en: Dictionary = {
     hosting: "The site is hosted on the publisher's personal server, located in France.",
     traffic:
       "Traffic goes through <b>Cloudflare, Inc.</b> (101 Townsend St, San Francisco, CA 94107, USA — cloudflare.com), which provides HTTPS encryption and protection for the site. Emails are sent via <b>Resend</b> (resend.com) and incoming emails are forwarded by <b>Cloudflare Email Routing</b> to the publisher's inbox.",
+    techLogTitle:
+      "Technical logs and backups",
+    techLog:
+      "To troubleshoot outages, the server keeps technical logs (date, requested page, browser), without IP addresses; the oldest are erased automatically as new ones come in. Against abuse (connections, rooms created, password attempts…), the IP address is counted for at most 24 hours and not recorded anywhere else. Databases are backed up every night on the server; a backup is kept 14 days, so deleted data may remain there for up to 14 days.",
     dataTitle: "Personal data",
     controller:
       "The data controller is the publisher above, reachable at {mail}. No data is sold or used for advertising.",
     guestTitle: "Without an account",
     guest:
-      "Only your nickname and your game actions are processed, for the duration of the game. A random technical identifier is stored in your browser (session storage) so you can get your seat back after a reload.",
+      "Your nickname, game actions and chat messages are processed to run the game, and recorded in the game log (see below). A random technical identifier is stored in your browser so you can get your seat back after a reload.",
     accountTitle: "With an account",
     accountData:
-      "<b>Email</b> (login, verification codes), <b>password</b> (stored only as an argon2 hash), <b>nickname</b>, Google identifier if you use Google sign-in.",
-    accountStats: "Game <b>stats</b> and <b>friends list</b>.",
+      "<b>Email</b> (login, validation codes), <b>password</b> (never stored in plain text: only an argon2 hash is kept), <b>nickname</b>, Google identifier if you use that login, two-factor secret if you enable it.",
+    accountStats:
+      "Game <b>statistics</b>, achievements, <b>friend list</b>, and any moderation warnings and sanctions.",
     accountBasis:
-      "Legal basis: performance of the service you request by creating an account. This data is kept until the account is deleted, which you can do at any time from the Profile page.",
+      "Legal basis: performance of the service you request by creating an account. This data is kept until the account is deleted, which you can do at any time from the Profile page (account, friends, sessions and links to your games are then deleted). A login session expires after 30 days without a visit.",
     logTitle: "Game log and moderation",
     log:
-      "Every game is logged (players, votes, results, chat messages) so that reports of harassment or hate speech can be handled and appealed. Legal basis: legitimate interest in protecting players. Admins can only view this log in anonymous form (date, length, format, result, number of messages, without nicknames, accounts or message content); it is kept indefinitely but <b>anonymised after 12 months</b> (nicknames and links to accounts removed), unless a moderation case is ongoing.",
+      "Every game is logged (nicknames, votes, results, chat messages) so that reports of harassment or hate speech can be handled and appealed. Legal basis: legitimate interest in protecting players. The administration only sees this log in anonymous form (date, duration, format, result, number of messages). <b>After 12 months</b>, nicknames, links to accounts and message texts are deleted; only anonymous statistics remain (format, votes, result). Moderation cases are kept 12 months after closing, then emptied of their messages and identities.",
     moderation:
       "The chat is not censored: messages are shown as they are. Messages containing flagged terms (hate speech, threats, incitement to suicide, sexual harassment, personal details) and player reports open a <b>pseudonymised</b> moderation case, reviewed by hand by the moderation team (the administrator and volunteer moderators): the conversation is reviewed without names, and the link to the people involved is only looked up when needed, with every lookup logged. Moderators never see who the players are: they pick a consequence for a pseudonym (warning, chat muted for a few hours or days, request for a permanent ban), and the server applies it. Only the administrator can ban permanently, after reviewing the case, and lift a sanction. The player is told about every sanction; it is kept on the account (reason and date) and deleted with it. Every sanction is logged and can be disputed through the Contact page.",
     contactTitle: "Contact form and donations",
@@ -694,14 +699,19 @@ export const en: Dictionary = {
     pushTitle: "Notifications",
     push:
       "If you turn notifications on, your browser provides a subscription address that goes through its push service (Apple, Google or Mozilla, depending on the device). It is only kept in memory for the life of the room and is used solely to tell you it's your turn or that you're away. Notification texts never reveal a role. You can turn them off at any time in the menu.",
-    cookiesTitle: "Cookies",
+    transfersTitle:
+      "Transfers outside the European Union",
+    transfers:
+      "Some providers are based in the United States: Cloudflare (traffic and incoming email routing), Resend (sending emails), Google (if you use Google login) and your browser's push service (if you enable notifications). These transfers are covered by the EU–US Data Privacy Framework or by the European Commission's standard contractual clauses.",
+    cookiesTitle: "Cookies and local storage",
     cookies:
-      "Only one cookie is used: the session cookie, strictly necessary for logging in. There are no advertising cookies and no audience-measurement cookies, so no consent banner.",
+      "Three strictly necessary cookies, no consent required: the session cookie (login, 30 days), a temporary cookie while your sign-up is being validated, and a 10-minute cookie during Google login (forgery protection). The site also keeps in your browser (local storage) your preferences and what is needed to get your seat back: language, nickname, last room, alerts, notifications, tips seen, date of the last support message, audience opt-out. None of it is used for tracking or advertising, hence no consent banner.",
     rightsTitle: "Your rights",
     rights:
       "You have the right to access, rectify, erase, restrict, object to and port your data. Write to {mail}. You can also lodge a complaint with the CNIL (cnil.fr), the French data protection authority.",
     ipTitle: "Intellectual property",
-    ip: "The site's code, texts and graphics are the property of the publisher, unless stated otherwise.",
+    ip:
+      "The site's code is free software under the AGPL-3.0 licence (github.com/noenttrs/Komintern). The game rules are under the CC BY-NC-SA 4.0 licence. The IBM Plex fonts are under the SIL Open Font License. Other texts and graphics belong to the publisher.",
   },
   admin: {
     notFoundTitle: "Page not found",

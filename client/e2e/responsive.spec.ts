@@ -43,7 +43,7 @@ for (const size of SIZES) {
 
       for (const [path, title, file] of [
         ["/a-propos", "À propos", "about"],
-        ["/mentions-legales", "Mentions légales", "legal"],
+        ["/mentions-legales", "Mentions légales et confidentialité", "legal"],
         ["/amis", "Amis", "friends"],
         ["/contact", "Contact", "contact"],
         ["/soutenir", "Soutenir le projet", "support"],
