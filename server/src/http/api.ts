@@ -407,6 +407,10 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     await admin.setRole(String(request.params.id), request.body?.role ?? null, actor);
     response.status(204).end();
   }));
+  router.get("/admin/moderators", route(async (request, response) => {
+    await requireElevated(request, true);
+    response.json({ users: await admin.moderators() });
+  }));
   router.get("/admin/users", route(async (request, response) => {
     await requireElevated(request, true);
     response.json({ users: request.query.sanctioned === "1" ? await admin.sanctionedUsers() : await admin.searchUsers(request.query.q) });

@@ -321,3 +321,85 @@ export function BanRequestsTab(): JSX.Element {
     </div>
   );
 }
+
+/** Modérateurs : la liste de l'équipe, et une recherche pour nommer quelqu'un. */
+export function ModeratorsTab(): JSX.Element {
+  const { t, locale } = useI18n();
+  const [moderators, setModerators] = useState<AdminUser[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<AdminUser[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api<{ users: AdminUser[] }>("/admin/moderators")
+      .then((result) => setModerators(result.users))
+      .catch((error: unknown) => setMessage(errorText(error)));
+  }, []);
+  useEffect(load, [load]);
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setResults([]);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      api<{ users: AdminUser[] }>(`/admin/users?q=${encodeURIComponent(term)}`)
+        .then((result) => setResults(result.users))
+        .catch((error: unknown) => setMessage(errorText(error)));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const setRole = (user: AdminUser, role: "moderator" | null): void => {
+    const name = user.displayName ?? user.email ?? "?";
+    if (!window.confirm(role === null ? t("admin.removeModeratorConfirm", { name }) : t("admin.makeModeratorConfirm", { name }))) return;
+    api(`/admin/users/${user.id}/role`, { body: { role } })
+      .then(() => {
+        setMessage(role === null ? t("admin.moderatorRemoved") : t("admin.moderatorAdded"));
+        setQuery("");
+        load();
+      })
+      .catch((error: unknown) => setMessage(errorText(error)));
+  };
+
+  return (
+    <div className="panel page-panel">
+      <p className="mono">{t("admin.moderatorsHint")}</p>
+      {message !== null ? <p className="form-message" role="status">{message}</p> : null}
+      <h2>{t("admin.moderatorsTeam", { count: moderators?.length ?? 0 })}</h2>
+      {moderators?.length === 0 ? <p>{t("admin.noModerators")}</p> : null}
+      <ul className="admin-users">
+        {moderators?.map((user) => (
+          <li key={user.id} className="admin-user">
+            <div className="admin-user__head">
+              <strong>{user.displayName ?? t("admin.noPseudo")}</strong>
+              <span className="mono">{user.email ?? ""}</span>
+              <span className="mono">{t("admin.userMeta", { date: fmt(user.createdAt, locale), games: user.gamesPlayed })}</span>
+            </div>
+            <div className="admin-user__actions">
+              <button type="button" className="secondary" onClick={() => setRole(user, null)}>{t("admin.removeModerator")}</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <h2>{t("admin.appointModerator")}</h2>
+      <input id="moderator-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("admin.searchUsers")} aria-label={t("admin.searchUsers")} />
+      <ul className="admin-users">
+        {results
+          .filter((user) => user.role === null)
+          .map((user) => (
+            <li key={user.id} className="admin-user">
+              <div className="admin-user__head">
+                <strong>{user.displayName ?? t("admin.noPseudo")}</strong>
+                <span className="mono">{user.email ?? ""}</span>
+              </div>
+              <div className="admin-user__actions">
+                <button type="button" onClick={() => setRole(user, "moderator")} disabled={user.displayName === null}>{t("admin.makeModerator")}</button>
+              </div>
+            </li>
+          ))}
+      </ul>
+      {query.trim().length >= 2 && results.filter((user) => user.role === null).length === 0 ? <p>{t("admin.noUsers")}</p> : null}
+    </div>
+  );
+}

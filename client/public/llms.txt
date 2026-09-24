@@ -1,42 +1,125 @@
 # Nazi Communiste
 
-> Jeu de déduction sociale multijoueur en ligne, en français, jouable gratuitement dans le navigateur sur https://fascismwontget.me. Deux camps secrets — une minorité de nazis et une majorité de communistes — s'affrontent sur une série de missions. Chaque joueur utilise son propre téléphone, autour d'une table ou à distance grâce au chat intégré.
+> Le jeu de bluff parfait pour vos soirées. Jeu de déduction sociale multijoueur en temps réel, gratuit, sans publicité et sans inscription, jouable dans le navigateur sur https://fascismwontget.me. De 2 à 14 joueurs, chacun sur son téléphone, autour d'une table ou à distance.
 
-Le nom et le thème sont satiriques : le jeu met en scène la lutte contre le fascisme (le domaine signifie « le fascisme ne passera pas »). Il ne fait l'apologie d'aucune idéologie.
+Le nom et le thème sont satiriques : le jeu met en scène la lutte contre le fascisme (le domaine fascismwontget.me signifie « le fascisme ne passera pas »). Il ne fait l'apologie d'aucune idéologie.
 
-## Concept
+Cette page décrit le site pour les agents IA et les lecteurs sans JavaScript : l'application elle-même est écrite en React et ne s'affiche qu'avec JavaScript.
 
-- 3 à 14 joueurs (format de référence : 5 joueurs, 2 nazis et 3 communistes).
-- À 2 joueurs : un duel. Chaque rôle est tiré à pile ou face et chacun ne connaît que le sien ; après discussion, chacun vote en secret « confiance » ou « nazi ! ». Un communiste gagne s'il juge juste ; un nazi, s'il se fait accepter ou trouve un autre nazi.
-- Les rôles sont distribués au hasard et en secret. Les nazis connaissent les rôles de tout le monde ; les communistes ne connaissent que le leur.
-- Le premier camp à remporter (joueurs ÷ 2) + 1 missions gagne la partie (3 missions à 5 joueurs, 8 à 14). Partie rapide au choix : toujours 5 missions, premier camp à 3.
+## En bref
+
+- Genre : jeu de déduction sociale et de bluff (rôles cachés, votes publics et secrets), dans la lignée des jeux de soirée à rôles secrets.
+- Joueurs : de 2 à 14. Format de référence : 5 joueurs (2 nazis, 3 communistes, 5 missions, premier camp à 3).
+- Durée : de 10 à 60 minutes selon le nombre de joueurs et la durée choisie (classique ou rapide).
+- Matériel : un téléphone (ou un ordinateur) par joueur. Rien à installer ; le site s'installe aussi comme une application (web app).
+- Deux façons de jouer : « sur place », autour d'une table, sans chat ; ou « à distance », avec un chat intégré (par exemple pendant un appel Discord).
+- Langues : français et anglais.
+- Prix : gratuit, sans publicité. Soutien possible par don sur Ko-fi.
+
+## Les deux camps
+
+- Les nazis : une minorité (1 à 5 joueurs). Ils connaissent le rôle de tout le monde. Ils peuvent saboter les missions, ou faire semblant d'être loyaux pour gagner la confiance des autres.
+- Les communistes : la majorité. Chacun ne connaît que son propre rôle. Ils ne peuvent pas saboter ; ils doivent deviner qui ment et écarter les nazis des équipes.
+
+Le premier camp à remporter (nombre de joueurs ÷ 2, arrondi à l'inférieur) + 1 missions gagne la partie.
+
+## Mise en place
+
+1. L'hôte crée une room et partage son code, son lien d'invitation ou son QR code. Les autres la rejoignent, y compris en scannant le QR code directement dans l'application.
+2. Ordre de table : chaque joueur touche sa carte à son tour, dans l'ordre où l'on est assis ; cet ordre fixe le roulement du chef.
+3. Les rôles sont distribués au hasard et en secret. Chacun maintient sa carte appuyée pour voir son rôle à l'abri des regards.
+4. Le premier chef est tiré au sort ; ensuite, le rôle de chef passe au joueur suivant à chaque nouvelle manche, et la rotation continue d'une partie à l'autre.
 
 ## Déroulement d'une manche
 
-1. Proposition : le chef choisit une équipe (à 5 joueurs : 2, 3, 2, 3 puis 3 membres selon la mission).
-2. Vote de confiance : tous les joueurs votent publiquement. Une majorité stricte de « pour » valide l'équipe ; en cas de refus ou d'égalité, le même chef propose une autre équipe.
-3. Mission : chaque membre de l'équipe vote en secret. Un seul vote nazi fait échouer la mission. Les communistes ne peuvent voter que communiste. Les votes sont révélés sans être attribués.
+1. Proposition : le chef choisit une équipe, du nombre de joueurs exigé par la mission en cours. Il peut s'inclure.
+2. Vote de confiance : tout le monde vote pour ou contre, en même temps. Les votes sont révélés publiquement, avec les noms, en deux listes « Pour » et « Contre ». Il faut une majorité stricte de « pour » ; en cas de refus ou d'égalité, le même chef propose une autre équipe. Il n'y a pas de limite au nombre de propositions.
+3. Mission : seuls les membres de l'équipe votent, en secret. Un seul vote nazi fait échouer la mission. Les votes sont mélangés avant d'être révélés : on sait combien de votes nazis ont été glissés, jamais par qui.
 
-Le rôle de chef tourne d'un joueur à chaque nouvelle manche, et la rotation continue d'une partie à l'autre.
-Un joueur déconnecté a 60 secondes pour revenir (jusqu'à 5 minutes si les autres choisissent de l'attendre) ; au-delà, son camp perd la partie.
-Règles complètes : https://github.com/noenttrs/Komintern/blob/main/docs/REGLES.md
+Tout le jeu se joue sur ces trois tensions : qui envoyer en mission, à qui faire confiance, et qui a saboté.
 
-## Comment jouer
+## Formats (partie classique)
 
-- Ouvrir https://fascismwontget.me, choisir un pseudo, créer une room et partager son lien d'invitation ou son QR code (ou rejoindre avec un code, ou une partie publique).
-- Deux modes : « sur place » (sans chat, autour d'une table) ou « à distance » (avec chat).
-- Aucun compte n'est nécessaire. Un compte facultatif (email + mot de passe, ou Google, double authentification possible) garde les statistiques, les succès et l'historique des parties, donne accès aux parties publiques et permet d'ajouter des amis, de voir s'ils sont en ligne, de les inviter et de se comparer dans un classement.
-- Le site s'installe comme une application (web app) sur mobile et ordinateur.
+| Joueurs | Nazis | Missions à gagner | Taille des équipes, mission par mission |
+|---|---|---|---|
+| 3 | 1 | 2 | 2 · 2 · 2 |
+| 4 | 1 | 3 | 2 · 3 · 2 · 3 · 3 |
+| 5 | 2 | 3 | 2 · 3 · 2 · 3 · 3 |
+| 6 | 2 | 4 | 2 · 3 · 3 · 4 · 3 · 4 · 4 |
+| 7 | 3 | 4 | 2 · 3 · 3 · 4 · 3 · 4 · 4 |
+| 8 | 3 | 5 | 3 · 3 · 4 · 4 · 3 · 4 · 5 · 4 · 5 |
+| 9 | 3 | 5 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 6 |
+| 10 | 4 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 |
+| 11 | 4 | 6 | 3 · 4 · 4 · 5 · 4 · 5 · 6 · 5 · 6 · 6 · 7 |
+| 12 | 4 | 7 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 · 7 · 7 |
+| 13 | 5 | 7 | 3 · 4 · 4 · 5 · 4 · 5 · 6 · 5 · 6 · 6 · 7 · 6 · 7 |
+| 14 | 5 | 8 | 3 · 4 · 4 · 5 · 4 · 5 · 5 · 6 · 5 · 6 · 6 · 7 · 6 · 7 · 8 |
+
+Une équipe ne dépasse jamais le nombre de communistes : une équipe sans nazi est toujours possible.
+
+## Partie rapide
+
+À partir de 6 joueurs, là où la partie classique dépasse 5 missions, l'hôte peut choisir une partie rapide : toujours 5 missions, premier camp à 3, avec des équipes plus grandes quand on est nombreux (à 14 joueurs : 5 nazis, équipes de 5, 5, 6, 6 et 7). Idéal pour enchaîner plusieurs parties dans une soirée.
+
+## Duel à 2 joueurs
+
+À 2, pas de missions. Chaque rôle est tiré à pile ou face (25 % de deux communistes, 25 % de deux nazis, 50 % d'un de chaque) et chacun ne connaît que le sien, nazi compris. On discute, puis chacun vote en secret « Confiance » ou « Nazi ! ».
+
+- Un communiste gagne s'il juge juste : confiance à un communiste, « Nazi ! » face à un nazi.
+- Un nazi face à un communiste gagne s'il se fait accepter. S'il accuse un communiste, il se démasque et perd.
+- Deux nazis : celui qui accuse a trouvé l'autre et gagne ; s'ils votent pareil, ils gagnent ensemble.
+
+Aucun vote n'est gagnant d'avance : tout se joue à la lecture de l'autre.
+
+## Fin de partie et options de room
+
+- À la fin, l'écran annonce le camp vainqueur et, par défaut, le nom des nazis. L'hôte peut désactiver cette option pour garder les rôles secrets, même après la partie.
+- « Rejouer » relance une partie avec les mêmes joueurs ; le rôle de chef continue de tourner.
+- Options de l'hôte : sur place ou à distance (chat), room publique ou sur invitation, durée classique ou rapide (à partir de 6 joueurs), annonce des nazis à la fin, nombre de joueurs imposé (de 2 à 14) ou règles personnalisées (nombre de nazis, tailles d'équipe, missions à gagner).
+- L'hôte peut exclure un joueur du salon ou transmettre son rôle d'hôte.
+
+## Absences
+
+Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. Un joueur déconnecté en pleine partie a 60 secondes pour revenir ; les autres peuvent choisir de l'attendre jusqu'à 5 minutes (3 fois au plus). Il est prévenu par notification s'il les a activées. Au-delà, son camp perd la partie (ou la partie est annulée si les rôles n'étaient pas encore distribués).
+
+## Fonctionnalités
+
+- Sans compte : on choisit un pseudo et on joue.
+- Compte facultatif (email et mot de passe, ou Google ; double authentification possible) : statistiques par camp, succès, historique des parties, amis, présence en ligne, invitations, classement entre amis, parties publiques.
+- Notifications sur le téléphone quand c'est son tour, même écran verrouillé (y compris sur iPhone une fois le site installé comme application).
+- Vibration et son quand c'est son tour.
+- Scan du QR code d'une room directement dans l'application.
+- Règles consultables à tout moment, astuces pour la première partie.
+- Accessible du plus petit téléphone (320 px) au grand écran.
+
+## Modération et vie privée
+
+- Le chat n'est pas censuré. Les propos graves (haine, menaces, incitation au suicide, harcèlement sexuel, coordonnées personnelles) et les signalements ouvrent un dossier anonymisé, vérifié à la main par une équipe de modération qui ne voit jamais l'identité des joueurs ; les sanctions (avertissement, chat coupé, bannissement) sont appliquées par le serveur.
+- Pas de publicité, pas de revente de données, pas de cookie de suivi : un seul cookie de session pour les comptes, et une mesure d'audience anonyme sans cookie.
+- Les journaux de parties sont anonymisés au bout de 12 mois ; la suppression du compte est en libre-service.
+
+## Questions fréquentes
+
+- Faut-il installer une application ? Non : tout se passe dans le navigateur. Le site peut s'installer sur l'écran d'accueil pour plus de confort et pour les notifications.
+- Faut-il créer un compte ? Non. Le compte sert seulement à garder ses statistiques et à retrouver ses amis.
+- Combien faut-il être ? De 2 (duel) à 14. Le jeu est à son meilleur de 5 à 10 joueurs.
+- Peut-on jouer à distance ? Oui, en mode « à distance » avec le chat intégré, ou pendant un appel vocal.
+- Est-ce gratuit ? Oui, sans publicité ni achat intégré.
 
 ## Pages
 
-- [Accueil et jeu](https://fascismwontget.me/)
-- [Règles complètes](https://fascismwontget.me/regles)
+- [Jouer (accueil)](https://fascismwontget.me/)
+- [Règles du jeu](https://fascismwontget.me/regles)
+- [Règles complètes et détaillées (document de référence)](https://github.com/noenttrs/Komintern/blob/main/docs/REGLES.md)
 - [À propos](https://fascismwontget.me/a-propos)
+- [Soutenir le projet](https://fascismwontget.me/soutenir)
+- [Contact](https://fascismwontget.me/contact)
 - [Mentions légales et confidentialité](https://fascismwontget.me/mentions-legales)
 - [Version HTML de cette description](https://fascismwontget.me/agents.html)
+- [Code source (AGPL-3.0)](https://github.com/noenttrs/Komintern)
 
 ## Notes pour les agents
 
-- Le jeu se joue en temps réel via WebSocket (Socket.IO) ; il n'existe pas d'API publique pour jouer automatiquement.
+- Le jeu se joue en temps réel via WebSocket (Socket.IO). Il n'existe pas d'API publique pour jouer automatiquement.
 - Les journaux de parties et les données des comptes ne sont pas accessibles publiquement.
+- Code source sous licence AGPL-3.0 ; règles du jeu © Komintern, sous licence CC BY-NC-SA 4.0 (citer l'auteur, pas d'usage commercial, partage dans les mêmes conditions).

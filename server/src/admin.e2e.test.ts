@@ -144,6 +144,7 @@ test("moderation panel: anonymous cases, sanctions applied by the server, perman
   const adminCookie = await login("admin@example.org", "admin password 123");
   assert.equal((await api("/admin/session", { body: { code: totpCode(secret, currentCounter() + 1) }, cookie: adminCookie })).status, 200);
   assert.equal((await api(`/admin/users/${mod.id}/role`, { body: { role: "moderator" }, cookie: adminCookie })).status, 204);
+  assert.deepEqual((await api("/admin/moderators", { cookie: adminCookie })).body.users.map((user: { displayName: string }) => user.displayName), ["Modo"]);
 
   // Sans double authentification, pas d'accès au panel de modération ; le panel admin n'existe pas pour lui
   let modCookie = await login("mod@example.org", "some password 123");

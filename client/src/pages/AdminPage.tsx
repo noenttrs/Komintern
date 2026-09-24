@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiRequestError } from "../api";
 import { translate, useI18n } from "../i18n";
 import { StaffGate } from "../components/StaffGate";
-import { BanRequestsTab, GamesTab, UsersTab } from "./AdminModeration";
+import { BanRequestsTab, GamesTab, ModeratorsTab, UsersTab } from "./AdminModeration";
 
 type Stats = {
   users: { total: number; verified: number };
@@ -37,9 +37,9 @@ type Identity = { pseudonym: string; playerId: string; userId: string | null; ps
 
 type ContactMessage = { id: string; createdAt: string; email: string; subject: string; message: string; userId: string | null; read: boolean };
 
-type Tab = "stats" | "audience" | "games" | "reports" | "banRequests" | "users" | "contact";
+type Tab = "stats" | "audience" | "games" | "reports" | "banRequests" | "users" | "moderators" | "contact";
 
-const TABS: Tab[] = ["stats", "audience", "games", "reports", "banRequests", "users", "contact"];
+const TABS: Tab[] = ["stats", "audience", "games", "reports", "banRequests", "users", "moderators", "contact"];
 const TAB_LABELS = {
   stats: "admin.tabStats",
   audience: "admin.tabAudience",
@@ -47,6 +47,7 @@ const TAB_LABELS = {
   reports: "admin.tabReports",
   banRequests: "admin.tabBanRequests",
   users: "admin.tabUsers",
+  moderators: "admin.tabModerators",
   contact: "admin.tabContact",
 } as const;
 
@@ -83,7 +84,7 @@ export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
               </button>
             ))}
           </div>
-          {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab isAdmin /> : tab === "banRequests" ? <BanRequestsTab /> : tab === "users" ? <UsersTab isAdmin /> : <ContactTab />}
+          {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab isAdmin /> : tab === "banRequests" ? <BanRequestsTab /> : tab === "users" ? <UsersTab isAdmin /> : tab === "moderators" ? <ModeratorsTab /> : <ContactTab />}
         </>
       )}
     </StaffGate>

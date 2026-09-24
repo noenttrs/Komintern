@@ -221,6 +221,10 @@ export class AdminService {
     return (await this.users.search(query, 30)).map(adminUserView);
   }
 
+  public async moderators(): Promise<AdminUserView[]> {
+    return (await this.users.listByRole("moderator")).map(adminUserView);
+  }
+
   public async sanctionedUsers(): Promise<AdminUserView[]> {
     return (await this.users.listSanctioned(new Date(), 200)).map(adminUserView);
   }

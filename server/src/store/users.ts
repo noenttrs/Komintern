@@ -85,6 +85,8 @@ export interface UserStore {
   search(query: string, limit: number): Promise<User[]>;
   /** Administration : comptes bannis en ce moment ou ayant reçu des avertissements. */
   listSanctioned(now: Date, limit: number): Promise<User[]>;
+  /** Administration : membres de l'équipe ayant ce rôle. */
+  listByRole(role: StaffRole): Promise<User[]>;
 }
 
 function escapeRegex(value: string): string {
@@ -241,6 +243,10 @@ export class MongoUserStore implements UserStore {
     return (await this.users.find({ $or: [{ email: prefix }, { displayNameLower: prefix }] }).limit(limit).toArray()).map(fromDoc);
   }
 
+  public async listByRole(role: StaffRole): Promise<User[]> {
+    return (await this.users.find({ role }).limit(200).toArray()).map(fromDoc);
+  }
+
   public async listSanctioned(now: Date, limit: number): Promise<User[]> {
     return (
       await this.users.find({ $or: [{ bannedUntil: { $gt: now } }, { chatMutedUntil: { $gt: now } }, { "warnings.0": { $exists: true } }] }).limit(limit).toArray()
@@ -332,6 +338,10 @@ export class MemoryUserStore implements UserStore {
       .filter((user) => (user.email ?? "").startsWith(prefix) || (user.displayName ?? "").toLowerCase().startsWith(prefix))
       .slice(0, limit)
       .map((user) => ({ ...user }));
+  }
+
+  public async listByRole(role: StaffRole): Promise<User[]> {
+    return [...this.users.values()].filter((user) => user.role === role).map((user) => ({ ...user }));
   }
 
   public async listSanctioned(now: Date, limit: number): Promise<User[]> {
