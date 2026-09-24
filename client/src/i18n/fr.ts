@@ -79,7 +79,7 @@ export const fr = {
     subtitle: "Résumé rapide du tour",
     proposedTeam: "Équipe proposée",
     lastVote: "Dernier vote de confiance",
-    proposed: "Proposes:",
+    proposed: "Proposés :",
     noLastVote: "Aucun vote de confiance enregistre.",
     missions: "Missions",
     noMissions: "Aucune mission enregistree.",
