@@ -59,7 +59,9 @@ export type AccountView = {
   chatMutedUntil?: string | null;
 };
 
-const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+// Caractères usuels seulement : une adresse finit dans des emails HTML et dans l'interface admin,
+// elle ne doit pas pouvoir y glisser de balises (« x@<a href=…>.fr »). Domaines accentués : punycode.
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]{1,64}@(?:[A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$/;
 
 export function parseEmail(raw: unknown): string {
   if (typeof raw !== "string" || raw.length > 254 || !EMAIL_PATTERN.test(raw.trim())) {

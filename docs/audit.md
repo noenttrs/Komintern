@@ -285,3 +285,19 @@ Même protocole que ci-dessus (robots ~140 fois plus rapides que des humains) :
 Zéro erreur à tous les paliers. La RAM n'est plus la limite (≈ 0,6 Mo par partie côté Node) ;
 la prochaine limite est un cœur de CPU pour Node, loin d'être atteinte au rythme d'humains.
 `MAX_ROOMS` passe de 200 à 1 000 par défaut.
+
+# v8 — injections par requêtes POST (2026-09-24)
+
+Revue de toutes les routes qui modifient des données (35 routes `POST`/`PATCH`/`DELETE` de
+l'API, plus les événements Socket.IO déjà validés un par un dans `validation.ts`).
+
+| Vecteur | Constat |
+|---|---|
+| Injection NoSQL (`{"$ne": null}`, `{"$gt": ""}`) | Aucune : chaque champ est typé (`unknown` → vérifié `string`/nombre/booléen) avant d'atteindre Mongo ; les `:id` sont convertis en chaîne. Vérifié sur le site en ligne. |
+| Expressions régulières | Une seule, la recherche admin : entrée échappée (`escapeRegex`), ancrée, 2–100 caractères. |
+| Pollution de prototype (`__proto__`) | Aucun corps de requête n'est fusionné dans un objet ; `JSON.parse` n'en crée qu'une propriété inerte. |
+| Commandes système | Le moteur Python est lancé avec des arguments fixes, sans shell ; aucune entrée utilisateur n'atteint une commande. |
+| CSRF | Origine vérifiée sur toute requête qui modifie des données ; cookie `SameSite` ; corps JSON uniquement (10 Ko max). |
+| XSS dans le site | React échappe tout ; aucun `dangerouslySetInnerHTML`. |
+| **HTML dans les emails** | **Corrigé.** Le format d'email accepté laissait passer `<`, `>`, `"` (ex. `x@<a href=…>.fr`), et l'avis « ton adresse a changé » insérait la nouvelle adresse sans échappement : quelqu'un ayant pris le contrôle d'un compte pouvait glisser un lien piégé dans l'email envoyé au vrai propriétaire. Adresse désormais limitée aux caractères usuels (domaines accentués en punycode), modèle d'email échappé, tests ajoutés. Les 3 comptes existants sont conformes. |
+| En-têtes d'email | Les retours à la ligne sont refusés dans l'adresse ; le sujet du formulaire de contact est ramené sur une ligne ; envoi via l'API JSON de Resend. |

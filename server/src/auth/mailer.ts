@@ -11,7 +11,11 @@ export interface Mailer {
 export function emailChangedMail(to: string, newEmail: string): Mail {
   const masked = newEmail.replace(/^(.).*(@.*)$/, "$1***$2");
   const text = `L'adresse email de ton compte Nazi Communiste vient d'être remplacée par ${masked}.\n\nSi tu n'es pas à l'origine de ce changement, réponds à ce message pour que nous sécurisions ton compte.`;
-  return { to, subject: "Ton adresse email a été modifiée", text, html: `<div style="font-family:monospace;color:#0f0f0f"><p>${text.replace(/\n/g, "<br>")}</p></div>` };
+  return { to, subject: "Ton adresse email a été modifiée", text, html: `<div style="font-family:monospace;color:#0f0f0f"><p>${escapeHtml(text).replace(/\n/g, "<br>")}</p></div>` };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] as string);
 }
 
 export class ResendMailer implements Mailer {

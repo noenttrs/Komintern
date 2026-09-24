@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MemoryMailer } from "./mailer";
-import { AccountService, ApiError } from "./accounts";
+import { emailChangedMail, MemoryMailer } from "./mailer";
+import { AccountService, ApiError, parseEmail } from "./accounts";
 import { EmailCodeService } from "./codes";
 import { SessionService } from "./sessions";
 import { memoryStores } from "../services";
@@ -151,4 +151,17 @@ test("deleting an account removes friendships and detaches game logs", async () 
   assert.deepEqual(await stores.friends.listFor(user.id), []);
   const logs = stores.gameLogs as MemoryGameLogStore;
   assert.equal(logs.games.get("g1")?.players[0]?.userId, null);
+});
+
+test("emails with markup or operators are rejected (no HTML or NoSQL injection)", () => {
+  for (const raw of ["x@<a/href=https://evil.fr>clic</a>.fr", "a\"b@c.fr", "a@b.fr\r\nBcc: x@y.fr", { $ne: null }, ["a@b.fr"], "a@b"]) {
+    assert.throws(() => parseEmail(raw), (e) => code(e) === "invalid_email", JSON.stringify(raw));
+  }
+  assert.equal(parseEmail(" Rosa.L+jeu@Exemple-1.fr "), "rosa.l+jeu@exemple-1.fr");
+  assert.equal(parseEmail("a@xn--rsa-bma.fr"), "a@xn--rsa-bma.fr");
+});
+
+test("the email-change notice escapes the new address", () => {
+  const mail = emailChangedMail("old@b.fr", "n@evil.fr<script>");
+  assert.doesNotMatch(mail.html, /<script>/);
 });
