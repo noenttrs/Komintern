@@ -551,12 +551,11 @@ p {
   height: 1.45rem;
 }
 
-/* Vote impossible (un communiste ne peut pas voter nazi) : clairement grisé, barré, inactif. */
+/* Vote impossible (un communiste ne peut pas voter nazi) : volontairement identique au bouton
+   actif. Un style différent révélerait aux voisins de table que le joueur est communiste. */
 .vote-btn:disabled {
-  background: repeating-linear-gradient(135deg, var(--bg) 0 10px, #e4e4e4 10px 20px);
-  color: var(--line-soft);
-  border: 2px dashed var(--line-soft);
-  cursor: not-allowed;
+  opacity: 1;
+  cursor: default;
 }
 
 .team-grid {

@@ -258,10 +258,16 @@ export default function App(): JSX.Element {
     .map(([id]) => nameById(id));
   const orderReference = tableOrder.order.length > 0 ? tableOrder.order : players.map((entry) => entry.id);
   const orderValidatedIds = phase === "table_order" ? tableOrder.order : tableOrder.confirmed.length > 0 ? tableOrder.confirmed : tableOrder.order;
+  // Ordre de table : un point par joueur, plein pour chaque place prise, vide pour les autres
+  // (comme la progression d'une mission). Ensuite : l'ordre validé.
+  const orderDots =
+    phase === "table_order"
+      ? players.map((entry, index) => ({ key: entry.id, full: index < tableOrder.order.length }))
+      : orderReference.map((id) => ({ key: id, full: orderValidatedIds.includes(id) }));
   const orderLegend = (
     <span className="progress-dots progress-dots--compact" aria-label={t("app.tableProgress")}>
-      {orderReference.map((id) => (
-        <span key={id} className={orderValidatedIds.includes(id) ? "dot dot--full" : "dot"} />
+      {orderDots.map((dot) => (
+        <span key={dot.key} className={dot.full ? "dot dot--full" : "dot"} />
       ))}
     </span>
   );

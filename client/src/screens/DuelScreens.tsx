@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { CardSurface } from "../components/game/CardSurface";
 import { FactionIcon } from "../components/game/FactionIcon";
 import { WaitingCard } from "../components/game/WaitingCard";
@@ -38,6 +40,7 @@ export function DuelVoteScreen(): JSX.Element {
   const otherName = other?.pseudo ?? "?";
   const iVoted = duel.myVote !== null || (myId !== null && duel.votedPlayerIds.includes(myId));
   const otherVoted = other !== undefined && duel.votedPlayerIds.includes(other.id);
+  const [swapped] = useState(() => Math.random() < 0.5);
 
   return (
     <main className="game-screen">
@@ -53,13 +56,13 @@ export function DuelVoteScreen(): JSX.Element {
             <div className="vote-phase">
               <h2>{t("duel.question", { name: otherName })}</h2>
               <p>{t("duel.hint")}</p>
+              {/* Ordre tiré au hasard : la position du doigt ne trahit pas le vote. */}
               <div className="vote-stack vote-stack--split">
-                <button type="button" className="vote-btn" onClick={() => sendDuelVote("trust")}>
-                  {t("duel.trust")}
-                </button>
-                <button type="button" className="vote-btn" onClick={() => sendDuelVote("accuse")}>
-                  {t("duel.accuse")}
-                </button>
+                {(swapped ? (["accuse", "trust"] as const) : (["trust", "accuse"] as const)).map((vote) => (
+                  <button key={vote} type="button" className="vote-btn" onClick={() => sendDuelVote(vote)}>
+                    {vote === "trust" ? t("duel.trust") : t("duel.accuse")}
+                  </button>
+                ))}
               </div>
             </div>
           )
