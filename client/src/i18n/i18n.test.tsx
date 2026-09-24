@@ -27,7 +27,7 @@ describe("i18n", () => {
   });
 
   it("interpolates variables, plurals and rich text", () => {
-    expect(translate("waiting.start", { count: 5 })).toBe("Demarrer (5 joueurs)");
+    expect(translate("waiting.start", { count: 5 })).toBe("Démarrer (5 joueurs)");
     expect(translate("waiting.start", { count: 5 }, "en")).toBe("Start (5 players)");
     expect(translate("status.invite", { name: "Rosa", code: "ROOM" }, "en")).toBe("Rosa invites you to room ROOM");
     // Variable absente : le marqueur reste visible plutôt que de disparaître.

@@ -70,7 +70,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Joueur p2"));
     fireEvent.click(screen.getByText("Joueur p3"));
     // Les actions sont rendues sur les deux faces de la carte.
-    const propose = screen.getAllByText("Proposer equipe")[0] as HTMLButtonElement;
+    const propose = screen.getAllByText("Proposer l'équipe")[0] as HTMLButtonElement;
     expect(propose.disabled).toBe(false);
     act(() => {
       propose.click();
@@ -80,7 +80,7 @@ describe("App", () => {
 
     act(() => fake.socket.serverEmit("error", { code: "invalid_team_proposal", message: "x" }));
     act(() => fake.socket.serverEmit("proposal_phase", { chef: "p1", missionSize: 2, missionIndex: 2, team: [] }));
-    expect((screen.getAllByText("Proposer equipe")[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getAllByText("Proposer l'équipe")[0] as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("shows the connection banner while disconnected in a room", () => {
@@ -101,10 +101,10 @@ describe("App", () => {
 
   it("asks where the game is played and sends the choice when creating a room", () => {
     render(<App />);
-    fireEvent.click(screen.getByText("Creer une room"));
+    fireEvent.click(screen.getByText("Créer une room"));
     expect(screen.getByRole("radio", { name: "Sur place" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "À distance" }));
-    fireEvent.click(screen.getByRole("button", { name: "Creer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer" }));
     expect(fake.socket.emitted.find((entry) => entry.event === "create_room")?.payload).toMatchObject({ chatEnabled: true });
   });
 

@@ -55,11 +55,11 @@ for (const size of SIZES) {
       }
 
       await page.goto("/");
-      await page.getByRole("button", { name: "Creer une room" }).click();
+      await page.getByRole("button", { name: "Créer une room" }).click();
       await page.getByRole("radio", { name: "À distance" }).click();
       await page.screenshot({ path: `e2e/screenshots/${size.name}-create-room.png` });
-      await page.getByRole("button", { name: "Creer", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
+      await page.getByRole("button", { name: "Créer", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
       await page.getByRole("button", { name: "Ouvrir le chat" }).click();
       await page.getByLabel("Message").fill("Test de mise en page");
       await page.getByRole("button", { name: "Envoyer" }).click();

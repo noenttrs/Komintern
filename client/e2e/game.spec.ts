@@ -92,9 +92,9 @@ for (const device of DEVICES) {
     const tag = (step: string) => `${device.name}-${step}`;
 
     // Salle d'attente
-    await host.page.getByRole("button", { name: "Creer une room" }).click();
+    await host.page.getByRole("button", { name: "Créer une room" }).click();
     if (device.remote) await host.page.getByRole("radio", { name: "À distance" }).click();
-    await host.page.getByRole("button", { name: "Creer", exact: true }).click();
+    await host.page.getByRole("button", { name: "Créer", exact: true }).click();
     const code = (await host.page.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
     for (const [index, guest] of guests.entries()) {
       if (index % 2 === 0) {
@@ -105,13 +105,13 @@ for (const device of DEVICES) {
         await guest.page.getByPlaceholder("Code room").fill(code);
         await guest.page.getByRole("button", { name: "Rejoindre", exact: true }).click();
       }
-      await expect(guest.page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
+      await expect(guest.page.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
     }
     await host.page.getByRole("button", { name: "QR code" }).click();
     await expect(host.page.getByAltText(/QR code pour rejoindre/)).toBeVisible();
     await host.page.screenshot({ path: `e2e/screenshots/game-${device.name}-00-qr.png` });
     await host.page.getByRole("button", { name: "Fermer" }).click();
-    await expect(host.page.getByRole("button", { name: "Demarrer" })).toBeEnabled();
+    await expect(host.page.getByRole("button", { name: "Démarrer" })).toBeEnabled();
     await check(host.page, tag("01-salle-attente"));
 
     // Chat : présent à distance, absent sur place
@@ -128,17 +128,17 @@ for (const device of DEVICES) {
     }
 
     // Ordre de table
-    await host.page.getByRole("button", { name: "Demarrer" }).click();
+    await host.page.getByRole("button", { name: "Démarrer" }).click();
     for (const player of players) {
-      await expect(player.page.getByText("Tap pour prendre votre numero d'ordre")).toBeVisible();
+      await expect(player.page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
     }
     await check(host.page, tag("02-ordre-table"));
     for (const player of players) {
       await tapCard(player.page);
-      await expect(player.page.getByText(/Votre numero d'ordre/)).toBeVisible();
+      await expect(player.page.getByText(/Votre numéro d'ordre/)).toBeVisible();
     }
     for (const player of players) {
-      await expect(player.page.getByText("Tap pour passer a la suite (confirmation collective)")).toBeVisible();
+      await expect(player.page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
     }
     await check(host.page, tag("03-ordre-complet"));
     for (const player of players) {
@@ -147,7 +147,7 @@ for (const device of DEVICES) {
 
     // Révélation des rôles (appui long)
     for (const [index, player] of players.entries()) {
-      await expect(player.page.getByText("Maintenez pour voir votre role")).toBeVisible();
+      await expect(player.page.getByText("Maintenez pour voir votre rôle")).toBeVisible();
       await dismissTip(player.page);
       const box = (await player.page.locator(".card-zone").boundingBox())!;
       await player.page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.35);
@@ -164,7 +164,7 @@ for (const device of DEVICES) {
       let chef: Player | undefined;
       await expect.poll(async () => {
         for (const player of players) {
-          if (await player.page.getByText(/Choisir equipe/).isVisible()) {
+          if (await player.page.getByText(/Choisir l'équipe/).isVisible()) {
             chef = player;
             return true;
           }
@@ -172,11 +172,11 @@ for (const device of DEVICES) {
         return false;
       }).toBe(true);
       await dismissTip(chef!.page);
-      const teamSize = Number((await chef!.page.getByText(/Choisir equipe/).innerText()).match(/\d+/)?.[0]);
+      const teamSize = Number((await chef!.page.getByText(/Choisir l'équipe/).innerText()).match(/\d+/)?.[0]);
       if (round === 1) await check(chef!.page, tag("05-proposition-chef"));
       const chips = chef!.page.locator(".team-grid .chip");
       for (let index = 0; index < teamSize; index += 1) await chips.nth(index).click();
-      await chef!.page.getByRole("button", { name: "Proposer equipe" }).first().click();
+      await chef!.page.getByRole("button", { name: "Proposer l'équipe" }).first().click();
 
       for (const [index, player] of players.entries()) {
         await expect(player.page.getByRole("heading", { name: "Vote de confiance" }).first()).toBeVisible();
@@ -185,7 +185,7 @@ for (const device of DEVICES) {
         await player.page.getByRole("button", { name: "✓" }).first().click();
       }
       for (const [index, player] of players.entries()) {
-        await expect(player.page.getByText("Majorite POUR")).toBeVisible();
+        await expect(player.page.getByText("Majorité POUR")).toBeVisible();
         if (round === 1 && index === 0) await check(player.page, tag("07-resultat-confiance"));
         await tapCard(player.page);
       }
@@ -193,12 +193,12 @@ for (const device of DEVICES) {
       // Mission : chaque membre vote communiste (icône à viewBox 0 0 24 24)
       for (const [index, player] of players.entries()) {
         // Écran de mission affiché : boutons de vote (membre de l'équipe) ou carte d'attente.
-        await expect(player.page.getByText(/Majorite POUR|Validation envoyee/)).toHaveCount(0);
+        await expect(player.page.getByText(/Majorité POUR|Validation envoyée/)).toHaveCount(0);
         await expect(
           player.page
             .locator(".vote-stack--split")
             .or(player.page.getByText("En attente.", { exact: true }))
-            .or(player.page.getByText(/Victoire (Nazi|Communiste)/))
+            .or(player.page.getByText(/Victoire (nazie|communiste)/))
             .first(),
         ).toBeVisible();
         await dismissTip(player.page);
@@ -209,7 +209,7 @@ for (const device of DEVICES) {
         }
       }
       for (const [index, player] of players.entries()) {
-        await expect(player.page.getByText(/Victoire (Nazi|Communiste)/).first()).toBeVisible();
+        await expect(player.page.getByText(/Victoire (nazie|communiste)/).first()).toBeVisible();
         if (index === 0 && round === 1) {
           await expect(player.page.getByText(/Mission 1 \/ 5/).first()).toBeVisible();
           await check(player.page, tag("09-resultat-mission"));
@@ -217,7 +217,7 @@ for (const device of DEVICES) {
       }
       const over = await host.page.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false);
       for (const player of players) {
-        if (await player.page.getByText("Tap pour passer a la suite.").isVisible().catch(() => false)) {
+        if (await player.page.getByText("Touchez pour passer à la suite.").isVisible().catch(() => false)) {
           await tapCard(player.page);
         }
       }
@@ -231,11 +231,11 @@ for (const device of DEVICES) {
     for (const player of players) {
       await player.page.getByRole("button", { name: "Rejouer" }).first().click();
     }
-    await expect(host.page.getByText("Tap pour prendre votre numero d'ordre")).toBeVisible({ timeout: 15_000 });
+    await expect(host.page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible({ timeout: 15_000 });
 
     // Rechargement en pleine partie : on retrouve sa place
     await guests[1]!.page.reload();
-    await expect(guests[1]!.page.getByText(/Tap pour prendre votre numero d'ordre|Votre numero d'ordre/)).toBeVisible();
+    await expect(guests[1]!.page.getByText(/Touchez pour prendre votre numéro d'ordre|Votre numéro d'ordre/)).toBeVisible();
     await check(guests[1]!.page, tag("11-apres-rechargement"));
 
     for (const player of players) await player.page.context().close();

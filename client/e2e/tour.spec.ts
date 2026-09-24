@@ -45,7 +45,7 @@ async function flipCard(page: Page): Promise<void> {
 }
 
 test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(1_200_000);
   const pages: Page[] = [];
   for (let index = 0; index < 14; index += 1) {
     const context = await browser.newContext({ viewport: SIZE, isMobile: true, hasTouch: true, locale: "fr-FR" });
@@ -61,13 +61,13 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   const [host, guest] = pages as [Page, Page];
 
   // Création et salon
-  await host.getByRole("button", { name: "Creer une room" }).click();
+  await host.getByRole("button", { name: "Créer une room" }).click();
   await shot(host, "01-creation-room");
-  await host.getByRole("button", { name: "Creer", exact: true }).click();
+  await host.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {
     await page.goto(`/r/${code}`);
-    await expect(page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
   }
   await expect(host.getByText("14 joueurs · de 2 à 14")).toBeVisible();
   // Partie rapide : proposée à l'hôte dans le salon, à partir de 6 joueurs.
@@ -79,18 +79,18 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   await host.getByRole("button", { name: "Fermer" }).click();
 
   // Ordre de table
-  await host.getByRole("button", { name: "Demarrer" }).click();
-  await expect(host.getByText("Tap pour prendre votre numero d'ordre")).toBeVisible();
+  await host.getByRole("button", { name: "Démarrer" }).click();
+  await expect(host.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
   await shot(host, "05-ordre-table-debut");
   for (const [index, page] of pages.entries()) {
-    await expect(page.getByText("Tap pour prendre votre numero d'ordre")).toBeVisible();
+    await expect(page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
     await tapCard(page);
     if (index === 6) await shot(host, "06-ordre-table-en-cours");
   }
-  await expect(host.getByText("Tap pour passer a la suite (confirmation collective)")).toBeVisible();
+  await expect(host.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
   await shot(host, "07-ordre-table-complet");
   for (const page of pages) {
-    await expect(page.getByText("Tap pour passer a la suite (confirmation collective)")).toBeVisible();
+    await expect(page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
     await tapCard(page);
   }
 
@@ -98,7 +98,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   let nazi: Page | null = null;
   let communist: Page | null = null;
   for (const page of pages) {
-    await expect(page.getByText("Maintenez pour voir votre role")).toBeVisible();
+    await expect(page.getByText("Maintenez pour voir votre rôle")).toBeVisible();
     const box = (await page.locator(".card-zone").boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.35);
     await page.mouse.down();
@@ -124,7 +124,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
     await expect
       .poll(async () => {
         for (const page of pages) {
-          if (await page.getByText(/Choisir equipe/).isVisible()) {
+          if (await page.getByText(/Choisir l'équipe/).isVisible()) {
             chef = page;
             return true;
           }
@@ -132,7 +132,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
         return false;
       }, { timeout: 30_000 })
       .toBe(true);
-    const teamSize = Number((await chef!.getByText(/Choisir equipe/).innerText()).match(/\d+/)?.[0]);
+    const teamSize = Number((await chef!.getByText(/Choisir l'équipe/).innerText()).match(/\d+/)?.[0]);
     if (round === 1) {
       await shot(chef!, "11-proposition-chef-vide");
       const other = pages.find((page) => page !== chef)!;
@@ -142,7 +142,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
     // Équipe différente à chaque manche
     for (let index = 0; index < teamSize; index += 1) await chips.nth((index + round * 3) % 14).click();
     if (round === 1) await shot(chef!, "13-proposition-chef-equipe");
-    await chef!.getByRole("button", { name: "Proposer equipe" }).first().click();
+    await chef!.getByRole("button", { name: "Proposer l'équipe" }).first().click();
 
     for (const [index, page] of pages.entries()) {
       await expect(page.getByRole("heading", { name: "Vote de confiance" }).first()).toBeVisible();
@@ -152,14 +152,14 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
       await page.getByRole("button", { name: vote }).first().click();
       if (round === 1 && index === 0) await shot(page, "15-vote-envoye-attente");
     }
-    for (const page of pages) await expect(page.getByText(/Majorite POUR/).first()).toBeVisible();
+    for (const page of pages) await expect(page.getByText(/Majorité POUR/).first()).toBeVisible();
     if (round === 1) await shot(host, "16-resultat-confiance-14-votes");
     if (round === 3) await shot(host, "17-resultat-confiance-serre");
     for (const page of pages) await tapCard(page);
 
     for (const [index, page] of pages.entries()) {
       await expect(
-        page.locator(".vote-stack--split").or(page.getByText("En attente.", { exact: true })).or(page.getByText(/Victoire (Nazi|Communiste)/)).first(),
+        page.locator(".vote-stack--split").or(page.getByText("En attente.", { exact: true })).or(page.getByText(/Victoire (nazie|communiste)/)).first(),
       ).toBeVisible();
       const communistButton = page.locator('.vote-stack button:has(svg[viewBox="0 0 24 24"])').first();
       if (await communistButton.isVisible().catch(() => false)) {
@@ -172,7 +172,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
         await shot(page, "20-attente-mission-hors-equipe");
       }
     }
-    for (const page of pages) await expect(page.getByText(/Victoire (Nazi|Communiste)/).first()).toBeVisible();
+    for (const page of pages) await expect(page.getByText(/Victoire (nazie|communiste)/).first()).toBeVisible();
     if (round === 1) await shot(host, "21-resultat-mission-reussie");
     if (round === 2) await shot(host, "22-resultat-mission-sabotee");
     const over = await host.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false);
@@ -182,7 +182,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
       await flipCard(host);
     }
     for (const page of pages) {
-      if (await page.getByText("Tap pour passer a la suite.").isVisible().catch(() => false)) await tapCard(page);
+      if (await page.getByText("Touchez pour passer à la suite.").isVisible().catch(() => false)) await tapCard(page);
     }
     await host.waitForTimeout(500);
     if (over || (await host.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false))) break;

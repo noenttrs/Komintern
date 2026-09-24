@@ -524,7 +524,14 @@ export default function App(): JSX.Element {
   const missionProgressTotal = gameMeta.missionCount > 0 ? gameMeta.missionCount : missionProgressNumber;
   const missionProgressLabel = t("game.missionProgress", { number: missionProgressNumber, total: missionProgressTotal });
 
-  const frontFooter = <div><p>{t("game.missionOngoing")}</p></div>;
+  // Pied de carte selon le moment : mise en place, mission en cours (n / total) ou partie terminée.
+  const frontFooterText =
+    phase === "table_order" || phase === "role_reveal"
+      ? t("game.setup")
+      : phase === "end_game" || phase === "replay_waiting"
+        ? t("game.over")
+        : missionProgressLabel;
+  const frontFooter = <div><p>{frontFooterText}</p></div>;
 
   useEffect(() => {
     const handleGlobalTap = (event: MouseEvent): void => {

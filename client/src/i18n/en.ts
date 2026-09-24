@@ -57,12 +57,14 @@ export const en: Dictionary = {
   game: {
     chef: "Leader: {name}",
     missionProgress: "Mission {number} / {total}",
+    setup: "Setting up",
+    over: "Game over",
     missionOngoing: "Mission in progress",
     score: "score",
     missionProgressAria: "mission progress",
     yes: "Yes",
     no: "No",
-    missionVotes: "votes: nazi:{nazi} communist:{communist}",
+    missionVotes: "votes: {nazi} Nazi · {communist} Communist",
   },
   role: {
     nazi: "Nazi",

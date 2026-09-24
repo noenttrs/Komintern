@@ -18,16 +18,16 @@ test("duel à 2 joueurs, puis revanche", async ({ browser }) => {
     pages.push(page);
   }
   const [first, second] = pages as [Page, Page];
-  await first.getByRole("button", { name: "Creer une room" }).click();
-  await first.getByRole("button", { name: "Creer", exact: true }).click();
+  await first.getByRole("button", { name: "Créer une room" }).click();
+  await first.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await first.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   await second.goto(`/r/${code}`);
-  await expect(second.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
+  await expect(second.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
 
   for (let round = 0; round < 2; round += 1) {
-    if (round === 0) await first.getByRole("button", { name: "Demarrer" }).click();
+    if (round === 0) await first.getByRole("button", { name: "Démarrer" }).click();
     for (const page of pages) {
-      await expect(page.getByText("Maintenez pour voir votre role")).toBeVisible();
+      await expect(page.getByText("Maintenez pour voir votre rôle")).toBeVisible();
       const box = (await page.locator(".card-zone").boundingBox())!;
       await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.35);
       await page.mouse.down();

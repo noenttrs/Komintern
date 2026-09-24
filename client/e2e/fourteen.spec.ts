@@ -42,12 +42,12 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
     pages.push(page);
   }
   const [host] = pages as [Page];
-  await host.getByRole("button", { name: "Creer une room" }).click();
-  await host.getByRole("button", { name: "Creer", exact: true }).click();
+  await host.getByRole("button", { name: "Créer une room" }).click();
+  await host.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {
     await page.goto(`/r/${code}`);
-    await expect(page.getByRole("heading", { name: "Salle d attente" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
   }
   await expect(host.getByText("14 joueurs · de 2 à 14")).toBeVisible();
   // Partie rapide : proposée à l'hôte dans le salon, à partir de 6 joueurs.
@@ -55,17 +55,17 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
   await host.screenshot({ path: "e2e/screenshots/fourteen-01-salon.png" });
   expect(await layoutProblems(host)).toEqual([]);
 
-  await host.getByRole("button", { name: "Demarrer" }).click();
+  await host.getByRole("button", { name: "Démarrer" }).click();
   for (const page of pages) {
-    await expect(page.getByText("Tap pour prendre votre numero d'ordre")).toBeVisible();
+    await expect(page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
     await tapCard(page);
   }
   for (const page of pages) {
-    await expect(page.getByText("Tap pour passer a la suite (confirmation collective)")).toBeVisible();
+    await expect(page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
     await tapCard(page);
   }
   for (const page of pages) {
-    await expect(page.getByText("Maintenez pour voir votre role")).toBeVisible();
+    await expect(page.getByText("Maintenez pour voir votre rôle")).toBeVisible();
     const box = (await page.locator(".card-zone").boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.35);
     await page.mouse.down();
@@ -79,21 +79,21 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
   let chef: Page | undefined;
   await expect.poll(async () => {
     for (const page of pages) {
-      if (await page.getByText(/Choisir equipe/).isVisible()) {
+      if (await page.getByText(/Choisir l'équipe/).isVisible()) {
         chef = page;
         return true;
       }
     }
     return false;
   }, { timeout: 20_000 }).toBe(true);
-  const teamSize = Number((await chef!.getByText(/Choisir equipe/).innerText()).match(/\d+/)?.[0]);
+  const teamSize = Number((await chef!.getByText(/Choisir l'équipe/).innerText()).match(/\d+/)?.[0]);
   expect(teamSize).toBe(5);
   const chips = chef!.locator(".team-grid .chip");
   await expect(chips).toHaveCount(14);
   for (let index = 0; index < teamSize; index += 1) await chips.nth(index).click();
   await chef!.screenshot({ path: "e2e/screenshots/fourteen-02-proposition.png" });
   expect(await layoutProblems(chef!)).toEqual([]);
-  await chef!.getByRole("button", { name: "Proposer equipe" }).first().click();
+  await chef!.getByRole("button", { name: "Proposer l'équipe" }).first().click();
 
   for (const page of pages) {
     await expect(page.getByRole("heading", { name: "Vote de confiance" }).first()).toBeVisible();
