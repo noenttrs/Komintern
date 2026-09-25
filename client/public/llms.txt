@@ -36,6 +36,8 @@ Le premier camp à remporter (nombre de joueurs ÷ 2, arrondi à l'inférieur) +
 2. Vote de confiance : tout le monde vote pour ou contre, en même temps. Les votes sont révélés publiquement, avec les noms, en deux listes « Pour » et « Contre ». Il faut une majorité stricte de « pour » ; en cas de refus ou d'égalité, le même chef propose une autre équipe. Il n'y a pas de limite au nombre de propositions.
 3. Mission : seuls les membres de l'équipe votent, en secret. Un seul vote nazi fait échouer la mission. Les votes sont mélangés avant d'être révélés : on sait combien de votes nazis ont été glissés, jamais par qui.
 
+Il n'y a rien à valider entre deux étapes : les résultats restent affichés quelques secondes (compte à rebours), puis la partie continue d'elle-même.
+
 Tout le jeu se joue sur ces trois tensions : qui envoyer en mission, à qui faire confiance, et qui a saboté.
 
 ## Formats (partie classique)

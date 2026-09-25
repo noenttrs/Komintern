@@ -81,6 +81,8 @@ export type ScreenContextValue = UseGameSocketResult & {
   frontMeta: JSX.Element;
   frontFooter: JSX.Element;
   missionProgressLabel: string;
+  /** Heure locale de l'enchaînement automatique de l'écran en cours, ou null. */
+  autoAdvanceAt: number | null;
 };
 
 const ScreenContext = createContext<ScreenContextValue | null>(null);

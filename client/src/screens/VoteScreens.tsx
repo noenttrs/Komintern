@@ -1,4 +1,5 @@
 import { VoteSplit } from "../components/game/VoteSplit";
+import { AutoAdvance } from "../components/game/AutoAdvance";
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { VoteButtons } from "../components/game/VoteButtons";
@@ -173,6 +174,7 @@ export function ConfidenceResultScreen(): JSX.Element {
     missionProgressLabel,
     confidence,
     nameById,
+    autoAdvanceAt,
   } = useScreen();
   const { t } = useI18n();
 
@@ -186,12 +188,15 @@ export function ConfidenceResultScreen(): JSX.Element {
         footer={<div><p>{missionProgressLabel}</p></div>}
         front={
           waitingValidationStep === "confidence_result" ? (
-            <WaitingCard message={t("common.sentWaitingOthers")} />
+            <>
+              <WaitingCard message={t("common.sentWaitingOthers")} />
+              <AutoAdvance deadline={autoAdvanceAt} />
+            </>
           ) : (
             <div className="result-panel">
               <h2>{confidence.approved ? t("confidence.majorityYes") : t("confidence.majorityNo")}</h2>
               {Object.keys(confidence.votes).length > 0 ? <VoteSplit votes={confidence.votes} nameById={nameById} /> : <p>{t("confidence.noVotes")}</p>}
-              <p>{t("common.tapNext")}</p>
+              {autoAdvanceAt !== null ? <AutoAdvance deadline={autoAdvanceAt} hint={t("autoAdvance.tapToSkip")} /> : <p>{t("common.tapNext")}</p>}
             </div>
           )
         }

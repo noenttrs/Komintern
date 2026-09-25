@@ -79,6 +79,8 @@ export interface GameState {
   chat: ChatMessage[];
   invite: RoomInvite | null;
   notice: { message: string; id: number } | null;
+  /** Heure locale (ms) à laquelle l'écran en cours passera seul à la suite, ou null. */
+  autoAdvanceAt: number | null;
 }
 
 export type GameAction =
@@ -129,9 +131,11 @@ function gameReset(): Pick<
   | "revealedRoles"
   | "duel"
   | "myProgress"
+  | "autoAdvanceAt"
 > {
   return {
     tableOrderCount: 0,
+    autoAdvanceAt: null,
     tableOrder: { order: [], confirmed: [] },
     turnOrder: [],
     role: { faction: null, roleMap: {} },
@@ -179,7 +183,17 @@ export function isGamePhase(phase: UIPhase): boolean {
 
 /** Change de phase ; ce que le joueur « a déjà fait » ne vaut que pour une phase donnée. */
 function withPhase(state: GameState, phase: UIPhase): GameState {
-  return phase === state.phase ? state : { ...state, phase, myProgress: EMPTY_PROGRESS };
+  return phase === state.phase ? state : { ...state, phase, myProgress: EMPTY_PROGRESS, autoAdvanceAt: null };
+}
+
+function withDeadline(state: GameState, remaining: unknown): GameState {
+  return { ...state, autoAdvanceAt: deadline(remaining) };
+}
+
+/** Délai annoncé par le serveur → heure locale (évite tout décalage d'horloge entre appareils). */
+function deadline(raw: unknown): number | null {
+  const remaining = numberValue(raw);
+  return remaining === null ? null : Date.now() + remaining;
 }
 
 function applyRoom(state: GameState, payload: unknown): GameState {
@@ -330,6 +344,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
         ...state,
         tableOrderCount: numberValue(payload.taps) ?? stringArray(payload.order).length,
         tableOrder: { order: stringArray(payload.order), confirmed: stringArray(payload.confirmed) },
+        autoAdvanceAt: deadline(payload.autoConfirmMs),
       };
 
     case SERVER_EVENTS.ROLE_ASSIGNED: {
@@ -377,7 +392,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
     case SERVER_EVENTS.CONFIDENCE_REVEALED: {
       const votes = parseConfidenceVotes(payload.votes);
       const approved = payload.approved === true;
-      return withPhase(
+      return withDeadline(withPhase(
         {
           ...state,
           confidence: { votes, approved },
@@ -393,7 +408,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
           ],
         },
         "confidence_result",
-      );
+      ), payload.autoAdvanceMs);
     }
 
     case SERVER_EVENTS.MISSION_PHASE:
@@ -407,7 +422,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
       if (entry === null) {
         return state;
       }
-      return withPhase(
+      return withDeadline(withPhase(
         {
           ...state,
           score: parseScores(payload.scores) ?? state.score,
@@ -422,7 +437,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
           missionHistory: [...state.missionHistory, entry],
         },
         "mission_result",
-      );
+      ), payload.autoAdvanceMs);
     }
 
     case SERVER_EVENTS.GAME_OVER:
@@ -557,6 +572,7 @@ function applyResync(state: GameState, payload: Record<string, unknown>): GameSt
       : base.missionHistory,
     mission,
     gameOver: payload.gameOver === null ? null : parseGameOver(payload.gameOver),
+    autoAdvanceAt: deadline(payload.autoAdvanceMs),
     myProgress: {
       votedConfidence: payload.hasVotedConfidence === true,
       votedMission: payload.hasVotedMission === true,

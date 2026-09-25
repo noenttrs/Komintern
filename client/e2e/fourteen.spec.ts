@@ -60,9 +60,10 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
     await expect(page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
     await tapCard(page);
   }
+  // Ordre complet : validé seul après le compte à rebours ; toucher l'écran accélère.
+  await expect(pages[0]!.getByText(/Suite dans \d+ s/)).toBeVisible();
   for (const page of pages) {
-    await expect(page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
-    await tapCard(page);
+    if (await page.getByText(/Suite dans \d+ s/).isVisible().catch(() => false)) await tapCard(page);
   }
   for (const page of pages) {
     await expect(page.getByText("Maintenez pour voir votre rôle")).toBeVisible();
@@ -72,7 +73,6 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
     await expect(page.locator(".card-overlay")).toBeVisible();
     await page.mouse.up();
     await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "C'est bon" }).first().click();
   }
 
   // Proposition : 14 noms à choisir, équipe de 5 (partie rapide à 14)

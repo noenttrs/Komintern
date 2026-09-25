@@ -164,7 +164,8 @@ export const en: Dictionary = {
     tap: "Tap to take your seat number",
     yourNumber: "Your seat number: {number}",
     progress: "Progress:",
-    allChosen: "Tap to continue (everyone confirms)",
+    allChosen: "Order complete: tap to confirm",
+    autoHint: "order confirmed automatically unless someone corrects it",
     waitingOrder: "Waiting for players in seating order.",
     missed: "Oops, I missed my turn",
     validateFix: "Save correction",
@@ -173,8 +174,11 @@ export const en: Dictionary = {
   roleReveal: {
     waiting: "Waiting for the other players.",
     hold: "Hold to see your role",
-    then: "Then tap \"Got it\".",
-    ok: "Got it",
+    then: "The game starts as soon as everyone has seen theirs.",
+  },
+  autoAdvance: {
+    next: "Next in {seconds} s",
+    tapToSkip: "tap to skip",
   },
   proposal: {
     choose: "Pick a team ({size})",

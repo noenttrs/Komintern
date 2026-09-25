@@ -6,7 +6,7 @@ import { SERVER_EVENTS } from "./events";
 import { DuelSession } from "./DuelSession";
 import { EnginePool } from "./EnginePool";
 import { GameSession } from "./GameSession";
-import type { BridgeLike, GameSummary, TurnKind } from "./GameSession";
+import type { AutoAdvanceDelays, BridgeLike, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
 import { DUEL_PRESET, MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePace, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
 import type { GamePace, RulesetPreset } from "./rulesets";
@@ -133,6 +133,8 @@ export type RoomManagerOptions = {
   /** Nombre max de process Python partagés entre les parties. */
   engineWorkers?: number;
   revealPauseMs?: number;
+  /** Délais d'enchaînement automatique des parties (tests : raccourcis). */
+  autoAdvance?: Partial<AutoAdvanceDelays>;
   /** Tests : remplace le process Python. */
   bridgeFactory?: () => BridgeLike;
   /** Tests : tirage des rôles du duel reproductible. */
@@ -507,6 +509,7 @@ export class RoomManager {
       enginePath: this.options.enginePath,
       engineTimeoutMs: this.options.engineTimeoutMs,
       revealPauseMs: this.options.revealPauseMs,
+      autoAdvance: this.options.autoAdvance,
     });
 
     try {

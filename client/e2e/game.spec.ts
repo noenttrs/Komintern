@@ -138,12 +138,11 @@ for (const device of DEVICES) {
       await tapCard(player.page);
       await expect(player.page.getByText(/Votre numéro d'ordre/)).toBeVisible();
     }
-    for (const player of players) {
-      await expect(player.page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
-    }
+    // Ordre complet : validé seul après le compte à rebours ; toucher l'écran accélère.
+    await expect(host.page.getByText(/Suite dans \d+ s/)).toBeVisible();
     await check(host.page, tag("03-ordre-complet"));
     for (const player of players) {
-      await tapCard(player.page);
+      if (await player.page.getByText(/Suite dans \d+ s/).isVisible().catch(() => false)) await tapCard(player.page);
     }
 
     // Révélation des rôles (appui long)
@@ -157,7 +156,6 @@ for (const device of DEVICES) {
       if (index === 0) await check(player.page, tag("04-role-maintenu"));
       await player.page.mouse.up();
       await player.page.waitForTimeout(800); // garde anti-mauvais clic après l'appui long
-      await player.page.getByRole("button", { name: "C'est bon" }).first().click();
     }
 
     // Manches jusqu'à la fin de la partie
@@ -185,16 +183,17 @@ for (const device of DEVICES) {
         await dismissTip(player.page);
         await player.page.getByRole("button", { name: "✓" }).first().click();
       }
-      for (const [index, player] of players.entries()) {
-        await expect(player.page.getByText("Majorité POUR")).toBeVisible();
-        if (round === 1 && index === 0) await check(player.page, tag("07-resultat-confiance"));
-        await tapCard(player.page);
+      // Résultat du vote : passe seul après le compte à rebours ; toucher l'écran accélère.
+      await expect(players[0]!.page.getByText("Majorité POUR")).toBeVisible();
+      if (round === 1) await check(players[0]!.page, tag("07-resultat-confiance"));
+      for (const player of players) {
+        if (await player.page.getByText("Majorité POUR").isVisible().catch(() => false)) await tapCard(player.page);
       }
 
       // Mission : chaque membre vote communiste (icône à viewBox 0 0 24 24)
       for (const [index, player] of players.entries()) {
         // Écran de mission affiché : boutons de vote (membre de l'équipe) ou carte d'attente.
-        await expect(player.page.getByText(/Majorité POUR|Validation envoyée/)).toHaveCount(0);
+        await expect(player.page.getByText(/Majorité POUR|Validation envoyée/)).toHaveCount(0, { timeout: 12_000 });
         await expect(
           player.page
             .locator(".vote-stack--split")
@@ -209,16 +208,14 @@ for (const device of DEVICES) {
           await communist.click();
         }
       }
-      for (const [index, player] of players.entries()) {
-        await expect(player.page.getByText(/Victoire (nazie|communiste)/).first()).toBeVisible();
-        if (index === 0 && round === 1) {
-          await expect(player.page.getByText(/Mission 1 \/ 5/).first()).toBeVisible();
-          await check(player.page, tag("09-resultat-mission"));
-        }
+      await expect(players[0]!.page.getByText(/Victoire (nazie|communiste)/).first()).toBeVisible();
+      if (round === 1) {
+        await expect(players[0]!.page.getByText(/Mission 1 \/ 5/).first()).toBeVisible();
+        await check(players[0]!.page, tag("09-resultat-mission"));
       }
       const over = await host.page.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false);
       for (const player of players) {
-        if (await player.page.getByText("Touchez pour passer à la suite.").isVisible().catch(() => false)) {
+        if (await player.page.getByText(/Suite dans \d+ s/).isVisible().catch(() => false)) {
           await tapCard(player.page);
         }
       }

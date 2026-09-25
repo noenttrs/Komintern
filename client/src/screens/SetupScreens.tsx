@@ -1,3 +1,4 @@
+import { AutoAdvance } from "../components/game/AutoAdvance";
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
 import { WaitingCard } from "../components/game/WaitingCard";
@@ -28,6 +29,7 @@ export function TableOrderScreen(): JSX.Element {
     setTableOrderAdjustPosition,
     adjustTableOrder,
     resetTableOrder,
+    autoAdvanceAt,
   } = useScreen();
   const { t } = useI18n();
   return (
@@ -40,7 +42,10 @@ export function TableOrderScreen(): JSX.Element {
         footer={frontFooter}
         front={
           waitingValidationStep === "table_order" ? (
-            <WaitingCard message={t("tableOrder.waitingConfirm")} />
+            <>
+              <WaitingCard message={t("tableOrder.waitingConfirm")} />
+              <AutoAdvance deadline={autoAdvanceAt} />
+            </>
           ) : (
             <>
               <h2>
@@ -49,11 +54,11 @@ export function TableOrderScreen(): JSX.Element {
                   : t("tableOrder.yourNumber", { number: myOrderIndex + 1 })}
               </h2>
               <p>{t("tableOrder.progress")} {orderReference.length > 0 ? orderLegend : "..."}</p>
-              <p>
-                {allOrderChosen
-                  ? t("tableOrder.allChosen")
-                  : t("tableOrder.waitingOrder")}
-              </p>
+              {allOrderChosen && autoAdvanceAt !== null ? (
+                <AutoAdvance deadline={autoAdvanceAt} hint={t("tableOrder.autoHint")} />
+              ) : (
+                <p>{allOrderChosen ? t("tableOrder.allChosen") : t("tableOrder.waitingOrder")}</p>
+              )}
             </>
           )
         }
@@ -161,21 +166,14 @@ export function RoleRevealScreen(): JSX.Element {
             setHasRevealedRoleOnce(true);
           }
         }}
-        actions={
-          // Le bouton disparaît une fois utilisé : rien à re-cliquer par erreur.
-          hasRevealedRoleOnce && waitingValidationStep !== "role_reveal" ? (
-            <button
-              type="button"
-              className="inline-action"
-              onClick={() => {
-                setWaitingValidationStep("role_reveal");
-                confirmRole();
-              }}
-            >
-              {t("roleReveal.ok")}
-            </button>
-          ) : undefined
-        }
+        // Avoir vu son rôle suffit : la validation part quand on relâche la carte (pas avant,
+        // sinon le dernier joueur verrait l'écran changer sous son doigt).
+        onOverlayHidden={() => {
+          if (waitingValidationStep !== "role_reveal") {
+            setWaitingValidationStep("role_reveal");
+            confirmRole();
+          }
+        }}
       />
     </main>
   );

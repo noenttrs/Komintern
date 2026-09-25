@@ -53,6 +53,7 @@ export function CardSurface({
   back,
   overlay,
   onOverlayShown,
+  onOverlayHidden,
   actions,
 }: {
   scoreLeft: ReactNode;
@@ -64,6 +65,8 @@ export function CardSurface({
   back?: JSX.Element;
   overlay?: JSX.Element;
   onOverlayShown?: () => void;
+  /** Doigt relevé après avoir affiché le calque (le joueur a fini de regarder). */
+  onOverlayHidden?: () => void;
   actions?: JSX.Element;
 }): JSX.Element {
   const { t } = useI18n();
@@ -86,6 +89,7 @@ export function CardSurface({
     pointerStartX.current = null;
     clearTimer();
     endHold();
+    if (showOverlay) onOverlayHidden?.();
     setShowOverlay(false);
   };
 

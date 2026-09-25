@@ -310,3 +310,43 @@ test("the Nazis are announced at the end, unless the room keeps roles secret", a
     assert.equal(Object.keys(revealed.roleMap).length, reveal ? 5 : 0);
   }
 });
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const FAST = { tableOrderMs: 30, revealMs: 30, confidenceResultMs: 30, missionResultMs: 30 };
+
+test("auto advance: table order, role reveal and result screens move on without confirmations", async () => {
+  const { session, events, state } = setup({ autoAdvance: FAST });
+  await session.start();
+  for (const id of PLAYERS) await session.handleTableOrderTap(id);
+  const complete = [...events].reverse().find((entry) => entry.event === "table_order_updated")?.payload as { autoConfirmMs: number | null };
+  assert.ok(complete.autoConfirmMs !== null && complete.autoConfirmMs <= 30);
+  await wait(60);
+  assert.ok(events.some((entry) => entry.event === "role_assigned"), "table order confirmed by the timer");
+  await wait(60);
+  assert.equal(state.revealed, true, "the game starts even if someone never looked at their role");
+
+  const chef = chefOf(events);
+  await session.handleProposeTeam(chef, ["p1", "p3"]);
+  for (const id of PLAYERS) await session.handleConfidenceVote(id, "yes");
+  const revealed = [...events].reverse().find((entry) => entry.event === "confidence_revealed")?.payload as { autoAdvanceMs: number | null };
+  assert.ok(revealed.autoAdvanceMs !== null);
+  await wait(60);
+  assert.ok(events.some((entry) => entry.event === "mission_phase"), "confidence result skipped by the timer");
+  for (const id of ["p1", "p3"]) await session.handleMissionVote(id, "communist");
+  await wait(60);
+  assert.equal([...events].filter((entry) => entry.event === "proposal_phase").length >= 2, true, "next round started by the timer");
+  session.dispose();
+});
+
+test("auto advance: a change in the table order restarts the countdown, and everybody tapping skips it", async () => {
+  const { session, events } = setup({ autoAdvance: { ...FAST, tableOrderMs: 80 } });
+  await session.start();
+  for (const id of PLAYERS) await session.handleTableOrderTap(id);
+  await wait(50);
+  await session.handleTableOrderAdjust("p5", 1);
+  await wait(50);
+  assert.equal(events.some((entry) => entry.event === "role_assigned"), false, "countdown restarted by the correction");
+  for (const id of PLAYERS) await session.confirmTableOrder(id);
+  assert.ok(events.some((entry) => entry.event === "role_assigned"), "all confirmations skip the countdown");
+  session.dispose();
+});

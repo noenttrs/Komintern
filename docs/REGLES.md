@@ -1,4 +1,4 @@
-# Règles officielles — v0.9
+# Règles officielles — v1.0
 
 **Nazi Communiste** — jeu de déduction sociale en temps réel.
 Règles © 2026 Komintern, publiées sous licence [Creative Commons Attribution - Pas d'utilisation commerciale - Partage dans les mêmes conditions 4.0 International (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr). Voir [Licence](#licence).
@@ -128,16 +128,16 @@ Aucun joueur, ni l'application, ne révèle en cours de partie qui a glissé un 
 2. **Ordre de table.** Une fois la partie lancée, chaque joueur touche sa carte **à son tour, en suivant l'ordre de la table** (par exemple dans le sens des aiguilles d'une montre, à partir de n'importe qui). Chacun reçoit ainsi son numéro d'ordre.
    - Un joueur qui a touché trop tôt ou trop tard peut **corriger sa place** (« J'ai raté mon tour ») en indiquant le bon numéro ; l'ordre se réorganise.
    - L'hôte peut **tout recommencer**.
-   - Quand tout le monde a un numéro, chacun **confirme** l'ordre. Toute correction annule les confirmations déjà données.
+   - Quand tout le monde a un numéro, l'ordre est **validé automatiquement après 5 secondes** (compte à rebours affiché). Toute correction relance le compte à rebours ; si tout le monde touche l'écran, l'ordre est validé tout de suite.
    - Cet ordre fixe le roulement du chef pour toute la partie. À distance, il sert simplement d'ordre de parole.
-3. **Distribution des rôles**, aléatoire et secrète, selon le format. Chacun **maintient sa carte appuyée** pour voir son rôle à l'abri des regards, puis confirme. La partie commence quand tout le monde a confirmé.
+3. **Distribution des rôles**, aléatoire et secrète, selon le format. Chacun **maintient sa carte appuyée** pour voir son rôle à l'abri des regards ; relâcher la carte suffit. La partie commence quand tout le monde a vu son rôle, ou au plus tard 60 secondes après la distribution (on peut revoir son rôle à tout moment).
 4. **Premier chef.** Tiré au sort à la première partie de la room ; ensuite, voir [Rotation du chef](#rotation-du-chef).
 
 ---
 
 ## Structure d'une manche
 
-Chaque manche correspond à une mission et se déroule en **3 phases**, suivies d'une confirmation collective.
+Chaque manche correspond à une mission et se déroule en **3 phases**. Les écrans de résultat passent seuls à la suite après un court compte à rebours.
 
 ### Phase 1 — Proposition du chef
 
@@ -153,7 +153,7 @@ Chaque joueur vote **simultanément** pour ou contre l'équipe proposée. On voi
 - **Majorité stricte de « pour »** (plus de la moitié des votants) : l'équipe part en mission.
 - Sinon (majorité de « contre » **ou égalité**) : la proposition est rejetée et **le même chef** propose une autre équipe, pour la même mission.
 
-Il n'y a pas de limite au nombre de propositions. Les joueurs comptés absents ne votent plus et ne comptent plus dans la majorité. Chaque joueur confirme avoir vu le résultat avant de passer à la suite.
+Il n'y a pas de limite au nombre de propositions. Les joueurs comptés absents ne votent plus et ne comptent plus dans la majorité. Le résultat reste affiché 6 secondes, puis la partie continue ; si tout le monde touche l'écran, elle continue tout de suite.
 
 ### Phase 3 — Exécution de la mission
 
@@ -169,7 +169,7 @@ On voit qui, dans l'équipe, a déjà voté. Les votes sont ensuite **révélés
 | Au moins 1 vote nazi | Nazis |
 | Tous les votes communistes | Communistes |
 
-Le nombre de votes nazis est une information précieuse : deux votes nazis dans une équipe de trois en disent beaucoup plus qu'un seul. Chaque joueur confirme avoir vu le résultat ; la manche suivante commence alors avec un nouveau chef.
+Le nombre de votes nazis est une information précieuse : deux votes nazis dans une équipe de trois en disent beaucoup plus qu'un seul. Le résultat reste affiché 8 secondes (moins si tout le monde touche l'écran) ; la manche suivante commence alors avec un nouveau chef.
 
 ---
 
@@ -270,7 +270,7 @@ Le mode `blind` n'est accepté que marqué comme expérimental : sans informatio
 - **Le chef s'inclut dans son équipe** : c'est permis.
 - **Un nazi ne sabote pas** : c'est permis et souvent utile pour gagner la confiance ; la mission est alors réussie.
 - **Plusieurs nazis dans une équipe** : chacun décide seul ; il suffit d'un vote nazi pour faire échouer la mission, et le nombre de votes nazis est révélé.
-- **Un joueur se trompe de place dans l'ordre de table** : il corrige sa place avant la confirmation ; toute correction demande une nouvelle confirmation de tous.
+- **Un joueur se trompe de place dans l'ordre de table** : il corrige sa place pendant le compte à rebours ; toute correction le relance.
 - **Un joueur recharge la page ou change de téléphone** : il retrouve sa place et l'état de la partie ; avec un compte, depuis n'importe quel appareil.
 - **Un joueur quitte ou disparaît** : voir [Absences et abandons](#absences-et-abandons).
 - **Le nombre de joueurs change entre deux parties** : une room libre prend le format du nouveau nombre ; une room à format imposé revient au salon s'il ne correspond plus.
@@ -295,6 +295,7 @@ Le mode `blind` n'est accepté que marqué comme expérimental : sans informatio
 
 | Version | Changements |
 |---|---|
+| 1.0 | Moins de validations : l'ordre de table se valide seul 5 s après être complet, relâcher sa carte suffit après avoir vu son rôle, et les résultats (vote de confiance, mission) passent seuls après 6 et 8 s ; toucher l'écran accélère. |
 | 0.9 | Partie rapide proposée dans le salon à partir de 6 joueurs (y compris en format imposé) ; option de room « Révéler les nazis à la fin » (activée par défaut ; désactivée, les rôles restent secrets) ; format imposé à 2 joueurs (duel) ; résultats des votes de confiance présentés en deux listes, Pour et Contre. |
 | 0.8 | Règles publiées sous licence CC BY-NC-SA 4.0. Document détaillé : qui sait quoi et quand, ordre de table (correction, confirmation), révélation des votes, revoir son rôle et l'historique, limite de 3 attentes par absence, règles personnalisées, cas particuliers, glossaire. |
 | 0.7 | Formats jusqu'à 14 joueurs (classique : 13 à 15 missions de 12 à 14 joueurs) ; partie rapide au choix (5 missions, premier à 3). |
@@ -320,5 +321,5 @@ Vous pouvez partager et adapter ces règles, à condition :
 
 Cette licence couvre le texte des règles. Le code source du jeu est publié séparément sous licence [AGPL-3.0](../LICENSE).
 
-> **Version** : 0.9
+> **Version** : 1.0
 > **Statut** : référence du moteur (`gameengine/`), de la page Règles du site et des pages pour les agents IA.

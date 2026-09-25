@@ -100,6 +100,8 @@ export interface ResyncPayload {
   hasVotedConfidence: boolean;
   hasVotedMission: boolean;
   hasConfirmed: boolean;
+  /** Temps restant avant l'enchaînement automatique de l'écran en cours (ms), ou null. */
+  autoAdvanceMs?: number | null;
   mission: (MissionHistoryEntry & { scores: Scores }) | null;
   missionProgress: { team: string[]; votesSubmitted: number; votesRequired: number; submittedPlayerIds: string[] } | null;
   confidenceHistory: ConfidenceHistoryEntry[];

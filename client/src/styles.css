@@ -1926,3 +1926,27 @@ textarea {
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+
+/* Compte à rebours de l'enchaînement automatique (écrans de résultat, ordre de table). */
+.auto-advance {
+  margin-top: 0.75rem;
+}
+
+.auto-advance__track {
+  height: 4px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.auto-advance__bar {
+  height: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+}
+
+.auto-advance p {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}

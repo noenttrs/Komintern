@@ -109,6 +109,7 @@ export default function App(): JSX.Element {
     mission,
     gameMeta,
     missionHistory,
+    autoAdvanceAt,
     setPseudo,
     navigate,
     dismissError,
@@ -684,6 +685,7 @@ export default function App(): JSX.Element {
     frontMeta,
     frontFooter,
     missionProgressLabel,
+    autoAdvanceAt,
   };
 
   const page =

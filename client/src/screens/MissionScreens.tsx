@@ -1,3 +1,4 @@
+import { AutoAdvance } from "../components/game/AutoAdvance";
 import { CardSurface } from "../components/game/CardSurface";
 import { FactionIcon, scoreChip } from "../components/game/FactionIcon";
 import { MissionProgress } from "../components/game/MissionProgress";
@@ -86,6 +87,7 @@ export function MissionResultScreen(): JSX.Element {
     waitingValidationStep,
     missionProgressLabel,
     mission,
+    autoAdvanceAt,
   } = useScreen();
   const { t } = useI18n();
   const missionProgress = <MissionProgress team={mission.team} submittedPlayerIds={mission.submittedPlayerIds} />;
@@ -103,13 +105,16 @@ export function MissionResultScreen(): JSX.Element {
         footer={<div><p>{missionProgressLabel}</p></div>}
         front={
           waitingValidationStep === "mission_result" ? (
-            <WaitingCard message={t("common.sentWaitingOthers")} />
+            <>
+              <WaitingCard message={t("common.sentWaitingOthers")} />
+              <AutoAdvance deadline={autoAdvanceAt} />
+            </>
           ) : (
             <div className="result-panel result-panel--mission">
               <h2>{roundWinner === "nazi" ? t("mission.victoryNazi") : t("mission.victoryCommunist")}</h2>
               <p>{t("mission.naziVotes", { count: naziVotes })}</p>
               <p>{t("mission.communistVotes", { count: communistVotes })}</p>
-              <p>{t("common.tapNext")}</p>
+              {autoAdvanceAt !== null ? <AutoAdvance deadline={autoAdvanceAt} hint={t("autoAdvance.tapToSkip")} /> : <p>{t("common.tapNext")}</p>}
             </div>
           )
         }

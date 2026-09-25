@@ -24,6 +24,15 @@ export type BridgeLike = {
   dispose(): void;
 };
 
+/**
+ * Enchaînement automatique : les écrans de résultat passent seuls après un délai (toucher
+ * l'écran accélère si tout le monde l'a fait), l'ordre de table se valide seul une fois complet,
+ * et la partie démarre quand tout le monde a vu son rôle, ou au plus tard après `revealMs`.
+ */
+export type AutoAdvanceDelays = { tableOrderMs: number; revealMs: number; confidenceResultMs: number; missionResultMs: number };
+
+export const DEFAULT_AUTO_ADVANCE: AutoAdvanceDelays = { tableOrderMs: 5_000, revealMs: 60_000, confidenceResultMs: 6_000, missionResultMs: 8_000 };
+
 export type SessionConfig = {
   ruleset: ResolvedRuleset;
   /** Joueurs non AFK de la room (ils peuvent être momentanément déconnectés). */
@@ -47,6 +56,8 @@ export type SessionConfig = {
   engineTimeoutMs?: number;
   /** Pause laissée aux clients pour leur animation de révélation. */
   revealPauseMs?: number;
+  /** Délais d'enchaînement automatique (ms) ; voir DEFAULT_AUTO_ADVANCE. */
+  autoAdvance?: Partial<AutoAdvanceDelays>;
   /** Des joueurs doivent agir (proposer, voter, jouer la mission) : notifications. */
   onTurn?: (playerIds: string[], kind: TurnKind) => void;
   /** Option de la room : annoncer les nazis dès la fin de partie (sinon les rôles restent secrets). */
@@ -131,6 +142,9 @@ export class GameSession {
   private roleMap: RoleMap = {};
   private readonly playerViews = new Map<string, PlayerView>();
   private gameOver: GameOverInfo | null = null;
+  private readonly autoAdvance: AutoAdvanceDelays;
+  private autoTimer: NodeJS.Timeout | null = null;
+  private autoDeadline: number | null = null;
 
   public constructor(
     roomId: string,
@@ -144,6 +158,7 @@ export class GameSession {
     this.socketByPlayer = socketByPlayer;
     this.io = io;
     this.config = config;
+    this.autoAdvance = { ...DEFAULT_AUTO_ADVANCE, ...config.autoAdvance };
     this.randomIndexProvider =
       config.randomIndexProvider ?? ((length) => (length <= 1 ? 0 : Math.floor(Math.random() * length)));
     this.bridge =
@@ -207,6 +222,7 @@ export class GameSession {
       }
       this.tableOrder.push(playerId);
       this.tableOrderConfirmed.clear();
+      this.refreshTableOrderTimer();
       this.emitTableOrderUpdate();
     });
   }
@@ -223,6 +239,7 @@ export class GameSession {
       const insertionIndex = Math.min(this.tableOrder.length, Math.max(1, Math.floor(position)) - 1);
       this.tableOrder.splice(insertionIndex, 0, playerId);
       this.tableOrderConfirmed.clear();
+      this.refreshTableOrderTimer();
       this.emitTableOrderUpdate();
     });
   }
@@ -236,6 +253,7 @@ export class GameSession {
       }
       this.tableOrder = [];
       this.tableOrderConfirmed.clear();
+      this.refreshTableOrderTimer();
       this.emitTableOrderUpdate();
     });
   }
@@ -385,6 +403,7 @@ export class GameSession {
         // Le forfait est décidé côté serveur ; le moteur n'est prévenu que pour cohérence.
         log.warn("engine forfeit failed", { roomId: this.roomId, error });
       }
+      this.clearAuto();
       this.gameOver = { winner: faction === "nazi" ? "communist" : "nazi", reason: "forfeit", forfeitedBy: playerId };
       this.phase = "end_game";
       this.config.onGameDecided?.(this.summary());
@@ -404,6 +423,7 @@ export class GameSession {
       return;
     }
     this.disposed = true;
+    this.clearAuto();
     this.bridge.dispose();
   }
 
@@ -427,6 +447,7 @@ export class GameSession {
   private async reevaluate(): Promise<void> {
     switch (this.phase) {
       case "table_order":
+        this.refreshTableOrderTimer();
         this.emitTableOrderUpdate();
         await this.tryCompleteTableOrder();
         return;
@@ -454,10 +475,11 @@ export class GameSession {
     }
   }
 
-  private async tryCompleteTableOrder(): Promise<void> {
-    if (!this.tableOrderComplete() || !this.allActiveIn(this.tableOrderConfirmed)) {
+  private async tryCompleteTableOrder(force = false): Promise<void> {
+    if (!this.tableOrderComplete() || (!force && !this.allActiveIn(this.tableOrderConfirmed))) {
       return;
     }
+    this.clearAuto();
 
     const fullOrder = [...this.tableOrder, ...this.playerIds.filter((id) => !this.tableOrder.includes(id))];
     const previousChef = this.config.nextChefId;
@@ -496,15 +518,17 @@ export class GameSession {
 
     this.phase = "revealing";
     this.revealedPlayers.clear();
+    this.scheduleAuto("revealing", this.autoAdvance.revealMs, () => this.tryCompleteReveal(true));
     for (const playerId of this.turnOrder) {
       this.toPlayer(playerId, SERVER_EVENTS.ROLE_ASSIGNED, { playerId, ...(this.rolePayload(playerId) ?? {}), turnOrder: [...this.turnOrder] });
     }
   }
 
-  private async tryCompleteReveal(): Promise<void> {
-    if (!this.allActiveIn(this.revealedPlayers)) {
+  private async tryCompleteReveal(force = false): Promise<void> {
+    if (!force && !this.allActiveIn(this.revealedPlayers)) {
       return;
     }
+    this.clearAuto();
     this.config.onRevealComplete();
     await this.pause(this.config.revealPauseMs ?? 150);
     if (this.disposed) {
@@ -558,13 +582,15 @@ export class GameSession {
     this.phase = "confidence_result";
     this.confidenceVotes.clear();
     this.confidenceResultConfirmed.clear();
-    this.toRoom(SERVER_EVENTS.CONFIDENCE_REVEALED, { votes: records, result: approved ? "yes" : "no", approved });
+    this.scheduleAuto("confidence_result", this.autoAdvance.confidenceResultMs, () => this.tryCompleteConfidenceResult(true));
+    this.toRoom(SERVER_EVENTS.CONFIDENCE_REVEALED, { votes: records, result: approved ? "yes" : "no", approved, autoAdvanceMs: this.autoRemainingMs() });
   }
 
-  private async tryCompleteConfidenceResult(): Promise<void> {
-    if (!this.allActiveIn(this.confidenceResultConfirmed)) {
+  private async tryCompleteConfidenceResult(force = false): Promise<void> {
+    if (!force && !this.allActiveIn(this.confidenceResultConfirmed)) {
       return;
     }
+    this.clearAuto();
     this.confidenceResultConfirmed.clear();
 
     if (this.lastConfidence?.approved !== true) {
@@ -618,7 +644,9 @@ export class GameSession {
     this.phase = "mission_result";
     this.missionResultConfirmed.clear();
     this.missionVotes.clear();
+    this.scheduleAuto("mission_result", this.autoAdvance.missionResultMs, () => this.tryCompleteMissionResult(true));
     this.toRoom(SERVER_EVENTS.MISSION_REVEALED, {
+      autoAdvanceMs: this.autoRemainingMs(),
       missionIndex: outcome.missionIndex,
       team: [...outcome.team],
       naziVotes: outcome.naziVotes,
@@ -627,10 +655,11 @@ export class GameSession {
     });
   }
 
-  private async tryCompleteMissionResult(): Promise<void> {
-    if (!this.allActiveIn(this.missionResultConfirmed)) {
+  private async tryCompleteMissionResult(force = false): Promise<void> {
+    if (!force && !this.allActiveIn(this.missionResultConfirmed)) {
       return;
     }
+    this.clearAuto();
     this.missionResultConfirmed.clear();
     const outcome = this.lastMission;
     if (outcome === null) {
@@ -686,7 +715,46 @@ export class GameSession {
       completed: this.tableOrderComplete(),
       order: [...this.tableOrder],
       confirmed: [...this.tableOrderConfirmed],
+      autoConfirmMs: this.autoRemainingMs(),
     });
+  }
+
+  // ---------------------------------------------------------------- enchaînement automatique
+
+  /** Ordre complet : validation automatique après le délai ; toute modification relance le délai. */
+  private refreshTableOrderTimer(): void {
+    if (this.phase !== "table_order") return;
+    if (this.tableOrderComplete()) {
+      this.scheduleAuto("table_order", this.autoAdvance.tableOrderMs, () => this.tryCompleteTableOrder(true));
+    } else {
+      this.clearAuto();
+    }
+  }
+
+  private scheduleAuto(phase: SessionPhase, delayMs: number, action: () => Promise<void>): void {
+    this.clearAuto();
+    this.autoDeadline = Date.now() + delayMs;
+    const timer = setTimeout(() => {
+      if (this.autoTimer !== timer) return;
+      this.autoTimer = null;
+      this.autoDeadline = null;
+      void this.serial(async () => {
+        if (!this.disposed && this.phase === phase) await action();
+      }).catch((error: unknown) => log.warn("auto advance failed", { roomId: this.roomId, phase, error }));
+    }, delayMs);
+    timer.unref();
+    this.autoTimer = timer;
+  }
+
+  private clearAuto(): void {
+    if (this.autoTimer !== null) clearTimeout(this.autoTimer);
+    this.autoTimer = null;
+    this.autoDeadline = null;
+  }
+
+  /** Temps restant avant l'enchaînement automatique (null s'il n'y en a pas). */
+  private autoRemainingMs(): number | null {
+    return this.autoDeadline === null ? null : Math.max(0, this.autoDeadline - Date.now());
   }
 
   private emitRoundStarted(): void {
@@ -754,6 +822,7 @@ export class GameSession {
       hasVotedConfidence: this.confidenceVotes.has(playerId),
       hasVotedMission: this.missionVotes.has(playerId),
       hasConfirmed: this.confirmationSetForPhase()?.has(playerId) ?? false,
+      autoAdvanceMs: this.autoRemainingMs(),
       mission:
         this.lastMission === null || (this.phase !== "mission_result" && this.phase !== "end_game")
           ? null

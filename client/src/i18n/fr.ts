@@ -163,7 +163,8 @@ export const fr = {
     tap: "Touchez pour prendre votre numéro d'ordre",
     yourNumber: "Votre numéro d'ordre : {number}",
     progress: "Progression :",
-    allChosen: "Touchez pour passer à la suite (confirmation collective)",
+    allChosen: "Ordre complet : touchez pour valider",
+    autoHint: "ordre validé automatiquement, sauf correction",
     waitingOrder: "En attente des joueurs selon l'ordre de table.",
     missed: "J'ai raté mon tour",
     validateFix: "Valider correction",
@@ -172,8 +173,11 @@ export const fr = {
   roleReveal: {
     waiting: "En attente des autres joueurs.",
     hold: "Maintenez pour voir votre rôle",
-    then: "Puis appuyez sur \"C'est bon\".",
-    ok: "C'est bon",
+    then: "La partie commence dès que tout le monde a vu le sien.",
+  },
+  autoAdvance: {
+    next: "Suite dans {seconds} s",
+    tapToSkip: "touchez pour passer",
   },
   proposal: {
     choose: "Choisir l'équipe ({size})",

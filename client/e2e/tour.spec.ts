@@ -87,11 +87,10 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
     await tapCard(page);
     if (index === 6) await shot(host, "06-ordre-table-en-cours");
   }
-  await expect(host.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
+  await expect(host.getByText(/Suite dans \d+ s/)).toBeVisible();
   await shot(host, "07-ordre-table-complet");
   for (const page of pages) {
-    await expect(page.getByText("Touchez pour passer à la suite (confirmation collective)")).toBeVisible();
-    await tapCard(page);
+    if (await page.getByText(/Suite dans \d+ s/).isVisible().catch(() => false)) await tapCard(page);
   }
 
   // Rôles : une capture nazi (liste des 14 rôles) et une communiste
@@ -114,7 +113,6 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
     }
     await page.mouse.up();
     await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "C'est bon" }).first().click();
   }
   await shot(host, "10-attente-confirmation-roles");
 
@@ -182,7 +180,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
       await flipCard(host);
     }
     for (const page of pages) {
-      if (await page.getByText("Touchez pour passer à la suite.").isVisible().catch(() => false)) await tapCard(page);
+      if (await page.getByText(/Suite dans \d+ s/).isVisible().catch(() => false)) await tapCard(page);
     }
     await host.waitForTimeout(500);
     if (over || (await host.getByRole("button", { name: "Rejouer" }).first().isVisible().catch(() => false))) break;
