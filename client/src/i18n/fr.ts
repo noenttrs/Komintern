@@ -350,13 +350,11 @@ export const fr = {
     },
   },
   absence: {
-    title: "{name} s'est déconnecté",
-    countdownForfeit: "Sans retour dans {left}, son camp perd la partie.",
-    countdownCancel: "Sans retour dans {left}, la partie est annulée.",
-    wait: "Attendre {name}",
-    dontWait: "Ne pas attendre",
-    held: "{by} attend {name} · encore {left}",
-    stopWaiting: "Ne plus attendre",
+    title: "{name} est absent depuis {away}",
+    consequenceForfeit: "Sans lui, son camp perd la partie.",
+    consequenceCancel: "Sans lui, la partie est annulée.",
+    vote: "Continuer sans lui · {count}",
+    unvote: "Annuler mon vote · {count}",
   },
   notices: {
     abortedAbsent: "Partie annulée : {name} est parti avant la distribution des rôles. Retour au salon.",
@@ -658,7 +656,7 @@ export const fr = {
     tipsTitle: "Astuces",
     tip1: "Carte de rôle : maintenez-la appuyée pour revoir votre rôle en toute discrétion.",
     tip2: "Faites-la glisser pour afficher l'historique des votes et des missions.",
-    tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place. Un joueur absent a 60 s pour revenir (jusqu'à 5 min si les autres choisissent de l'attendre) ; au-delà, son camp perd.",
+    tip3: "Recharger la page ou perdre le réseau ne fait pas perdre sa place. Après 30 s d'absence, les autres peuvent voter pour continuer sans le joueur absent (la moitié suffit) ; son camp perd alors la partie.",
   },
   terms: {
     title:

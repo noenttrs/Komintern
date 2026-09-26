@@ -10,7 +10,8 @@ async function tapCard(page: Page): Promise<void> {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.35);
 }
 
-test("attendre un joueur déconnecté, puis il revient à sa place", async ({ browser }) => {
+test("un joueur déconnecté : vote pour continuer sans lui, puis il revient à sa place", async ({ browser }) => {
+  test.setTimeout(150_000);
   test.setTimeout(120_000);
   const pages: Page[] = [];
   for (let index = 0; index < 5; index += 1) {
@@ -55,15 +56,17 @@ test("attendre un joueur déconnecté, puis il revient à sa place", async ({ br
   // Le joueur 5 ferme l'app.
   const context = gone.context();
   await gone.close();
-  const prompt = host.getByRole("alertdialog");
-  await expect(prompt).toContainText("Absent5 s'est déconnecté", { timeout: 60_000 });
-  await expect(prompt).toContainText("son camp perd la partie");
-  await host.screenshot({ path: "e2e/screenshots/absence-01-popup.png" });
-  await host.getByRole("button", { name: "Attendre Absent5" }).click();
-  for (const page of pages.slice(0, 4)) {
-    await expect(page.getByRole("status").filter({ hasText: "Absent1 attend Absent5" })).toBeVisible();
+  // Au bout de 30 s : petit message et bouton de vote chez les joueurs connectés.
+  const card = host.locator(".absence-card");
+  await expect(card).toContainText("Absent5 est absent depuis", { timeout: 60_000 });
+  await expect(card).toContainText("son camp perd la partie");
+  await host.screenshot({ path: "e2e/screenshots/absence-01-vote.png" });
+  await host.getByRole("button", { name: "Continuer sans lui · 0/2" }).click();
+  await expect(host.getByRole("button", { name: "Annuler mon vote · 1/2" })).toBeVisible();
+  for (const page of pages.slice(1, 4)) {
+    await expect(page.getByRole("button", { name: "Continuer sans lui · 1/2" })).toBeVisible();
   }
-  await pages[1]!.screenshot({ path: "e2e/screenshots/absence-02-attente.png" });
+  await pages[1]!.screenshot({ path: "e2e/screenshots/absence-02-vote-en-cours.png" });
 
   // Il revient par le lien de la room, dans un onglet neuf : même siège, pas un nouveau joueur.
   const back = await context.newPage();

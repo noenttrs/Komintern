@@ -117,8 +117,8 @@ export interface GameActions {
   setPace: (pace: "classic" | "quick") => void;
   setRevealRoles: (revealRoles: boolean) => void;
   sendDuelVote: (vote: DuelVote) => void;
-  holdForPlayer: (playerId: string) => void;
-  releaseHold: (playerId: string) => void;
+  /** Vote pour continuer sans un joueur absent (`skip` faux : retire son vote). */
+  voteAbsence: (playerId: string, skip: boolean) => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -362,8 +362,7 @@ export function useGameSocket(): UseGameSocketResult {
         dispatch({ type: "duel_voted", vote });
         emitAction(CLIENT_EVENTS.DUEL_VOTE, { vote });
       },
-      holdForPlayer: (playerId) => emitAction(CLIENT_EVENTS.HOLD_PLAYER, { playerId }),
-      releaseHold: (playerId) => emitAction(CLIENT_EVENTS.RELEASE_HOLD, { playerId }),
+      voteAbsence: (playerId, skip) => emitAction(CLIENT_EVENTS.ABSENCE_VOTE, { playerId, skip }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });

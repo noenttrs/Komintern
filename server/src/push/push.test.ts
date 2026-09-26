@@ -18,8 +18,8 @@ test("only subscriptions to the browsers' push services are accepted", () => {
 });
 
 test("notifications never reveal a role and follow the player's language", () => {
-  assert.match(notificationText({ kind: "absence_warning", secondsLeft: 20 }, "fr"), /20 s/);
-  assert.match(notificationText({ kind: "absence_hold", by: "Rosa" }, "en"), /Rosa/);
+  assert.match(notificationText({ kind: "absence_warning" }, "fr"), /voter/);
+  assert.match(notificationText({ kind: "absence_warning_others", name: "Rosa" }, "en"), /Rosa/);
   for (const kind of ["proposal", "vote", "mission"] as const) {
     assert.doesNotMatch(notificationText({ kind }, "fr"), /nazi|communiste/i);
   }

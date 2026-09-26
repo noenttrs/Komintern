@@ -26,11 +26,11 @@ describe("protocol", () => {
     expect(parseRoom({ status: "hacked" }).status).toBeNull();
   });
 
-  it("turns the server's relative absence durations into local deadlines", () => {
+  it("turns the server's relative absence durations into local times", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000_000);
-    const [player] = parseRoom({ players: [{ playerId: "p1", absence: { kickInMs: 40_000, awayForMs: 20_000, heldBy: "Rosa" } }] }).players;
-    expect(player?.absence).toEqual({ kickAt: 1_040_000, since: 980_000, heldBy: "Rosa" });
+    const [player] = parseRoom({ players: [{ playerId: "p1", absence: { awayForMs: 20_000, promptAfterMs: 30_000, votes: ["p2", 3], needed: 2 } }] }).players;
+    expect(player?.absence).toEqual({ since: 980_000, promptAt: 1_010_000, votes: ["p2"], needed: 2 });
     vi.useRealTimers();
   });
 

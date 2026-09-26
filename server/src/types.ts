@@ -30,7 +30,8 @@ export interface PlayerSummary {
   isAfk: boolean;
   isConnected: boolean;
   /** Déconnecté en pleine partie : temps restant avant l'abandon, et qui l'attend éventuellement. */
-  absence: { kickInMs: number; awayForMs: number; heldBy: string | null } | null;
+  /** Absent en pleine partie : depuis quand, et votes pour continuer sans lui (`needed` suffisent). */
+  absence: { awayForMs: number; promptAfterMs: number; votes: string[]; needed: number } | null;
 }
 
 /** Abonnement Web Push validé (voir push/push.ts). */

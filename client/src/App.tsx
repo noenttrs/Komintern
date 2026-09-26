@@ -763,7 +763,7 @@ export default function App(): JSX.Element {
       ) : null}
       {route.page === "game" ? <Tutorial phase={phase} /> : null}
       {route.page === "game" && isGamePhaseUi(phase) ? (
-        <AbsencePrompt players={players} myId={myId} phase={phase} onHold={game.holdForPlayer} onRelease={game.releaseHold} />
+        <AbsencePrompt players={players} myId={myId} phase={phase} onVote={game.voteAbsence} />
       ) : null}
       {page}
     </>

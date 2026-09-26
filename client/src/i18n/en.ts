@@ -351,13 +351,11 @@ export const en: Dictionary = {
     },
   },
   absence: {
-    title: "{name} disconnected",
-    countdownForfeit: "Unless they're back within {left}, their side loses.",
-    countdownCancel: "Unless they're back within {left}, the game is cancelled.",
-    wait: "Wait for {name}",
-    dontWait: "Don't wait",
-    held: "{by} is waiting for {name} · {left} left",
-    stopWaiting: "Stop waiting",
+    title: "{name} has been away for {away}",
+    consequenceForfeit: "Without them, their side loses.",
+    consequenceCancel: "Without them, the game is cancelled.",
+    vote: "Go on without them · {count}",
+    unvote: "Withdraw my vote · {count}",
   },
   notices: {
     abortedAbsent: "Game cancelled: {name} left before the roles were dealt. Back to the lobby.",
@@ -659,7 +657,7 @@ export const en: Dictionary = {
     tipsTitle: "Tips",
     tip1: "Role card: press and hold it to check your role discreetly.",
     tip2: "Swipe it to show the history of votes and missions.",
-    tip3: "Reloading the page or losing your connection doesn't lose your seat. An absent player has 60 s to come back (up to 5 min if the others choose to wait); after that, their side loses.",
+    tip3: "Reloading the page or losing your connection doesn't lose your seat. After 30 s away, the others can vote to go on without the absent player (half of them is enough); their side then loses.",
   },
   terms: {
     title:

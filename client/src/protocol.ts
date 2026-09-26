@@ -236,9 +236,9 @@ ERROR_TRANSLATIONS.push(
 /** Durées relatives du serveur converties en échéances locales (pas de décalage d'horloge). */
 function parseAbsence(raw: unknown): PlayerAbsence | null {
   const row = toRecord(raw);
-  const kickInMs = numberValue(row.kickInMs);
   const awayForMs = numberValue(row.awayForMs);
-  if (kickInMs === null || awayForMs === null) return null;
-  const now = Date.now();
-  return { kickAt: now + kickInMs, since: now - awayForMs, heldBy: stringValue(row.heldBy) };
+  const promptAfterMs = numberValue(row.promptAfterMs);
+  if (awayForMs === null || promptAfterMs === null) return null;
+  const since = Date.now() - awayForMs;
+  return { since, promptAt: since + promptAfterMs, votes: stringArray(row.votes), needed: numberValue(row.needed) ?? 1 };
 }

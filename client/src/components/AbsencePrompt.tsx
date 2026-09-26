@@ -3,35 +3,28 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { RoomPlayer, UIPhase } from "../types";
 
-/**
- * La fenêtre « attendre » n'apparaît que dans les 20 dernières secondes (en même temps que la
- * notification) : un rechargement ou une coupure courte ne dérange personne.
- */
-export const PROMPT_BEFORE_KICK_MS = 20_000;
-
 type Props = {
   players: RoomPlayer[];
   myId: string | null;
   phase: UIPhase;
-  onHold: (playerId: string) => void;
-  onRelease: (playerId: string) => void;
+  onVote: (playerId: string, skip: boolean) => void;
 };
 
-function formatLeft(ms: number): string {
-  const seconds = Math.max(0, Math.ceil(ms / 1000));
-  return seconds >= 60 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : `${seconds} s`;
+function formatAway(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 /**
- * Un joueur s'est déconnecté en pleine partie : les autres choisissent de l'attendre (il est
- * prévenu par notification) ou laissent le compte à rebours aller à son terme.
+ * Un joueur est absent depuis 30 s en pleine partie : petit message avec un bouton de vote pour
+ * continuer sans lui. La moitié des joueurs connectés suffit (la majorité si leur nombre est impair).
  */
-export function AbsencePrompt({ players, myId, phase, onHold, onRelease }: Props): JSX.Element | null {
+export function AbsencePrompt({ players, myId, phase, onVote }: Props): JSX.Element | null {
   const { t } = useI18n();
-  // Minuterie de rafraîchissement ; le temps restant est recalculé à chaque rendu.
+  // Minuterie de rafraîchissement ; la durée d'absence est recalculée à chaque rendu.
   const [, setTick] = useState(0);
-  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const away = phase === "end_game" || phase === "replay_waiting" ? [] : players.filter((player) => player.id !== myId && !player.isAfk && player.absence);
+  const iAmAway = players.some((player) => player.id === myId && (player.isAfk || player.absence));
 
   useEffect(() => {
     if (away.length === 0) return undefined;
@@ -39,42 +32,28 @@ export function AbsencePrompt({ players, myId, phase, onHold, onRelease }: Props
     return () => window.clearInterval(timer);
   }, [away.length]);
 
-  if (away.length === 0) return null;
   const now = Date.now();
-  const beforeRoles = phase === "table_order";
+  const shown = away.filter((player) => now >= player.absence!.promptAt);
+  if (shown.length === 0 || iAmAway) return null;
+  const beforeRoles = phase === "table_order" || phase === "role_reveal";
 
   return (
     <div className="absence-stack">
-      {away.map((player) => {
+      {shown.map((player) => {
         const absence = player.absence!;
         const name = player.pseudo ?? "?";
-        const left = formatLeft(absence.kickAt - now);
-        if (absence.heldBy !== null) {
-          return (
-            <div key={player.id} className="absence-card absence-card--held" role="status">
-              <p>{t("absence.held", { by: absence.heldBy, name, left })}</p>
-              <button type="button" className="secondary" onClick={() => onRelease(player.id)}>
-                {t("absence.stopWaiting")}
-              </button>
-            </div>
-          );
-        }
-        const key = `${player.id}:${absence.since}`;
-        if (absence.kickAt - now > PROMPT_BEFORE_KICK_MS || dismissed.has(key)) return null;
+        const voted = myId !== null && absence.votes.includes(myId);
+        const count = `${absence.votes.length}/${absence.needed}`;
         return (
-          <div key={player.id} className="absence-card" role="alertdialog" aria-labelledby={`absence-${player.id}`}>
-            <p id={`absence-${player.id}`}>
-              <strong>{t("absence.title", { name })}</strong>
+          <div key={player.id} className="absence-card absence-card--mini" role="status">
+            <p>
+              <strong>{t("absence.title", { name, away: formatAway(now - absence.since) })}</strong>
+              <br />
+              {beforeRoles ? t("absence.consequenceCancel") : t("absence.consequenceForfeit")}
             </p>
-            <p>{beforeRoles ? t("absence.countdownCancel", { left }) : t("absence.countdownForfeit", { left })}</p>
-            <div className="absence-card__actions">
-              <button type="button" onClick={() => onHold(player.id)}>
-                {t("absence.wait", { name })}
-              </button>
-              <button type="button" className="secondary" onClick={() => setDismissed((current) => new Set(current).add(key))}>
-                {t("absence.dontWait")}
-              </button>
-            </div>
+            <button type="button" className={voted ? "" : "secondary"} aria-pressed={voted} onClick={() => onVote(player.id, !voted)}>
+              {voted ? t("absence.unvote", { count }) : t("absence.vote", { count })}
+            </button>
           </div>
         );
       })}

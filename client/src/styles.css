@@ -1666,29 +1666,22 @@ textarea {
   line-height: 1.35;
 }
 
-.absence-card--held {
+.absence-card--mini {
   border-width: 1px;
   grid-template-columns: 1fr auto;
   align-items: center;
 }
 
-.absence-card--held button {
+.absence-card--mini p {
+  margin: 0;
+}
+
+.absence-card--mini button {
   width: auto;
   min-height: 2.4rem;
   padding: 0.4rem 0.7rem;
   font-size: 0.85rem;
-}
-
-.absence-card__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-}
-
-.absence-card__actions button {
-  min-height: 2.6rem;
-  padding: 0.5rem;
-  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 /* Duel : rôles et votes révélés à la fin. */

@@ -36,17 +36,15 @@ const TEXTS = {
     proposal: "À toi de proposer une équipe.",
     vote: "Vote de confiance : à toi de voter.",
     mission: "Tu es en mission : à toi de jouer.",
-    warning: (seconds: number) => `Tu es déconnecté : reviens dans ${seconds} s, sinon ton camp perd la partie.`,
-    warningOthers: (name: string, seconds: number) => `${name} est déconnecté et sera compté absent dans ${seconds} s. Ouvre le jeu pour l'attendre.`,
-    hold: (by: string) => `${by} et les autres t'attendent : reviens dans la partie.`,
+    warning: "Tu es déconnecté : reviens vite, les autres peuvent voter pour continuer sans toi.",
+    warningOthers: (name: string) => `${name} est déconnecté : ouvre le jeu pour l'attendre ou continuer sans lui.`,
   },
   en: {
     proposal: "Your turn to pick a team.",
     vote: "Confidence vote: your turn to vote.",
     mission: "You're on the mission: your turn to play.",
-    warning: (seconds: number) => `You're disconnected: come back within ${seconds} s or your side loses.`,
-    warningOthers: (name: string, seconds: number) => `${name} is disconnected and will count as gone in ${seconds} s. Open the game to wait for them.`,
-    hold: (by: string) => `${by} and the others are waiting for you: come back to the game.`,
+    warning: "You're disconnected: come back soon, the others can vote to go on without you.",
+    warningOthers: (name: string) => `${name} is disconnected: open the game to wait for them or go on without them.`,
   },
 };
 
@@ -60,11 +58,9 @@ export function notificationText(notification: PlayerNotification, lang: "fr" | 
     case "mission":
       return texts.mission;
     case "absence_warning":
-      return texts.warning(notification.secondsLeft);
+      return texts.warning;
     case "absence_warning_others":
-      return texts.warningOthers(notification.name, notification.secondsLeft);
-    case "absence_hold":
-      return texts.hold(notification.by);
+      return texts.warningOthers(notification.name);
   }
 }
 
@@ -101,8 +97,8 @@ export class PushService {
       url: `/r/${roomCode}`,
     });
     // Une notification de tour périmée n'a plus d'intérêt : durée de vie courte.
-    // Une alerte d'absence ne sert plus à rien après la fin du compte à rebours.
-    const ttl = notification.kind === "absence_hold" ? 300 : notification.kind === "absence_warning_others" ? 20 : 60;
+    // Une alerte d'absence reste utile tant que la partie attend : 5 minutes.
+    const ttl = notification.kind === "absence_warning" || notification.kind === "absence_warning_others" ? 300 : 60;
     try {
       await this.sender(subscription, payload, ttl);
       return true;

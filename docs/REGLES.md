@@ -196,7 +196,7 @@ Le rôle de chef suit un **roulement continu**, dans l'ordre de table, qui persi
 
 La partie se termine dès qu'un camp atteint le **nombre de missions requis** : 2 à 3 joueurs, 3 à 4-5 joueurs, 4 à 6-7 joueurs, 5 à 8-9 joueurs, 6 à 10-11 joueurs, 7 à 12-13 joueurs, 8 à 14 joueurs ; en partie rapide, toujours 3.
 
-Elle se termine aussi par **abandon** : quand un joueur quitte la partie, ou reste absent au-delà du délai (voir [Absences et abandons](#absences-et-abandons)), son camp perd.
+Elle se termine aussi par **abandon** : quand un joueur quitte la partie, ou est compté parti après une absence (voir [Absences et abandons](#absences-et-abandons)), son camp perd.
 
 À la fin, **l'écran de fin annonce les nazis** avec le vainqueur. L'hôte peut désactiver cette option (« Révéler les nazis à la fin ») à la création de la room ou dans le salon : les rôles restent alors secrets, même après la partie, ce qui permet d'enchaîner les parties sans savoir qui était qui. Pour rejouer, chaque joueur présent choisit « Rejouer » ; la revanche démarre quand tous les joueurs présents l'ont choisie. Les absents perdent leur place. Si le nombre de joueurs restant ne correspond plus au format imposé par la room, tout le monde revient au salon. Une room libre s'adapte : à 2 joueurs restants, la revanche est un duel.
 
@@ -207,11 +207,11 @@ Elle se termine aussi par **abandon** : quand un joueur quitte la partie, ou res
 Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. En revanche :
 
 - **Au salon**, un joueur déconnecté plus de 60 secondes libère sa place.
-- **En partie**, un joueur déconnecté a **60 secondes** pour revenir.
-  - **20 secondes avant la fin du délai**, les autres joueurs se voient proposer de **l'attendre** (fenêtre dans le jeu, et notification pour ceux qui ne regardent pas leur écran) : le délai passe alors à **5 minutes**. On peut l'attendre ainsi **3 fois au plus** par absence, pour qu'une partie ne soit jamais bloquée indéfiniment.
-  - N'importe quel joueur présent peut arrêter d'attendre : il reste alors 20 secondes au joueur absent.
-  - Le joueur absent est prévenu par notification s'il les a activées, et 20 secondes avant la fin du délai.
-- **À la fin du délai** :
+- **En partie**, on attend le joueur déconnecté.
+  - Au bout de **30 secondes d'absence**, les joueurs connectés voient un message avec un bouton **« Continuer sans lui »** ; ceux qui ne regardent pas leur écran reçoivent une notification, et le joueur absent aussi.
+  - Dès que **la moitié des joueurs connectés** a voté pour continuer (la **majorité** si leur nombre est impair), le joueur absent est compté parti. Chacun peut retirer son vote tant que ce seuil n'est pas atteint. Un joueur qui revient efface les votes.
+  - Filet de sécurité : sans décision, une absence prend fin au bout de 10 minutes, pour qu'une partie ne soit jamais bloquée.
+- **Quand le joueur absent est compté parti** :
   - avant la distribution des rôles, la partie est **annulée** et la room revient au salon, sans le joueur absent ;
   - après la distribution des rôles, **son camp perd** la partie (abandon) ;
   - en duel, **l'autre joueur gagne**.
@@ -242,7 +242,7 @@ On discute, sans limite de temps, puis chacun vote **en secret et en même temps
 
 **Aucun vote n'est gagnant d'avance.** Pour un communiste, « Confiance » et « Nazi ! » ont exactement les mêmes chances (l'autre est nazi une fois sur deux) : tout se joue à la lecture de l'autre. Pour un nazi, accuser assure la victoire face à un autre nazi mais le fait perdre face à un communiste ; faire confiance parie sur la crédulité de l'autre.
 
-Chacun gagne ou perd pour son compte (0, 1 ou 2 gagnants). À la fin, les deux rôles et les deux votes sont révélés. Un joueur absent au-delà du délai perd le duel.
+Chacun gagne ou perd pour son compte (0, 1 ou 2 gagnants). À la fin, les deux rôles et les deux votes sont révélés. Un joueur absent perd le duel si l'autre vote pour continuer sans lui (après 30 s d'absence).
 
 ---
 
@@ -295,7 +295,7 @@ Le mode `blind` n'est accepté que marqué comme expérimental : sans informatio
 
 | Version | Changements |
 |---|---|
-| 1.0 | Absence d'un joueur : la proposition de l'attendre n'apparaît plus qu'à 20 s de la fin du délai, avec une notification à tous les joueurs qui ne regardent pas leur écran. Moins de validations : l'ordre de table se valide seul 5 s après être complet, relâcher sa carte suffit après avoir vu son rôle, et les résultats (vote de confiance, mission) passent seuls après 6 et 8 s ; toucher l'écran accélère. |
+| 1.0 | Absence d'un joueur : plus de compte à rebours ; après 30 s d'absence, les joueurs connectés votent pour continuer sans lui (la moitié suffit, la majorité si leur nombre est impair), notification à ceux qui ne regardent pas leur écran. Moins de validations : l'ordre de table se valide seul 5 s après être complet, relâcher sa carte suffit après avoir vu son rôle, et les résultats (vote de confiance, mission) passent seuls après 6 et 8 s ; toucher l'écran accélère. |
 | 0.9 | Partie rapide proposée dans le salon à partir de 6 joueurs (y compris en format imposé) ; option de room « Révéler les nazis à la fin » (activée par défaut ; désactivée, les rôles restent secrets) ; format imposé à 2 joueurs (duel) ; résultats des votes de confiance présentés en deux listes, Pour et Contre. |
 | 0.8 | Règles publiées sous licence CC BY-NC-SA 4.0. Document détaillé : qui sait quoi et quand, ordre de table (correction, confirmation), révélation des votes, revoir son rôle et l'historique, limite de 3 attentes par absence, règles personnalisées, cas particuliers, glossaire. |
 | 0.7 | Formats jusqu'à 14 joueurs (classique : 13 à 15 missions de 12 à 14 joueurs) ; partie rapide au choix (5 missions, premier à 3). |

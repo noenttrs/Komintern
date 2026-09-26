@@ -279,9 +279,8 @@ type Notified = { playerId: string; kind: string; detail?: unknown };
 async function gameWithRoles(options: Partial<RoomManagerOptions> = {}) {
   const notified: Notified[] = [];
   const context = setup({
-    afkTimeoutMs: 80,
-    absenceWarningMs: 40,
-    absenceHoldMs: 200,
+    absencePromptMs: 40,
+    absenceMaxMs: 1_000,
     ...options,
     hooks: { onNotify: (_code, playerId, notification) => void notified.push({ playerId, kind: notification.kind, detail: notification }) },
   });
@@ -297,42 +296,77 @@ async function revealRoles(session: Awaited<ReturnType<typeof gameWithRoles>>["s
   for (const id of players) await session.confirmRoleReveal(id);
 }
 
-test("an absent player gets a warning before their side forfeits", async () => {
+const subscription = { endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "a", auth: "b" }, lang: "fr" as const };
+const absenceOf = (manager: RoomManager, code: string, id: string) => manager.getRoomPayload(code).players.find((player) => player.playerId === id)?.absence;
+const isAfk = (manager: RoomManager, code: string, id: string) => manager.getRoomPayload(code).players.find((player) => player.playerId === id)?.isAfk;
+
+test("after 30 s away, the absent player and the others not looking are notified, and the vote opens", async () => {
   const { manager, code, players, session, notified } = await gameWithRoles();
   await revealRoles(session, players);
-  const gone = players[4] as string;
+  const [first, second, , , gone] = players as [string, string, string, string, string];
+  for (const id of players) manager.setPushSubscription(code, id, subscription);
+  manager.setVisibility(code, second, false);
   manager.handleDisconnect(code, gone, "s5");
-  const absence = manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence;
-  assert.ok(absence !== null && absence !== undefined && absence.kickInMs > 0 && absence.heldBy === null);
+  assert.deepEqual(absenceOf(manager, code, gone)?.votes, []);
+  assert.equal(absenceOf(manager, code, gone)?.needed, 2, "4 connected players: half of them is enough");
+  assert.throws(() => manager.voteAbsence(code, first, gone, true), /too early/);
   await tick(60);
-  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), [[gone, "absence_warning"]]);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, false);
-  await tick(60);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, true);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence, null);
+  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), [[gone, "absence_warning"], [second, "absence_warning_others"]]);
+  assert.equal((notified[1]?.detail as { name: string }).name, "Joueur 5");
+  assert.ok(!notified.some((entry) => entry.playerId === first), "a player looking at the game sees the in-app message instead");
+  assert.equal(isAfk(manager, code, gone), false, "nobody is counted gone without a vote");
 });
 
-test("the others can wait for an absent player, then stop waiting", async () => {
-  const { manager, code, players, session, notified } = await gameWithRoles();
+test("half of the connected players voting to go on counts the absent player gone (majority if odd)", async () => {
+  const { manager, code, players, session } = await gameWithRoles();
   await revealRoles(session, players);
-  const [first, , , , gone] = players as [string, string, string, string, string];
-  assert.throws(() => manager.holdForPlayer(code, first, players[1] as string), /not away/);
+  const [first, second, third, , gone] = players as [string, string, string, string, string];
+  assert.throws(() => manager.voteAbsence(code, first, second, true), /not away/);
   manager.handleDisconnect(code, gone, "s5");
-  assert.throws(() => manager.holdForPlayer(code, gone, gone), /unknown player/, "the absent player cannot hold for themselves");
-  manager.holdForPlayer(code, first, gone);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.absence?.heldBy, "Joueur 1");
-  assert.deepEqual(notified.map((entry) => entry.kind), ["absence_hold"]);
-  await tick(120);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, false, "still waited for");
-
-  manager.releaseHold(code, first, gone);
-  await tick(10);
-  assert.deepEqual(notified.map((entry) => entry.kind), ["absence_hold", "absence_warning"], "warned right away");
   await tick(60);
-  assert.equal(manager.getRoomPayload(code).players.find((player) => player.playerId === gone)?.isAfk, true);
+  assert.throws(() => manager.voteAbsence(code, gone, gone, true), /unknown player/, "the absent player cannot vote");
+  manager.voteAbsence(code, first, gone, true);
+  manager.voteAbsence(code, first, gone, false);
+  manager.voteAbsence(code, first, gone, true);
+  assert.deepEqual(absenceOf(manager, code, gone)?.votes, [first], "a vote can be withdrawn");
+  assert.equal(isAfk(manager, code, gone), false);
+  manager.voteAbsence(code, second, gone, true);
+  assert.equal(isAfk(manager, code, gone), true, "2 votes out of 4 connected players");
+  assert.equal(absenceOf(manager, code, gone), null);
+  void third;
 });
 
-test("coming back cancels the countdown", async () => {
+test("with an odd number of connected players, a strict majority is needed", async () => {
+  const { manager, code, players, session } = await gameWithRoles();
+  await revealRoles(session, players);
+  const [first, second, third, gone2, gone] = players as [string, string, string, string, string];
+  manager.handleDisconnect(code, gone, "s5");
+  manager.handleDisconnect(code, gone2, "s4");
+  await tick(60);
+  assert.equal(absenceOf(manager, code, gone)?.needed, 2, "3 connected players: 2 votes");
+  manager.voteAbsence(code, first, gone, true);
+  assert.equal(isAfk(manager, code, gone), false);
+  manager.voteAbsence(code, second, gone, true);
+  assert.equal(isAfk(manager, code, gone), true);
+  void third;
+});
+
+test("a voter leaving can complete the vote, and a vote from a player who left no longer counts", async () => {
+  const { manager, code, players, session } = await gameWithRoles();
+  await revealRoles(session, players);
+  const [first, second, third, fourth, gone] = players as [string, string, string, string, string];
+  manager.handleDisconnect(code, gone, "s5");
+  await tick(60);
+  manager.voteAbsence(code, first, gone, true);
+  assert.equal(isAfk(manager, code, gone), false, "1 vote out of 4");
+  manager.handleDisconnect(code, fourth, "s4");
+  assert.equal(isAfk(manager, code, gone), false, "3 connected players now: 2 votes needed");
+  manager.handleDisconnect(code, second, "s2");
+  manager.handleDisconnect(code, third, "s3");
+  assert.equal(isAfk(manager, code, gone), true, "1 vote out of 1 connected player");
+});
+
+test("coming back cancels the absence and its votes", async () => {
   const { manager, code, players, session, notified } = await gameWithRoles();
   await revealRoles(session, players);
   manager.handleDisconnect(code, players[4] as string, "s5");
@@ -343,10 +377,21 @@ test("coming back cancels the countdown", async () => {
   assert.equal(manager.getRoomPayload(code).players[4]?.absence, null);
 });
 
-test("a player absent before the roles are dealt cancels the game instead of blocking it", async () => {
-  const { manager, code, players, events } = await gameWithRoles({ afkTimeoutMs: 20, absenceWarningMs: 10 });
+test("without any vote, a long absence still ends (safety net)", async () => {
+  const { manager, code, players, session } = await gameWithRoles({ absenceMaxMs: 80 });
+  await revealRoles(session, players);
   manager.handleDisconnect(code, players[4] as string, "s5");
-  await tick(60);
+  await tick(120);
+  assert.equal(isAfk(manager, code, players[4] as string), true);
+});
+
+test("a player absent before the roles are dealt cancels the game instead of blocking it", async () => {
+  const { manager, code, players, events } = await gameWithRoles({ absencePromptMs: 10 });
+  manager.handleDisconnect(code, players[4] as string, "s5");
+  await tick(30);
+  manager.voteAbsence(code, players[0] as string, players[4] as string, true);
+  manager.voteAbsence(code, players[1] as string, players[4] as string, true);
+  await tick(20);
   assert.equal(manager.getStatus(code), "waiting");
   assert.equal(manager.getSession(code), undefined);
   assert.deepEqual(manager.getRoomPayload(code).players.map((player) => player.playerId), players.slice(0, 4));
@@ -430,12 +475,14 @@ test("two players in a free room play a duel: own role only, secret votes, per-p
 });
 
 test("a duel player who stays away loses the duel", async () => {
-  const { manager, events } = setup({ afkTimeoutMs: 20, absenceWarningMs: 10, bridgeFactory: () => duelBridge({ a: "nazi", b: "nazi" }, () => []) });
+  const { manager, events } = setup({ absencePromptMs: 10, bridgeFactory: () => duelBridge({ a: "nazi", b: "nazi" }, () => []) });
   const code = manager.createRoom();
   const [first, second] = fill(manager, code, 2) as [string, string];
   await manager.startAnyGame(code, first);
   manager.handleDisconnect(code, second, "s2");
-  await tick(60);
+  await tick(30);
+  manager.voteAbsence(code, first, second, true);
+  await tick(30);
   const result = events.find((entry) => entry.event === "duel_result")?.payload as { winners: string[]; reason: string; forfeitedBy: string };
   assert.deepEqual([result.winners, result.reason, result.forfeitedBy], [[first], "forfeit", second]);
 });
@@ -465,21 +512,6 @@ test("pseudos are unique within a room", () => {
   manager.setPseudo(code, first, "Rosa");
   manager.setPseudo(code, second, "rosa");
   assert.deepEqual(manager.getRoomPayload(code).players.map((player) => player.pseudo), ["Rosa", "rosa 2"]);
-});
-
-test("waiting for an absent player is capped: no endless stall", async () => {
-  const { manager, code, players, session } = await gameWithRoles({ absenceHoldMs: 1_000 });
-  await revealRoles(session, players);
-  const [first, , , , gone] = players as [string, string, string, string, string];
-  manager.handleDisconnect(code, gone, "s5");
-  manager.holdForPlayer(code, first, gone);
-  assert.throws(() => manager.holdForPlayer(code, first, gone), /already waiting/);
-  for (let hold = 1; hold < 3; hold += 1) {
-    manager.releaseHold(code, first, gone);
-    manager.holdForPlayer(code, first, gone);
-  }
-  manager.releaseHold(code, first, gone);
-  assert.throws(() => manager.holdForPlayer(code, first, gone), /cannot wait any longer/);
 });
 
 test("free rooms go up to 14 players, in classic or quick pace", async () => {
@@ -514,20 +546,4 @@ test("a fixed format of 6 or more players can also be played in quick pace", asy
   await manager.startGame(code, players[0] as string);
   const started = events.filter((entry) => entry.event === "game_started").at(-1)?.payload as { missionCount: number };
   assert.equal(started.missionCount, 5, "8 players, quick: 5 missions instead of 9");
-});
-
-test("20 s before an absent player is counted gone, the others who are not looking are notified too", async () => {
-  const { manager, code, players, session, notified } = await gameWithRoles();
-  await revealRoles(session, players);
-  const [first, second, , , gone] = players as [string, string, string, string, string];
-  const subscription = { endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "a", auth: "b" }, lang: "fr" as const };
-  for (const id of players) manager.setPushSubscription(code, id, subscription);
-  manager.setVisibility(code, second, false);
-  manager.handleDisconnect(code, gone, "s5");
-  await tick(20);
-  assert.equal(notified.length, 0, "nobody is bothered at the start of the countdown");
-  await tick(40);
-  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), [[gone, "absence_warning"], [second, "absence_warning_others"]]);
-  assert.equal((notified[1]?.detail as { name: string }).name, "Joueur 5");
-  assert.ok(!notified.some((entry) => entry.playerId === first), "a player looking at the game sees the in-app prompt instead");
 });

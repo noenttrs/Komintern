@@ -73,16 +73,18 @@ export interface RoomPlayer {
   isHost?: boolean;
   isAfk?: boolean;
   isConnected?: boolean;
-  /** Déconnecté en pleine partie : échéance locale de l'abandon et qui l'attend. */
+  /** Déconnecté en pleine partie : depuis quand, et votes pour continuer sans lui. */
   absence?: PlayerAbsence | null;
 }
 
 export interface PlayerAbsence {
-  /** Date.now() locale à laquelle le joueur sera compté absent. */
-  kickAt: number;
   /** Date.now() locale du début de l'absence. */
   since: number;
-  heldBy: string | null;
+  /** Date.now() locale à partir de laquelle les autres peuvent voter (30 s d'absence). */
+  promptAt: number;
+  /** Joueurs qui ont voté pour continuer sans lui ; `needed` votes suffisent. */
+  votes: string[];
+  needed: number;
 }
 
 export interface ProposalState {

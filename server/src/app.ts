@@ -391,14 +391,9 @@ export function createKominternApp(options: AppOptions): KominternApp {
       notify(friendId, SERVER_EVENTS.ROOM_INVITE, { from: { userId: user.userId, displayName: user.displayName }, code: context.roomId });
     });
 
-    on(socket, CLIENT_EVENTS.HOLD_PLAYER, "invalid_hold", (payload) => {
+    on(socket, CLIENT_EVENTS.ABSENCE_VOTE, "invalid_absence_vote", (payload) => {
       const context = requireContext(socket);
-      roomManager.holdForPlayer(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "");
-    });
-
-    on(socket, CLIENT_EVENTS.RELEASE_HOLD, "invalid_hold", (payload) => {
-      const context = requireContext(socket);
-      roomManager.releaseHold(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "");
+      roomManager.voteAbsence(context.roomId, context.playerId, typeof payload.playerId === "string" ? payload.playerId : "", payload.skip !== false);
     });
 
     on(socket, CLIENT_EVENTS.VISIBILITY, "invalid_visibility", (payload) => {
