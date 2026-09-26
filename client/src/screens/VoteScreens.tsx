@@ -44,6 +44,9 @@ export function ProposalScreen(): JSX.Element {
           iAmChef ? (
             <div>
               <h2>{t("proposal.choose", { size: proposal.teamSize })}</h2>
+              <p className={selectedTeam.length === proposal.teamSize ? "team-count team-count--full" : "team-count"} aria-live="polite">
+                {t("proposal.selected", { count: selectedTeam.length, size: proposal.teamSize })}
+              </p>
               {/* Au-delà de 10 joueurs : 3 colonnes plus serrées, pour que tout tienne sur un téléphone. */}
               <div className={players.length > 10 ? "team-grid team-grid--dense" : "team-grid"}>
                 {players.map((player) => {
@@ -72,7 +75,10 @@ export function ProposalScreen(): JSX.Element {
               </div>
             </div>
           ) : (
-            <h2>{t("proposal.waiting", { name: proposal.chefId ? nameById(proposal.chefId) : t("proposal.chefFallback") })}</h2>
+            <div>
+              <h2>{t("proposal.waiting", { name: proposal.chefId ? nameById(proposal.chefId) : t("proposal.chefFallback") })}</h2>
+              <p className="team-count">{t("proposal.teamSize", { size: proposal.teamSize })}</p>
+            </div>
           )
         }
         back={showFullHistory ? expandedBackContent : defaultBackContent}

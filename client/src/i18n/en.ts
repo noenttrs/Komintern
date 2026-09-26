@@ -181,7 +181,9 @@ export const en: Dictionary = {
     tapToSkip: "tap to skip",
   },
   proposal: {
-    choose: "Pick a team ({size})",
+    choose: "Pick a team: {size} players",
+    selected: "{count} / {size} selected",
+    teamSize: "Team to send on the mission: {size} players",
     waiting: "Waiting for {name}'s proposal",
     chefFallback: "the leader",
     submit: "Propose team",

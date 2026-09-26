@@ -180,7 +180,9 @@ export const fr = {
     tapToSkip: "touchez pour passer",
   },
   proposal: {
-    choose: "Choisir l'équipe ({size})",
+    choose: "Choisir l'équipe : {size} joueurs",
+    selected: "{count} / {size} sélectionnés",
+    teamSize: "Équipe à envoyer en mission : {size} joueurs",
     waiting: "En attente de la proposition de {name}",
     chefFallback: "Chef",
     submit: "Proposer l'équipe",

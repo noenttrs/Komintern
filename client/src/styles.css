@@ -1950,3 +1950,15 @@ textarea {
   font-size: 0.85rem;
   color: var(--ink-soft);
 }
+
+/* Proposition : nombre de joueurs à envoyer en mission et sélection en cours. */
+.team-count {
+  margin: 0.25rem 0 0.75rem;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  color: var(--ink-soft);
+}
+
+.team-count--full {
+  color: var(--ink);
+  font-weight: 600;
+}
