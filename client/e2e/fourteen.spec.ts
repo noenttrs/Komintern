@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Soirée à 14, partie rapide : le salon, l'ordre de table, la proposition d'équipe (14 noms)
 // et les votes doivent tenir sur un écran de téléphone.
 
@@ -43,6 +45,7 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
   }
   const [host] = pages as [Page];
   await host.getByRole("button", { name: "Créer une room" }).click();
+  await useTestRoomName(host);
   await host.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {

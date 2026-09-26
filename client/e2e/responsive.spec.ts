@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Captures et vérifications de mise en page sur le site déployé (BASE_URL), à plusieurs tailles.
 const SIZES = [
   { name: "320", width: 320, height: 640, mobile: true },
@@ -58,6 +60,7 @@ for (const size of SIZES) {
       await page.getByRole("button", { name: "Créer une room" }).click();
       await page.getByRole("radio", { name: "À distance" }).click();
       await page.screenshot({ path: `e2e/screenshots/${size.name}-create-room.png` });
+      await useTestRoomName(page);
       await page.getByRole("button", { name: "Créer", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Salle d'attente" })).toBeVisible();
       await page.getByRole("button", { name: "Ouvrir le chat" }).click();

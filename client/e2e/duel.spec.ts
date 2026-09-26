@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Duel à 2 sur le site déployé : rôle, vote secret, résultat, revanche.
 
 test("duel à 2 joueurs, puis revanche", async ({ browser }) => {
@@ -19,6 +21,7 @@ test("duel à 2 joueurs, puis revanche", async ({ browser }) => {
   }
   const [first, second] = pages as [Page, Page];
   await first.getByRole("button", { name: "Créer une room" }).click();
+  await useTestRoomName(first);
   await first.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await first.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   await second.goto(`/r/${code}`);

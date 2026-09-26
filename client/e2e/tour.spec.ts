@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Visite guidée de l'interface pour une relecture humaine : une partie rapide complète à 14
 // joueurs, avec une capture de chaque écran critique. Lente (14 navigateurs) : lancée à la
 // demande avec TOUR=1, jamais dans la suite normale.
@@ -63,6 +65,7 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   // Création et salon
   await host.getByRole("button", { name: "Créer une room" }).click();
   await shot(host, "01-creation-room");
+  await useTestRoomName(host);
   await host.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {

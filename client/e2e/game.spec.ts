@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Partie complète à 5 sur le site déployé, chaque joueur dans son propre navigateur mobile.
 // À chaque écran : captures, pas de débordement horizontal, et ni le bouton du menu ni celui
 // du chat ne recouvrent un bouton de jeu.
@@ -95,6 +97,7 @@ for (const device of DEVICES) {
     // Salle d'attente
     await host.page.getByRole("button", { name: "Créer une room" }).click();
     if (device.remote) await host.page.getByRole("radio", { name: "À distance" }).click();
+    await useTestRoomName(host.page);
     await host.page.getByRole("button", { name: "Créer", exact: true }).click();
     const code = (await host.page.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
     for (const [index, guest] of guests.entries()) {

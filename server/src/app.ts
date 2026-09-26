@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 import type { Socket } from "socket.io";
 
 import { allow } from "./auth/rateLimit";
-import { loadConfig } from "./config";
+import { isTestRoom, loadConfig } from "./config";
 import type { Config } from "./config";
 import { AdminService } from "./admin/service";
 import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
@@ -123,7 +123,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
   const roomManager = new RoomManager(io, {
     ...options,
     hooks: {
-      onGameRecorded: (game) => services.recordGame(game),
+      // Parties des tests automatiques (room au préfixe secret) : ni journal ni stats.
+      onGameRecorded: (game) => (isTestRoom(config, game.roomCode) ? Promise.resolve() : services.recordGame(game)),
       onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
       onNotify: (code, playerId, notification) => {
         const subscription = roomManager.getPushSubscription(code, playerId);

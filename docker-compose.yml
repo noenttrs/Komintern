@@ -25,6 +25,7 @@ services:
       MAX_ROOMS: ${MAX_ROOMS:-1000}
       ENGINE_TIMEOUT_MS: ${ENGINE_TIMEOUT_MS:-5000}
       ENGINE_WORKERS: ${ENGINE_WORKERS:-4}
+      TEST_ROOM_PREFIX: ${TEST_ROOM_PREFIX:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
       MONGO_APP_URL: mongodb://app:${MONGO_APP_PASSWORD:?}@mongo:27017/nazicom?authSource=nazicom

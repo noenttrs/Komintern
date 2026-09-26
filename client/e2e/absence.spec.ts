@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { useTestRoomName } from "./testRoom";
+
 // Un joueur ferme l'app en pleine partie : les autres choisissent de l'attendre, puis il revient
 // par le lien de la room (onglet neuf, comme depuis une notification) et retrouve sa place.
 
@@ -27,6 +29,7 @@ test("un joueur déconnecté : vote pour continuer sans lui, puis il revient à 
   }
   const [host, , , , gone] = pages as [Page, Page, Page, Page, Page];
   await host.getByRole("button", { name: "Créer une room" }).click();
+  await useTestRoomName(host);
   await host.getByRole("button", { name: "Créer", exact: true }).click();
   const code = (await host.locator(".room-code").innerText()).replace(/^room\s+/i, "").trim();
   for (const page of pages.slice(1)) {
