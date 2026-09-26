@@ -49,6 +49,8 @@ export type RoomHooks = {
 export type PlayerNotification =
   | { kind: TurnKind }
   | { kind: "absence_warning"; secondsLeft: number }
+  /** Aux autres joueurs : un absent va être compté parti, il est encore temps de l'attendre. */
+  | { kind: "absence_warning_others"; name: string; secondsLeft: number }
   | { kind: "absence_hold"; by: string };
 
 /** Absence d'un joueur en pleine partie : compte à rebours avant l'abandon, ou mise en attente. */
@@ -985,9 +987,16 @@ export class RoomManager {
     const absence: Absence = { since: previous?.since ?? now, kickAt: now + durationMs, heldBy, holds: (previous?.holds ?? 0) + (heldBy === null ? 0 : 1), timers: [] };
     const warningMs = this.options.absenceWarningMs ?? DEFAULT_ABSENCE_WARNING_MS;
     const stillAway = () => this.rooms.get(room.code) === room && room.absences.get(playerId) === absence && !room.socketByPlayer.has(playerId);
+    // Avertissement 20 s avant la fin : l'absent (reviens !) et tous les autres qui ne regardent
+    // pas le jeu (il est encore temps de l'attendre), en même temps que la fenêtre dans l'app.
     const warn = setTimeout(() => {
-      if (stillAway()) {
-        this.options.hooks?.onNotify?.(room.code, playerId, { kind: "absence_warning", secondsLeft: Math.round(Math.min(warningMs, durationMs) / 1000) });
+      if (!stillAway()) return;
+      const secondsLeft = Math.round(Math.min(warningMs, durationMs) / 1000);
+      this.options.hooks?.onNotify?.(room.code, playerId, { kind: "absence_warning", secondsLeft });
+      if (heldBy === null) {
+        const name = room.pseudoByPlayer.get(playerId) ?? "?";
+        const others = room.playerIds.filter((id) => id !== playerId);
+        this.notifyAway(room, others, { kind: "absence_warning_others", name, secondsLeft });
       }
     }, Math.max(0, durationMs - warningMs));
     const kick = setTimeout(() => {

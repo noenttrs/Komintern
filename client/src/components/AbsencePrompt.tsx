@@ -3,8 +3,11 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { RoomPlayer, UIPhase } from "../types";
 
-/** Délai avant de proposer d'attendre : un rechargement ou une micro-coupure ne dérange personne. */
-export const PROMPT_AFTER_MS = 5_000;
+/**
+ * La fenêtre « attendre » n'apparaît que dans les 20 dernières secondes (en même temps que la
+ * notification) : un rechargement ou une coupure courte ne dérange personne.
+ */
+export const PROMPT_BEFORE_KICK_MS = 20_000;
 
 type Props = {
   players: RoomPlayer[];
@@ -57,7 +60,7 @@ export function AbsencePrompt({ players, myId, phase, onHold, onRelease }: Props
           );
         }
         const key = `${player.id}:${absence.since}`;
-        if (now - absence.since < PROMPT_AFTER_MS || dismissed.has(key)) return null;
+        if (absence.kickAt - now > PROMPT_BEFORE_KICK_MS || dismissed.has(key)) return null;
         return (
           <div key={player.id} className="absence-card" role="alertdialog" aria-labelledby={`absence-${player.id}`}>
             <p id={`absence-${player.id}`}>

@@ -20,19 +20,21 @@ describe("AbsencePrompt", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("waits a few seconds, then offers to wait for the absent player", () => {
+  it("offers to wait only in the last 20 seconds (with the notification)", () => {
     const onHold = vi.fn();
     render(<AbsencePrompt players={players({ since: NOW, kickAt: NOW + 60_000, heldBy: null })} myId="me" phase="mission_proposal" onHold={onHold} onRelease={vi.fn()} />);
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    act(() => vi.advanceTimersByTime(6_000));
+    act(() => vi.advanceTimersByTime(39_000));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    act(() => vi.advanceTimersByTime(2_000));
     expect(screen.getByRole("alertdialog").textContent).toContain("Karl s'est déconnecté");
-    expect(screen.getByText(/son camp perd la partie/).textContent).toContain("54 s");
+    expect(screen.getByText(/son camp perd la partie/).textContent).toContain("19 s");
     fireEvent.click(screen.getByRole("button", { name: "Attendre Karl" }));
     expect(onHold).toHaveBeenCalledWith("p2");
   });
 
   it("can be dismissed locally, and says the game is cancelled before the roles", () => {
-    render(<AbsencePrompt players={players({ since: NOW - 10_000, kickAt: NOW + 50_000, heldBy: null })} myId="me" phase="table_order" onHold={vi.fn()} onRelease={vi.fn()} />);
+    render(<AbsencePrompt players={players({ since: NOW - 45_000, kickAt: NOW + 15_000, heldBy: null })} myId="me" phase="table_order" onHold={vi.fn()} onRelease={vi.fn()} />);
     expect(screen.getByText(/la partie est annulée/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Ne pas attendre" }));
     expect(screen.queryByRole("alertdialog")).toBeNull();

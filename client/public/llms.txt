@@ -82,7 +82,7 @@ Aucun vote n'est gagnant d'avance : tout se joue à la lecture de l'autre.
 
 ## Absences
 
-Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. Un joueur déconnecté en pleine partie a 60 secondes pour revenir ; les autres peuvent choisir de l'attendre jusqu'à 5 minutes (3 fois au plus). Il est prévenu par notification s'il les a activées. Au-delà, son camp perd la partie (ou la partie est annulée si les rôles n'étaient pas encore distribués).
+Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. Un joueur déconnecté en pleine partie a 60 secondes pour revenir ; 20 secondes avant la fin, les autres sont prévenus (dans le jeu, ou par notification) et peuvent choisir de l'attendre jusqu'à 5 minutes (3 fois au plus). Il est prévenu par notification s'il les a activées. Au-delà, son camp perd la partie (ou la partie est annulée si les rôles n'étaient pas encore distribués).
 
 ## Fonctionnalités
 

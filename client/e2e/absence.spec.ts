@@ -56,7 +56,7 @@ test("attendre un joueur déconnecté, puis il revient à sa place", async ({ br
   const context = gone.context();
   await gone.close();
   const prompt = host.getByRole("alertdialog");
-  await expect(prompt).toContainText("Absent5 s'est déconnecté", { timeout: 15_000 });
+  await expect(prompt).toContainText("Absent5 s'est déconnecté", { timeout: 60_000 });
   await expect(prompt).toContainText("son camp perd la partie");
   await host.screenshot({ path: "e2e/screenshots/absence-01-popup.png" });
   await host.getByRole("button", { name: "Attendre Absent5" }).click();

@@ -515,3 +515,19 @@ test("a fixed format of 6 or more players can also be played in quick pace", asy
   const started = events.filter((entry) => entry.event === "game_started").at(-1)?.payload as { missionCount: number };
   assert.equal(started.missionCount, 5, "8 players, quick: 5 missions instead of 9");
 });
+
+test("20 s before an absent player is counted gone, the others who are not looking are notified too", async () => {
+  const { manager, code, players, session, notified } = await gameWithRoles();
+  await revealRoles(session, players);
+  const [first, second, , , gone] = players as [string, string, string, string, string];
+  const subscription = { endpoint: "https://fcm.googleapis.com/x", keys: { p256dh: "a", auth: "b" }, lang: "fr" as const };
+  for (const id of players) manager.setPushSubscription(code, id, subscription);
+  manager.setVisibility(code, second, false);
+  manager.handleDisconnect(code, gone, "s5");
+  await tick(20);
+  assert.equal(notified.length, 0, "nobody is bothered at the start of the countdown");
+  await tick(40);
+  assert.deepEqual(notified.map((entry) => [entry.playerId, entry.kind]), [[gone, "absence_warning"], [second, "absence_warning_others"]]);
+  assert.equal((notified[1]?.detail as { name: string }).name, "Joueur 5");
+  assert.ok(!notified.some((entry) => entry.playerId === first), "a player looking at the game sees the in-app prompt instead");
+});

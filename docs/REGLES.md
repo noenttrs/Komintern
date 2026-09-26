@@ -208,7 +208,7 @@ Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. E
 
 - **Au salon**, un joueur déconnecté plus de 60 secondes libère sa place.
 - **En partie**, un joueur déconnecté a **60 secondes** pour revenir.
-  - Les autres joueurs peuvent choisir de **l'attendre** : le délai passe alors à **5 minutes**. On peut l'attendre ainsi **3 fois au plus** par absence, pour qu'une partie ne soit jamais bloquée indéfiniment.
+  - **20 secondes avant la fin du délai**, les autres joueurs se voient proposer de **l'attendre** (fenêtre dans le jeu, et notification pour ceux qui ne regardent pas leur écran) : le délai passe alors à **5 minutes**. On peut l'attendre ainsi **3 fois au plus** par absence, pour qu'une partie ne soit jamais bloquée indéfiniment.
   - N'importe quel joueur présent peut arrêter d'attendre : il reste alors 20 secondes au joueur absent.
   - Le joueur absent est prévenu par notification s'il les a activées, et 20 secondes avant la fin du délai.
 - **À la fin du délai** :
@@ -295,7 +295,7 @@ Le mode `blind` n'est accepté que marqué comme expérimental : sans informatio
 
 | Version | Changements |
 |---|---|
-| 1.0 | Moins de validations : l'ordre de table se valide seul 5 s après être complet, relâcher sa carte suffit après avoir vu son rôle, et les résultats (vote de confiance, mission) passent seuls après 6 et 8 s ; toucher l'écran accélère. |
+| 1.0 | Absence d'un joueur : la proposition de l'attendre n'apparaît plus qu'à 20 s de la fin du délai, avec une notification à tous les joueurs qui ne regardent pas leur écran. Moins de validations : l'ordre de table se valide seul 5 s après être complet, relâcher sa carte suffit après avoir vu son rôle, et les résultats (vote de confiance, mission) passent seuls après 6 et 8 s ; toucher l'écran accélère. |
 | 0.9 | Partie rapide proposée dans le salon à partir de 6 joueurs (y compris en format imposé) ; option de room « Révéler les nazis à la fin » (activée par défaut ; désactivée, les rôles restent secrets) ; format imposé à 2 joueurs (duel) ; résultats des votes de confiance présentés en deux listes, Pour et Contre. |
 | 0.8 | Règles publiées sous licence CC BY-NC-SA 4.0. Document détaillé : qui sait quoi et quand, ordre de table (correction, confirmation), révélation des votes, revoir son rôle et l'historique, limite de 3 attentes par absence, règles personnalisées, cas particuliers, glossaire. |
 | 0.7 | Formats jusqu'à 14 joueurs (classique : 13 à 15 missions de 12 à 14 joueurs) ; partie rapide au choix (5 missions, premier à 3). |
