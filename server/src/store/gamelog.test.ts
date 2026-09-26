@@ -94,3 +94,13 @@ test("resolved cases lose their messages and identities after the retention peri
   assert.equal((await store.getCase("open"))?.messages.length, 1);
   assert.equal((await store.getIdentities("open")).length, 1);
 });
+
+test("aborted games are left out of the admin history and recent counters", async () => {
+  const store = new MemoryGameLogStore();
+  const now = new Date();
+  await store.insertGame(game("done", now));
+  await store.insertGame({ ...game("cancelled", now), outcome: "aborted" });
+  assert.deepEqual((await store.recentGames(10)).map((row) => row.id), ["done"]);
+  const stats = await store.stats(now);
+  assert.deepEqual([stats.last24h, stats.last7d, stats.finished, stats.aborted], [1, 1, 1, 1]);
+});

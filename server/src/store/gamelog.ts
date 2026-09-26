@@ -166,7 +166,7 @@ export function toAdminGameRow(log: GameLog, moderatedGameIds: Set<string>): Adm
 }
 
 export interface GameLogStore {
-  /** Administration : dernières parties, anonymes, les plus récentes d'abord. */
+  /** Administration : dernières parties terminées (les annulées ne comptent pas), anonymes, les plus récentes d'abord. */
   recentGames(limit: number, before?: Date): Promise<AdminGameRow[]>;
   insertGame(log: GameLog): Promise<void>;
   /** Remplace pseudos et comptes par « Joueur A, B… » et efface le texte du chat ; renvoie le nombre de parties traitées. */
@@ -340,7 +340,7 @@ export class MongoGameLogStore implements GameLogStore {
 
   public async recentGames(limit: number, before?: Date): Promise<AdminGameRow[]> {
     const docs = await this.games
-      .find(before === undefined ? {} : { endedAt: { $lt: before } })
+      .find(before === undefined ? { outcome: "finished" } : { outcome: "finished", endedAt: { $lt: before } })
       .sort({ endedAt: -1 })
       .limit(limit)
       .toArray();
@@ -355,8 +355,8 @@ export class MongoGameLogStore implements GameLogStore {
     const [total, finished, last24h, last7d, winsNazi, winsCommunist, forfeits, openCases, totalCases] = await Promise.all([
       this.games.countDocuments(),
       this.games.countDocuments({ outcome: "finished" }),
-      this.games.countDocuments({ endedAt: { $gte: day } }),
-      this.games.countDocuments({ endedAt: { $gte: week } }),
+      this.games.countDocuments({ outcome: "finished", endedAt: { $gte: day } }),
+      this.games.countDocuments({ outcome: "finished", endedAt: { $gte: week } }),
       this.games.countDocuments({ outcome: "finished", winner: "nazi" }),
       this.games.countDocuments({ outcome: "finished", winner: "communist" }),
       this.games.countDocuments({ reason: "forfeit" }),
@@ -404,7 +404,7 @@ export class MemoryGameLogStore implements GameLogStore {
   public async recentGames(limit: number, before?: Date): Promise<AdminGameRow[]> {
     const moderated = new Set([...this.cases.values()].map((c) => c.gameId).filter((id): id is string => id !== null));
     return [...this.games.values()]
-      .filter((log) => before === undefined || log.endedAt < before)
+      .filter((log) => log.outcome === "finished" && (before === undefined || log.endedAt < before))
       .sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime())
       .slice(0, limit)
       .map((log) => toAdminGameRow(log, moderated));
@@ -486,7 +486,7 @@ export class MemoryGameLogStore implements GameLogStore {
 
   public async stats(now = new Date()): Promise<GameLogStats> {
     const games = [...this.games.values()];
-    const since = (ms: number) => games.filter((g) => g.endedAt.getTime() >= now.getTime() - ms).length;
+    const since = (ms: number) => games.filter((g) => g.outcome === "finished" && g.endedAt.getTime() >= now.getTime() - ms).length;
     const finished = games.filter((g) => g.outcome === "finished");
     const cases = [...this.cases.values()];
     return {
