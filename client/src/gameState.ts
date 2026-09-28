@@ -81,6 +81,8 @@ export interface GameState {
   notice: { message: string; id: number } | null;
   /** Heure locale (ms) à laquelle l'écran en cours passera seul à la suite, ou null. */
   autoAdvanceAt: number | null;
+  /** Hôte : jeton du lien de la vue publique (grand écran, stream), une fois demandé. */
+  spectateToken: string | null;
 }
 
 export type GameAction =
@@ -172,6 +174,7 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     chat: [],
     invite: null,
     notice: null,
+    spectateToken: null,
     gameMeta: { missionCount: 0 },
     ...gameReset(),
   };
@@ -238,6 +241,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         roomCode: "",
         myId: null,
         hostId: null,
+        spectateToken: null,
         players: [],
         chat: [],
         roomStatus: null,
@@ -459,6 +463,9 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
 
     case SERVER_EVENTS.RESYNC:
       return applyResync(state, payload);
+
+    case SERVER_EVENTS.SPECTATE_LINK_READY:
+      return { ...state, spectateToken: stringValue(payload.token) };
 
     case SERVER_EVENTS.CHAT_HISTORY:
       return {

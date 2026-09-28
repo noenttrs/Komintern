@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 import type { Server } from "socket.io";
 
-import { SERVER_EVENTS } from "./events";
+import { publicChannel, roomTargets, SERVER_EVENTS } from "./events";
 import { DuelSession } from "./DuelSession";
 import { EnginePool } from "./EnginePool";
 import { GameSession } from "./GameSession";
@@ -10,7 +10,7 @@ import type { AutoAdvanceDelays, BridgeLike, GameSummary, TurnKind } from "./Gam
 import { log } from "./logger";
 import { DUEL_PRESET, MAX_PLAYERS, MIN_PLAYERS, RULESET_PRESETS, parsePace, parsePreset, parseRuleset, resolveRulesetForPlayerCount } from "./rulesets";
 import type { GamePace, RulesetPreset } from "./rulesets";
-import type { PlayerSummary, PushSubscriptionData, RoomStatus, RoomUpdatedPayload } from "./types";
+import type { PlayerSummary, PushSubscriptionData, ResyncPayload, RoomStatus, RoomUpdatedPayload } from "./types";
 
 export type ChatMessage = { id: string; playerId: string; pseudo: string; text: string; at: number };
 
@@ -65,6 +65,13 @@ type Absence = {
   votes: Set<string>;
   timers: NodeJS.Timeout[];
 };
+/** Comparaison en temps constant d'un jeton secret. */
+function sameSecret(expected: string, received: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /** Pseudo unique dans la room (insensible à la casse) : personne ne peut se faire passer pour un autre joueur. */
@@ -102,6 +109,8 @@ type RoomRecord = {
   revealRoles: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
+  /** Jeton du lien de la vue publique (grand écran, stream), créé à la demande de l'hôte. */
+  spectatorToken?: string;
   /** Ordre de table de la dernière partie : repris à la suivante (le chef continue de tourner). */
   lastTurnOrder?: string[];
   /** Dernière partie enregistrée : les choix « rejouer / quitter » s'y rapportent. */
@@ -333,7 +342,7 @@ export class RoomManager {
       this.clearAbsence(room, playerId);
       room.afkPlayers.add(playerId);
       room.socketByPlayer.delete(playerId);
-      this.io.to(code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
+      this.io.to(roomTargets(code, SERVER_EVENTS.PLAYER_AFK)).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
       this.runSessionTask(room, (session) => session.handlePlayerAfk(playerId));
       this.settleAbsenceVotes(room);
       this.emitRoomUpdated(room);
@@ -724,6 +733,35 @@ export class RoomManager {
 
   // ---------------------------------------------------------------- absences et notifications
 
+  /**
+   * Lien de la vue publique : jeton secret de la room (l'hôte seul). `reset` en crée un nouveau :
+   * l'ancien lien cesse de marcher et les écrans ouverts avec lui sont déconnectés de la vue.
+   */
+  public spectatorLink(code: string, hostId: string, reset = false): string {
+    const room = this.requireRoom(code);
+    if (room.hostPlayerId !== hostId) throw new Error("only the host can do that");
+    if (reset && room.spectatorToken !== undefined) this.endSpectators(room);
+    if (reset || room.spectatorToken === undefined) room.spectatorToken = crypto.randomBytes(18).toString("base64url");
+    return room.spectatorToken;
+  }
+
+  /** Vérifie un lien de vue publique ; renvoie l'état public à afficher (sans aucun secret). */
+  public async spectate(code: string, token: string): Promise<{ room: RoomUpdatedPayload; snapshot: ResyncPayload | null }> {
+    const room = this.rooms.get(code);
+    const expected = room?.spectatorToken;
+    if (room === undefined || expected === undefined || !sameSecret(expected, token)) {
+      throw new Error("this screen link is no longer valid");
+    }
+    const snapshot = room.session !== undefined && this.inGame(room) ? await room.session.publicSnapshot() : null;
+    return { room: this.getRoomPayload(code), snapshot };
+  }
+
+  private endSpectators(room: RoomRecord): void {
+    if (room.spectatorToken === undefined) return;
+    this.io.to(publicChannel(room.code)).emit(SERVER_EVENTS.SPECTATE_ENDED, {});
+    this.io.in(publicChannel(room.code)).socketsLeave(publicChannel(room.code));
+  }
+
   /** Vote d'un joueur connecté pour continuer sans un absent (ou retrait de son vote). */
   public voteAbsence(code: string, byPlayerId: string, targetId: string, skip: boolean): void {
     const room = this.requireRoom(code);
@@ -905,7 +943,7 @@ export class RoomManager {
 
     this.reassignHostIfNeeded(room);
     if (notify) {
-      this.io.to(room.code).emit(SERVER_EVENTS.PLAYER_LEFT, { playerId });
+      this.io.to(roomTargets(room.code, SERVER_EVENTS.PLAYER_LEFT)).emit(SERVER_EVENTS.PLAYER_LEFT, { playerId });
       this.emitRoomUpdated(room);
     }
     this.scheduleEmptyCheck(room);
@@ -916,6 +954,7 @@ export class RoomManager {
 
   private deleteRoom(room: RoomRecord): void {
     this.clearTimers(room);
+    this.endSpectators(room);
     // Room abandonnée en pleine partie : la partie reste tracée, comme annulée.
     if (room.session !== undefined && room.currentGame !== undefined) {
       this.recordGame(room, "aborted", room.session.summary());
@@ -954,7 +993,7 @@ export class RoomManager {
     }
     this.clearAbsence(room, playerId);
     room.afkPlayers.add(playerId);
-    this.io.to(room.code).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
+    this.io.to(roomTargets(room.code, SERVER_EVENTS.PLAYER_AFK)).emit(SERVER_EVENTS.PLAYER_AFK, { playerId });
     this.emitRoomUpdated(room);
     this.runSessionTask(room, (session) => session.handlePlayerAfk(playerId));
   }
@@ -1125,7 +1164,7 @@ export class RoomManager {
   }
 
   private emitRoomUpdated(room: RoomRecord): void {
-    this.io.to(room.code).emit(SERVER_EVENTS.ROOM_UPDATED, this.getRoomPayload(room.code));
+    this.io.to(roomTargets(room.code, SERVER_EVENTS.ROOM_UPDATED)).emit(SERVER_EVENTS.ROOM_UPDATED, this.getRoomPayload(room.code));
   }
 
   private requireRoom(code: string): RoomRecord {

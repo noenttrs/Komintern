@@ -91,6 +91,7 @@ Recharger la page ou perdre le réseau un instant ne fait pas perdre sa place. U
 - Notifications sur le téléphone quand c'est son tour, même écran verrouillé (y compris sur iPhone une fois le site installé comme application).
 - Vibration et son quand c'est son tour.
 - Scan du QR code d'une room directement dans l'application.
+- Vue publique pour un grand écran posé sur la table ou pour un stream (source navigateur dans OBS) : l'état public de la partie, jamais les rôles ni le chat ; le lien « stream » cache aussi le code de la room.
 - Règles consultables à tout moment, astuces pour la première partie.
 - Accessible du plus petit téléphone (320 px) au grand écran.
 

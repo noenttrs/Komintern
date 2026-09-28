@@ -1,6 +1,6 @@
 import type { Server } from "socket.io";
 
-import { SERVER_EVENTS } from "./events";
+import { roomTargets, SERVER_EVENTS } from "./events";
 import type { BridgeLike, DuelSummary, DuelVote, GameSummary, TurnKind } from "./GameSession";
 import { log } from "./logger";
 import { PythonBridge } from "./PythonBridge";
@@ -107,6 +107,11 @@ export class DuelSession {
         this.toPlayer(playerId, SERVER_EVENTS.ROLE_ASSIGNED, { playerId, role: this.roleMap[playerId], turnOrder: [...this.playerIds] });
       }
     });
+  }
+
+  /** État public du duel (vue spectateur) : aucun rôle ni vote avant la fin. */
+  public publicSnapshot(): Promise<ResyncPayload> {
+    return this.serial(async () => ({ ...this.resyncPayload(""), role: null, hasConfirmed: false }));
   }
 
   public syncPlayer(playerId: string): Promise<void> {
@@ -243,7 +248,7 @@ export class DuelSession {
 
   private toRoom(event: string, payload?: unknown): void {
     if (this.disposed && event !== SERVER_EVENTS.ERROR && event !== SERVER_EVENTS.GAME_ABORTED) return;
-    this.io.to(this.roomId).emit(event, payload);
+    this.io.to(roomTargets(this.roomId, event)).emit(event, payload);
   }
 
   private toPlayer(playerId: string, event: string, payload?: unknown): void {

@@ -123,6 +123,8 @@ export interface GameActions {
   sendDuelVote: (vote: DuelVote) => void;
   /** Vote pour continuer sans un joueur absent (`skip` faux : retire son vote). */
   voteAbsence: (playerId: string, skip: boolean) => void;
+  /** Hôte : demande (ou renouvelle) le lien de la vue publique. */
+  requestSpectateLink: (reset?: boolean) => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -367,6 +369,7 @@ export function useGameSocket(): UseGameSocketResult {
         emitAction(CLIENT_EVENTS.DUEL_VOTE, { vote });
       },
       voteAbsence: (playerId, skip) => emitAction(CLIENT_EVENTS.ABSENCE_VOTE, { playerId, skip }),
+      requestSpectateLink: (reset = false) => emitAction(CLIENT_EVENTS.SPECTATE_LINK, { reset }),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });

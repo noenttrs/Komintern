@@ -25,6 +25,8 @@ export const CLIENT_EVENTS = {
   TRANSFER_HOST: "transfer_host",
   SET_ROOM_OPTIONS: "set_room_options",
   ABSENCE_VOTE: "absence_vote",
+  SPECTATE: "spectate",
+  SPECTATE_LINK: "spectate_link",
   VISIBILITY: "visibility",
   PUSH_SUBSCRIBE: "push_subscribe",
   DUEL_VOTE: "duel_vote",
@@ -60,5 +62,7 @@ export const SERVER_EVENTS = {
   FRIEND_REQUEST: "friend_request",
   FRIENDS_CHANGED: "friends_changed",
   FRIEND_PRESENCE: "friend_presence",
+  SPECTATE_LINK_READY: "spectate_link_ready",
+  SPECTATE_ENDED: "spectate_ended",
   ERROR: "error",
 } as const;

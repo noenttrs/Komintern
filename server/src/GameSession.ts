@@ -1,6 +1,6 @@
 import type { Server } from "socket.io";
 
-import { SERVER_EVENTS } from "./events";
+import { roomTargets, SERVER_EVENTS } from "./events";
 import { log } from "./logger";
 import { PythonBridge } from "./PythonBridge";
 import type { ResolvedRuleset } from "./rulesets";
@@ -216,6 +216,11 @@ export class GameSession {
       }
       this.emitTableOrderUpdate();
     });
+  }
+
+  /** État public de la partie (vue spectateur) : aucun rôle, aucun vote personnel. */
+  public publicSnapshot(): Promise<ResyncPayload> {
+    return this.serial(async () => ({ ...this.buildResyncPayload(""), role: null, hasVotedConfidence: false, hasVotedMission: false, hasConfirmed: false }));
   }
 
   public syncPlayer(playerId: string): Promise<void> {
@@ -929,7 +934,7 @@ export class GameSession {
     if (this.disposed && event !== SERVER_EVENTS.ERROR && event !== SERVER_EVENTS.GAME_ABORTED && event !== SERVER_EVENTS.ROLES_REVEALED) {
       return;
     }
-    this.io.to(this.roomId).emit(event, payload);
+    this.io.to(roomTargets(this.roomId, event)).emit(event, payload);
     this.notifyTurn(event);
   }
 

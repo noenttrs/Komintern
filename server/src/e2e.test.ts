@@ -252,3 +252,85 @@ test("a duel with the real engine: the result follows the rules table", { timeou
   assert.deepEqual({ winners, reason }, expected);
   assert.equal(app.roomManager.getStatus("DUEL"), "finished");
 });
+
+test("the public screen follows a whole game without ever receiving a role or a chat message", { timeout: 30_000 }, async () => {
+  const host = await join("create_room", { code: "public-view", pseudo: "Rosa" }, "uid-pv-host-0000000000");
+  const code = "PUBLIC-VIEW";
+  const players = [host];
+  for (let index = 1; index < 5; index += 1) {
+    players.push(await join("join_room", { code, pseudo: `V${index}` }, `uid-pv-player-00000000${index}`));
+  }
+  const byId = (id: string) => players.find((player) => player.playerId === id) as Player;
+
+  // Seul l'hôte obtient le lien ; un jeton faux est refusé.
+  const refusedLink = next<{ code: string }>(players[1]!.socket, "error");
+  players[1]!.socket.emit("spectate_link", {});
+  assert.equal((await refusedLink).code, "invalid_spectate_link");
+  const linkReady = next<{ token: string }>(host.socket, "spectate_link_ready");
+  host.socket.emit("spectate_link", {});
+  const { token } = await linkReady;
+  const intruder = open();
+  const badToken = next<{ message: string }>(intruder, "error");
+  intruder.emit("spectate", { code, token: "x".repeat(token.length) });
+  assert.match((await badToken).message, /no longer valid/);
+
+  const screen = open();
+  const screenInbox = record(screen);
+  const screenJoined = next(screen, "room_updated");
+  screen.emit("spectate", { code, token });
+  await screenJoined;
+
+  host.socket.emit("start_game", {});
+  await next(host.socket, "game_started");
+  for (const player of players) player.socket.emit("table_order_tap");
+  await next(host.socket, "table_order_updated", (payload: { completed?: boolean }) => payload.completed === true);
+  const roleEvents = players.map((player) => next<{ role: string }>(player.socket, "role_assigned"));
+  for (const player of players) player.socket.emit("table_order_confirmed");
+  const roles = await Promise.all(roleEvents);
+  const communists = players.filter((_, index) => roles[index]?.role === "communist").map((player) => player.playerId);
+  let proposal = await everyone(players, "role_confirmed", "proposal_phase");
+
+  // Un message de chat et un écran qui arrive en pleine partie (état public reconstruit).
+  host.socket.emit("chat_send", { text: "message privé entre joueurs" });
+  await next(players[1]!.socket, "chat_message");
+  const lateScreen = open();
+  const lateInbox = record(lateScreen);
+  const lateResync = next<{ role: unknown; phase: string }>(lateScreen, "resync");
+  lateScreen.emit("spectate", { code, token });
+  const snapshot = await lateResync;
+  assert.equal(snapshot.role, null);
+  assert.equal(snapshot.phase, "proposing");
+
+  for (let round = 0; round < 3; round += 1) {
+    byId(proposal.chef as string).socket.emit("propose_team", { team: communists.slice(0, proposal.missionSize as number) });
+    await next(host.socket, "confidence_phase");
+    await everyone(players, "confidence_vote", "confidence_revealed", { vote: "yes" });
+    await everyone(players, "confidence_result_confirmed", "mission_phase");
+    const revealed = next(host.socket, "mission_revealed");
+    for (const member of communists.slice(0, proposal.missionSize as number)) byId(member).socket.emit("mission_vote", { vote: "communist" });
+    await revealed;
+    if (round < 2) proposal = await everyone(players, "mission_result_confirmed", "proposal_phase");
+  }
+  const screenOver = next<{ winner: string }>(screen, "game_over");
+  await everyone(players, "mission_result_confirmed", "game_over");
+  assert.equal((await screenOver).winner, "communist");
+
+  for (const [name, inbox] of [["screen", screenInbox], ["late screen", lateInbox]] as const) {
+    const events = inbox.map((entry) => entry.event);
+    assert.ok(!events.includes("role_assigned"), `${name}: no role`);
+    assert.ok(!events.includes("chat_message") && !events.includes("chat_history"), `${name}: no chat`);
+    const beforeEnd = inbox.slice(0, events.indexOf("game_over"));
+    assert.ok(!JSON.stringify(beforeEnd).includes("roleMap"), `${name}: no role map before the end`);
+    assert.ok(!JSON.stringify(inbox).includes("message privé"), `${name}: chat text never sent`);
+    assert.ok(events.includes("confidence_revealed") && events.includes("mission_revealed"), `${name}: public events relayed`);
+  }
+
+  // Nouveau lien : les écrans ouverts sont prévenus, l'ancien jeton ne marche plus.
+  const ended = next(screen, "spectate_ended");
+  host.socket.emit("spectate_link", { reset: true });
+  await ended;
+  const stale = open();
+  const staleError = next<{ message: string }>(stale, "error");
+  stale.emit("spectate", { code, token });
+  assert.match((await staleError).message, /no longer valid/);
+});

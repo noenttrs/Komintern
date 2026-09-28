@@ -10,7 +10,7 @@ import { allow } from "./auth/rateLimit";
 import { isTestRoom, loadConfig } from "./config";
 import type { Config } from "./config";
 import { AdminService } from "./admin/service";
-import { CLIENT_EVENTS, SERVER_EVENTS } from "./events";
+import { CLIENT_EVENTS, publicChannel, SERVER_EVENTS } from "./events";
 import { DuelSession } from "./DuelSession";
 import { GameSession } from "./GameSession";
 import { clientIp, createApi, sessionIdFrom } from "./http/api";
@@ -60,7 +60,11 @@ type SocketContext = { roomId: string; playerId: string };
 type SocketUser = { userId: string; displayName: string | null; bannedUntil: Date | null; chatMutedUntil: Date | null };
 
 const CHAT_MAX_LENGTH = 200;
-const MAX_SOCKETS_PER_IP = 30;
+// Une soirée à deux tables de 14 sur le même Wi-Fi (même IP publique), un grand écran et les
+// reconnexions qui se chevauchent doivent passer ; un abus depuis une seule adresse reste borné.
+const MAX_SOCKETS_PER_IP = 50;
+/** Écrans de vue publique ouverts en même temps sur une room (grand écran, stream…). */
+const MAX_SPECTATORS_PER_ROOM = 8;
 /** Codes de room inexistants tentés par IP sur 10 minutes. */
 const MAX_JOIN_MISSES = 20;
 // eslint-disable-next-line no-control-regex
@@ -394,6 +398,30 @@ export function createKominternApp(options: AppOptions): KominternApp {
         throw new Error("too many invitations, slow down");
       }
       notify(friendId, SERVER_EVENTS.ROOM_INVITE, { from: { userId: user.userId, displayName: user.displayName }, code: context.roomId });
+    });
+
+    // Vue publique (grand écran, stream) : lien secret demandé par l'hôte, puis écran spectateur
+    // sans siège, qui ne reçoit que les événements publics (canal séparé, jamais le chat ni un rôle).
+    on(socket, CLIENT_EVENTS.SPECTATE_LINK, "invalid_spectate_link", (payload) => {
+      const context = requireContext(socket);
+      const token = roomManager.spectatorLink(context.roomId, context.playerId, payload.reset === true);
+      socket.emit(SERVER_EVENTS.SPECTATE_LINK_READY, { token });
+    });
+
+    on(socket, CLIENT_EVENTS.SPECTATE, "invalid_spectate", async (payload) => {
+      if (!(await allow(services.kv, "spectate", ip, 30, 600))) {
+        throw new Error("too many attempts, try again later");
+      }
+      const code = parseRoomCode(payload.code);
+      const token = typeof payload.token === "string" ? payload.token.slice(0, 64) : "";
+      const channel = publicChannel(code);
+      if ((await io.in(channel).fetchSockets()).length >= MAX_SPECTATORS_PER_ROOM) {
+        throw new Error("too many screens are already following this room");
+      }
+      const { room, snapshot } = await roomManager.spectate(code, token);
+      await socket.join(channel);
+      socket.emit(SERVER_EVENTS.ROOM_UPDATED, room);
+      if (snapshot !== null) socket.emit(SERVER_EVENTS.RESYNC, snapshot);
     });
 
     on(socket, CLIENT_EVENTS.ABSENCE_VOTE, "invalid_absence_vote", (payload) => {

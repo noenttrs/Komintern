@@ -2407,3 +2407,142 @@ textarea {
 .create-more[open] > * + * {
   margin-top: 0.6rem;
 }
+
+/* ------------------------------------------------------------------ vue publique (grand écran, OBS) */
+
+.board {
+  min-height: var(--vh);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 1.5rem;
+  padding: clamp(1rem, 3vw, 3rem);
+  text-align: center;
+  font-size: clamp(1rem, 1.6vw, 1.6rem);
+  overflow: auto;
+}
+
+.board--transparent,
+html:has(.board--transparent),
+html:has(.board--transparent) body,
+html:has(.board--transparent) #root {
+  background: transparent;
+}
+
+.board__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.board__title {
+  font-weight: 600;
+  font-size: 1.2em;
+}
+
+.board__score {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 1.3em;
+}
+
+.board__track {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.board__step {
+  width: 2.4em;
+  height: 2.4em;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+}
+
+.board__step--communist {
+  border-color: var(--communist);
+  color: var(--communist);
+  font-weight: 600;
+}
+
+.board__step--nazi {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.board__body {
+  display: grid;
+  place-items: center;
+}
+
+.board__body h2 {
+  font-size: clamp(1.8rem, 4vw, 4rem);
+  margin-bottom: 1rem;
+}
+
+.board__names {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+}
+
+.board__names--ordered {
+  list-style: decimal inside;
+}
+
+.board__team {
+  font-size: 1.3em;
+}
+
+.board__join {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.board__join img {
+  width: clamp(10rem, 22vw, 20rem);
+  background: #ffffff;
+  padding: 0.5rem;
+}
+
+.board__notice {
+  align-self: center;
+  font-size: 1.3em;
+}
+
+.board__chef {
+  color: var(--ink-soft);
+}
+
+.public-links {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.public-links__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.public-links__row button,
+.public-links__row .button-link {
+  width: auto;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.board .faction-icon {
+  width: 1.3em;
+  height: 1.3em;
+}

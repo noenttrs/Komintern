@@ -4,7 +4,7 @@ import { InstallBanner } from "../components/InstallBanner";
 import { PublicRooms } from "../components/PublicRooms";
 import { QrScanner } from "../components/QrScanner";
 import { RoomInvite } from "../components/RoomInvite";
-import { RoomSettingsSheet, RoomSummary, SettingsSection } from "../components/RoomSettings";
+import { PublicViewLinks, RoomSettingsSheet, RoomSummary, SettingsSection } from "../components/RoomSettings";
 import { SupportBanner } from "../components/SupportBanner";
 import { useI18n } from "../i18n";
 import { PLAYABLE_PRESETS, QUICK_PACE_MIN_PLAYERS, type RulesetPreset } from "../types";
@@ -287,6 +287,8 @@ export function WaitingRoomScreen(): JSX.Element {
     kickPlayer,
     startGame,
     leaveRoom,
+    spectateToken,
+    requestSpectateLink,
   } = useScreen();
   const { t } = useI18n();
   const quickPaceAvailable = (flexibleRoom ? players.length : targetPlayerCount) >= QUICK_PACE_MIN_PLAYERS;
@@ -350,6 +352,10 @@ export function WaitingRoomScreen(): JSX.Element {
               ) : (
                 <p className="field-hint">{t("createRoom.publicLoginHint")}</p>
               )}
+            </SettingsSection>
+            <SettingsSection title={t("board.section")}>
+              <p className="field-hint">{t("board.hint")}</p>
+              <PublicViewLinks code={roomCode} token={spectateToken} request={requestSpectateLink} />
             </SettingsSection>
           </RoomSettingsSheet>
         ) : null}

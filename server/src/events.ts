@@ -25,6 +25,8 @@ export const CLIENT_EVENTS = {
   TRANSFER_HOST: "transfer_host",
   SET_ROOM_OPTIONS: "set_room_options",
   ABSENCE_VOTE: "absence_vote",
+  SPECTATE: "spectate",
+  SPECTATE_LINK: "spectate_link",
   VISIBILITY: "visibility",
   PUSH_SUBSCRIBE: "push_subscribe",
   DUEL_VOTE: "duel_vote",
@@ -66,5 +68,41 @@ export const SERVER_EVENTS = {
   KICKED: "kicked",
   /** Avertissement de modération : le client recharge le compte pour l'afficher. */
   ACCOUNT_WARNING: "account_warning",
+  SPECTATE_LINK_READY: "spectate_link_ready",
+  SPECTATE_ENDED: "spectate_ended",
   ERROR: "error",
 } as const;
+
+/**
+ * Vue publique (grand écran, stream) : seuls ces événements, diffusés à toute la room, sont relayés
+ * aux spectateurs. Rôles (envoyés joueur par joueur) et chat n'y figurent jamais.
+ */
+export const PUBLIC_EVENTS: ReadonlySet<string> = new Set([
+  SERVER_EVENTS.ROOM_UPDATED,
+  SERVER_EVENTS.PLAYER_LEFT,
+  SERVER_EVENTS.PLAYER_AFK,
+  SERVER_EVENTS.GAME_STARTED,
+  SERVER_EVENTS.GAME_ABORTED,
+  SERVER_EVENTS.TABLE_ORDER_UPDATED,
+  SERVER_EVENTS.PROPOSAL_PHASE,
+  SERVER_EVENTS.CONFIDENCE_PHASE,
+  SERVER_EVENTS.CONFIDENCE_REVEALED,
+  SERVER_EVENTS.MISSION_PHASE,
+  SERVER_EVENTS.MISSION_PROGRESS,
+  SERVER_EVENTS.MISSION_REVEALED,
+  SERVER_EVENTS.GAME_OVER,
+  SERVER_EVENTS.ROLES_REVEALED,
+  SERVER_EVENTS.DUEL_PHASE,
+  SERVER_EVENTS.DUEL_PROGRESS,
+  SERVER_EVENTS.DUEL_RESULT,
+]);
+
+/** Canal Socket.IO des spectateurs d'une room (distinct de celui des joueurs). */
+export function publicChannel(code: string): string {
+  return `${code}:public`;
+}
+
+/** Destinataires d'un événement de room : les joueurs, plus les spectateurs s'il est public. */
+export function roomTargets(code: string, event: string): string | string[] {
+  return PUBLIC_EVENTS.has(event) ? [code, publicChannel(code)] : code;
+}

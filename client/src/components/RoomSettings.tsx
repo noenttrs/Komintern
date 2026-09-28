@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { useI18n } from "../i18n";
 
@@ -45,5 +45,46 @@ export function SettingsSection({ title, children }: { title: string; children: 
       <h3 className="field-label">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** Liens de la vue publique (grand écran, stream) : copiés sans être affichés en clair. */
+export function PublicViewLinks({ code, token, request }: { code: string; token: string | null; request: (reset?: boolean) => void }): JSX.Element {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState<string | null>(null);
+  if (token === null) {
+    return (
+      <button type="button" className="secondary" onClick={() => request(false)}>
+        {t("board.open")}
+      </button>
+    );
+  }
+  const base = `${window.location.origin}/r/${code}/ecran?t=${encodeURIComponent(token)}`;
+  const links: Array<[string, string]> = [
+    ["screen", base],
+    ["stream", `${base}&stream=1`],
+  ];
+  const copy = (key: string, url: string) => {
+    void navigator.clipboard?.writeText(url).then(() => setCopied(key)).catch(() => window.prompt(t("board.copy"), url));
+  };
+  return (
+    <div className="public-links">
+      {links.map(([key, url]) => (
+        <div key={key} className="public-links__row">
+          <span>{key === "screen" ? t("board.linkScreen") : t("board.linkStream")}</span>
+          <button type="button" className="secondary" onClick={() => copy(key, url)}>
+            {copied === key ? t("board.copied") : t("board.copy")}
+          </button>
+          {key === "screen" ? (
+            <a className="button-link" href={url} target="_blank" rel="noopener noreferrer">
+              {t("board.openShort")}
+            </a>
+          ) : null}
+        </div>
+      ))}
+      <button type="button" className="link-button" onClick={() => request(true)}>
+        {t("board.reset")}
+      </button>
+    </div>
   );
 }
