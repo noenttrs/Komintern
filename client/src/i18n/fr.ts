@@ -766,7 +766,7 @@ export const fr = {
     editor:
       "Site édité à titre personnel, non professionnel et non commercial sous le pseudonyme <b>{editor}</b>. Conformément à l'article 6, III, 2 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN), l'éditeur a choisi de ne pas rendre publique son identité ; elle peut être communiquée sur réquisition de l'autorité judiciaire. Contact : {mail}.",
     hostingTitle: "Hébergement",
-    hosting: "Le site est hébergé sur un serveur personnel de l'éditeur, situé en France.",
+    hosting: "Le site est hébergé sur un serveur personnel de l'éditeur, situé en France. Une version de test (dev.fascismwontget.me), ouverte aux joueurs volontaires, partage cet hébergement et ces règles ; ses comptes et parties sont séparés de ceux du site et peuvent être effacés à tout moment.",
     traffic:
       "Le trafic transite par <b>Cloudflare, Inc.</b> (101 Townsend St, San Francisco, CA 94107, États-Unis — cloudflare.com), qui assure le chiffrement HTTPS et la protection du site. Les emails sont envoyés via <b>Resend</b> (resend.com) et les emails reçus sont redirigés par <b>Cloudflare Email Routing</b> vers la boîte de l'éditeur.",
     techLogTitle:
@@ -936,6 +936,12 @@ export const fr = {
     keyEnter: "Entrée : valider, passer, prendre sa place",
     keyHistory: "H : retourner la carte (historique)",
     keyHelp: "? : cette aide · Échap : fermer",
+  },
+  dev: {
+    label: "Version de test",
+    text: "Version de test : nouveautés en avant-première, comptes et parties effaçables à tout moment.",
+    feedback: "Donner mon avis",
+    feedbackSubject: "[Version de test] Mon avis",
   },
   insights: {
     tab: "Graphiques",

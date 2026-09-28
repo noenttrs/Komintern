@@ -36,6 +36,7 @@ import { RoleRevealScreen, TableOrderScreen } from "./screens/SetupScreens";
 import { DuelResultScreen, DuelVoteScreen } from "./screens/DuelScreens";
 import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./screens/VoteScreens";
 import { SERVER_EVENTS } from "./events";
+import { IS_DEV_CHANNEL } from "./appChannel";
 import { seoFor } from "./seo";
 import { socket } from "./socket";
 import { openChannel, type PrivateMessage, type PrivateState } from "./streamer/channel";
@@ -241,7 +242,7 @@ export default function App(): JSX.Element {
   // Titre et description suivent la page ouverte (onglet, moteurs de recherche qui exécutent le JS).
   useEffect(() => {
     const seo = seoFor(route);
-    document.title = seo.title;
+    document.title = IS_DEV_CHANNEL ? `[Test] ${seo.title}` : seo.title;
     document.querySelector('meta[name="description"]')?.setAttribute("content", seo.description);
   }, [route]);
   useEffect(() => {
@@ -982,6 +983,12 @@ export default function App(): JSX.Element {
         connection={connection}
         inRoom={roomCode !== ""}
       />
+      {IS_DEV_CHANNEL ? (
+        <aside className="dev-banner" aria-label={t("dev.label")}>
+          <span>{t("dev.text")}</span>
+          <a href={`/contact?sujet=${encodeURIComponent(t("dev.feedbackSubject"))}`}>{t("dev.feedback")}</a>
+        </aside>
+      ) : null}
       <ScreenProvider value={screenContext}>{game.joinPending !== null ? <JoinPendingScreen code={game.joinPending} /> : renderScreen(phase)}</ScreenProvider>
       {wideScreen && route.page === "game" && isGamePhaseUi(phase) ? desktopSide : null}
       {showShortcuts ? <ShortcutsHelp onClose={() => setShowShortcuts(false)} /> : null}

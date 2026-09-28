@@ -339,7 +339,8 @@ export class MongoGameLogStore implements GameLogStore {
     const ids = (await this.cases.find({ status: "resolved", resolvedAt: { $lt: before }, "messages.0": { $exists: true } }, { projection: { _id: 1 } }).toArray()).map((doc) => doc._id);
     if (ids.length === 0) return 0;
     await this.cases.updateMany({ _id: { $in: ids } }, { $set: { messages: [] } });
-    await this.identities.deleteMany({ _id: { $in: ids } });
+    // Vidées plutôt que supprimées : le compte des journaux n'a (volontairement) pas le droit de supprimer.
+    await this.identities.updateMany({ _id: { $in: ids } }, { $set: { entries: [] } });
     return ids.length;
   }
 

@@ -767,7 +767,7 @@ export const en: Dictionary = {
     editor:
       "Site published on a personal, non-professional and non-commercial basis under the pseudonym <b>{editor}</b>. In accordance with article 6, III, 2 of French law no. 2004-575 of 21 June 2004 on confidence in the digital economy (LCEN), the publisher has chosen not to make their identity public; it may be disclosed upon request of the judicial authority. Contact: {mail}.",
     hostingTitle: "Hosting",
-    hosting: "The site is hosted on the publisher's personal server, located in France.",
+    hosting: "The site is hosted on the publisher's personal server, located in France. A test version (dev.fascismwontget.me), open to volunteer players, shares this hosting and these rules; its accounts and games are separate from the site's and may be erased at any time.",
     traffic:
       "Traffic goes through <b>Cloudflare, Inc.</b> (101 Townsend St, San Francisco, CA 94107, USA — cloudflare.com), which provides HTTPS encryption and protection for the site. Emails are sent via <b>Resend</b> (resend.com) and incoming emails are forwarded by <b>Cloudflare Email Routing</b> to the publisher's inbox.",
     techLogTitle:
@@ -937,6 +937,12 @@ export const en: Dictionary = {
     keyEnter: "Enter: confirm, skip, take your seat",
     keyHistory: "H: flip the card (history)",
     keyHelp: "?: this help · Esc: close",
+  },
+  dev: {
+    label: "Test version",
+    text: "Test version: new features first, accounts and games may be erased at any time.",
+    feedback: "Give feedback",
+    feedbackSubject: "[Test version] My feedback",
   },
   insights: {
     tab: "Charts",

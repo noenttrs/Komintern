@@ -15,11 +15,25 @@ ARG VITE_SERVER_URL=""
 ARG LEGAL_EDITOR_NAME=""
 ARG LEGAL_CONTACT_EMAIL=""
 ARG DONATION_URL=""
+# « dev » : version de test (bandeau, pages jamais indexées) ; vide : production.
+ARG APP_CHANNEL=""
+ENV VITE_APP_CHANNEL=$APP_CHANNEL
 RUN if [ -z "$VITE_SERVER_URL" ]; then unset VITE_SERVER_URL; fi && npm run build
 
 # ---------- runtime : nginx non-root ----------
 FROM nginxinc/nginx-unprivileged:alpine AS runtime
+# Serveur Node visé (la version de test a le sien : « server-dev »).
+ARG SERVER_HOST=server
+ARG APP_CHANNEL=""
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx-headers.conf /etc/nginx/komintern-headers.conf
 COPY --from=build /build/dist /usr/share/nginx/html
+USER root
+RUN sed -i "s#http://server:3000#http://${SERVER_HOST}:3000#" /etc/nginx/conf.d/default.conf \
+ && if [ "$APP_CHANNEL" = "dev" ]; then \
+      echo 'add_header X-Robots-Tag "noindex, nofollow" always;' >> /etc/nginx/komintern-headers.conf; \
+      printf 'User-agent: *\nDisallow: /\n' > /usr/share/nginx/html/robots.txt; \
+      rm -f /usr/share/nginx/html/sitemap.xml; \
+    fi
+USER 101
 EXPOSE 8080

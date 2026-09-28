@@ -1,0 +1,84 @@
+name: komintern-dev
+
+# Version de test (dev.fascismwontget.me) : seuls le serveur et le site sont doublés. Mongo et Redis
+# sont ceux de la production, avec des bases, des utilisateurs et une base Redis séparés : aucun
+# compte ni journal de la production n'est lisible depuis la version de test.
+# Préparation (une fois) : scripts/dev-setup.sh ; déploiement : scripts/deploy-dev.sh.
+# Cloudflare Tunnel : route dev.fascismwontget.me → http://web-dev:8080.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  server-dev:
+    logging: *logging
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    image: komintern-server:dev
+    restart: unless-stopped
+    environment:
+      ALLOWED_ORIGINS: ${PUBLIC_URL:?}
+      PUBLIC_URL: ${PUBLIC_URL:?}
+      MAX_ROOMS: ${MAX_ROOMS:-100}
+      ENGINE_WORKERS: ${ENGINE_WORKERS:-2}
+      TEST_ROOM_PREFIX: ${TEST_ROOM_PREFIX:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGO_APP_URL: mongodb://app_dev:${MONGO_APP_DEV_PASSWORD:?}@mongo:27017/nazicom_dev?authSource=nazicom_dev
+      MONGO_LOG_URL: mongodb://logger_dev:${MONGO_LOG_DEV_PASSWORD:?}@mongo:27017/nazicom_dev_logs?authSource=nazicom_dev_logs
+      # Base Redis n° 1 (la production utilise la n° 0) : sessions et limites séparées.
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379/1
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      LEGAL_EDITOR_NAME: ${LEGAL_EDITOR_NAME:-}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+      DONATION_URL: ${DONATION_URL:-}
+    expose:
+      - "3000"
+    networks:
+      - komintern
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/socket.io/?EIO=4&transport=polling').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+  web-dev:
+    logging: *logging
+    build:
+      context: ./client
+      args:
+        SERVER_HOST: server-dev
+        APP_CHANNEL: dev
+        LEGAL_EDITOR_NAME: ${LEGAL_EDITOR_NAME:-}
+        LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+        DONATION_URL: ${DONATION_URL:-}
+    image: komintern-web:dev
+    restart: unless-stopped
+    # Boucle locale seulement (vérifications sur la machine) ; le public passe par le tunnel Cloudflare.
+    ports:
+      - "127.0.0.1:${WEB_DEV_PORT:-8081}:8080"
+    depends_on:
+      server-dev:
+        condition: service_healthy
+    networks:
+      - komintern
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+networks:
+  komintern:
+    external: true
+    name: komintern_komintern

@@ -7,7 +7,10 @@ import { useI18n } from "../i18n";
 export function ContactPage({ defaultEmail, contactEmail }: { defaultEmail: string; contactEmail: string }): JSX.Element {
   const { t, tr } = useI18n();
   const [email, setEmail] = useState(defaultEmail);
-  const [subject, setSubject] = useState("");
+  // Sujet prérempli par un lien (ex. « Avis sur la version de test »).
+  const [subject, setSubject] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("sujet")?.slice(0, 120) ?? "",
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
