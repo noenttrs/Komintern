@@ -87,6 +87,7 @@ export function CreateRoomScreen(): JSX.Element {
           value={roomNameDraft}
           onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
           maxLength={24}
+          aria-label={t("createRoom.namePlaceholder")}
           placeholder={t("createRoom.namePlaceholder")}
         />
 
@@ -122,8 +123,8 @@ export function CreateRoomScreen(): JSX.Element {
         </div>
         {account.status !== "user" ? <p className="field-hint">{t("createRoom.publicLoginHint")}</p> : null}
 
-        <label className="field-label">{t("createRoom.rules")}</label>
-        <select value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
+        <label className="field-label" htmlFor="rules-mode">{t("createRoom.rules")}</label>
+        <select id="rules-mode" value={rulesMode} onChange={(event) => setRulesMode(event.target.value as "default" | "preset" | "custom") }>
           <option value="default">{t("createRoom.rulesDefault")}</option>
           <option value="preset">{t("createRoom.rulesPreset")}</option>
           <option value="custom">{t("createRoom.rulesCustom")}</option>
@@ -131,7 +132,7 @@ export function CreateRoomScreen(): JSX.Element {
 
 
         {rulesMode === "preset" ? (
-          <select value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
+          <select aria-label={t("createRoom.rulesPreset")} value={presetDraft} onChange={(event) => setPresetDraft(event.target.value as RulesetPreset)}>
             {PLAYABLE_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
                 {preset === "PRESET_2J" ? t("createRoom.presetDuel") : t("createRoom.presetPlayers", { count: preset.replace("PRESET_", "").replace("J", "") })}
@@ -147,51 +148,35 @@ export function CreateRoomScreen(): JSX.Element {
 
         {rulesMode === "custom" ? (
           <>
-            <input
-              type="number"
-              value={customPlayerCount}
-              min={3}
-              max={14}
-              onChange={(event) => setCustomPlayerCount(Number(event.target.value))}
-              placeholder="player_count"
-            />
-            <input
-              type="number"
-              value={customNaziCount}
-              min={1}
-              onChange={(event) => setCustomNaziCount(Number(event.target.value))}
-              placeholder="nazi_count"
-            />
-            <input
-              type="number"
-              value={customCommunistCount}
-              min={1}
-              onChange={(event) => setCustomCommunistCount(Number(event.target.value))}
-              placeholder="communist_count"
-            />
-            <input
-              value={customMissionSizes}
-              onChange={(event) => setCustomMissionSizes(event.target.value)}
-              placeholder="mission_sizes (ex: 2,3,2,3,3)"
-            />
-            <input
-              type="number"
-              value={customMissionCount}
-              min={1}
-              onChange={(event) => setCustomMissionCount(Number(event.target.value))}
-              placeholder="mission_count"
-            />
-            <input
-              type="number"
-              value={customWinThreshold}
-              min={1}
-              onChange={(event) => setCustomWinThreshold(Number(event.target.value))}
-              placeholder="win_threshold"
-            />
-            <select value={customInfoMode} onChange={(event) => setCustomInfoMode(event.target.value as "full" | "partial" | "blind")}>
-              <option value="full">full</option>
-              <option value="partial">partial</option>
-              <option value="blind">blind</option>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customPlayers")}</span>
+              <input type="number" value={customPlayerCount} min={3} max={14} onChange={(event) => setCustomPlayerCount(Number(event.target.value))} />
+            </label>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customNazis")}</span>
+              <input type="number" value={customNaziCount} min={1} onChange={(event) => setCustomNaziCount(Number(event.target.value))} />
+            </label>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customCommunists")}</span>
+              <input type="number" value={customCommunistCount} min={1} onChange={(event) => setCustomCommunistCount(Number(event.target.value))} />
+            </label>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customMissionSizes")}</span>
+              <input value={customMissionSizes} onChange={(event) => setCustomMissionSizes(event.target.value)} placeholder="2,3,2,3,3" />
+            </label>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customMissionCount")}</span>
+              <input type="number" value={customMissionCount} min={1} onChange={(event) => setCustomMissionCount(Number(event.target.value))} />
+            </label>
+            <label className="field">
+              <span className="field-label">{t("createRoom.customWinThreshold")}</span>
+              <input type="number" value={customWinThreshold} min={1} onChange={(event) => setCustomWinThreshold(Number(event.target.value))} />
+            </label>
+            <label className="field-label" htmlFor="custom-info-mode">{t("createRoom.customInfoMode")}</label>
+            <select id="custom-info-mode" value={customInfoMode} onChange={(event) => setCustomInfoMode(event.target.value as "full" | "partial" | "blind")}>
+              <option value="full">{t("createRoom.infoFull")}</option>
+              <option value="partial">{t("createRoom.infoPartial")}</option>
+              <option value="blind">{t("createRoom.infoBlind")}</option>
             </select>
             <label className="checkbox-row">
               <input
@@ -261,6 +246,7 @@ export function JoinRoomScreen(): JSX.Element {
           value={joinCodeDraft}
           onChange={(event) => setJoinCodeDraft(event.target.value.toUpperCase())}
           maxLength={24}
+          aria-label={t("joinRoom.codePlaceholder")}
           placeholder={t("joinRoom.codePlaceholder")}
         />
         <button type="button" onClick={() => joinRoom(joinCodeDraft)}>{t("common.join")}</button>

@@ -10,3 +10,9 @@
 .static-page a { color: #0f0f0f; }
 .static-page .static-note { font-weight: 700; }
 .static-nav { margin-top: 2rem; font-size: .9rem; line-height: 2; }
+@media (prefers-color-scheme: dark) {
+  html, body { background: #121212; }
+  .static-page { color: #f0f0f0; background: #121212; }
+  .static-page a { color: #f0f0f0; }
+  .static-page th, .static-page td { border-bottom-color: #444; }
+}

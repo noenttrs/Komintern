@@ -7,11 +7,11 @@ import { useI18n } from "../../i18n";
 // seule échelle, légende dès deux séries, info-bulle au survol et tableau des valeurs.
 
 /** Palette validée (contraste et daltonisme) sur le fond blanc du site. */
-export const SERIES = { blue: "#2a78d6", orange: "#eb6834", gray: "#c3c2b7" } as const;
-const GRID = "#e1e0d9";
-const AXIS = "#c3c2b7";
-const MUTED = "#6f6d67";
-const SURFACE = "#ffffff";
+// Valeurs dans styles.css (--series-*, --chart-*), redéfinies pour le thème sombre.
+export const SERIES = { blue: "var(--series-blue)", orange: "var(--series-orange)", gray: "var(--series-gray)" } as const;
+const GRID = "var(--chart-grid)";
+const AXIS = "var(--chart-axis)";
+const MUTED = "var(--chart-muted)";
 
 export type Series = { name: string; color: string };
 export type Row = { key: string; label: string; values: number[]; tooltip?: string };
@@ -134,11 +134,11 @@ export function ColumnChart({
       <svg width={width} height={height} role="img" aria-label={series.map((entry) => entry.name).join(", ")} onMouseLeave={() => setHover(null)}>
         {ticks.map((tick) => (
           <g key={tick}>
-            <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} stroke={tick === 0 ? AXIS : GRID} strokeWidth={1} />
+            <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} style={{ stroke: tick === 0 ? AXIS : GRID }} strokeWidth={1} />
             <text x={margin.left - 6} y={y(tick)} dy="0.32em" textAnchor="end" className="chart__tick">{format(tick)}</text>
           </g>
         ))}
-        {reference !== undefined ? <line x1={margin.left} x2={width - margin.right} y1={y(reference.value)} y2={y(reference.value)} stroke={MUTED} strokeWidth={1} /> : null}
+        {reference !== undefined ? <line x1={margin.left} x2={width - margin.right} y1={y(reference.value)} y2={y(reference.value)} style={{ stroke: MUTED }} strokeWidth={1} /> : null}
         {rows.map((row, index) => {
           const x = margin.left + index * band + (band - barWidth) / 2;
           let base = 0;
@@ -151,7 +151,7 @@ export function ColumnChart({
                 // 2 px de fond entre deux segments empilés.
                 const bottom = y(base) - (base > 0 ? 2 : 0);
                 base += value;
-                return <path key={position} d={barPath(x, top, barWidth, Math.max(0, bottom - top), position === lastVisible)} fill={series[position]?.color ?? SERIES.blue} opacity={hover === null || hover === index ? 1 : 0.45} />;
+                return <path key={position} d={barPath(x, top, barWidth, Math.max(0, bottom - top), position === lastVisible)} style={{ fill: series[position]?.color ?? SERIES.blue }} opacity={hover === null || hover === index ? 1 : 0.45} />;
               })}
               {labelled(index) ? (
                 <text x={margin.left + index * band + band / 2} y={height - 8} textAnchor="middle" className="chart__tick">{row.label}</text>
@@ -222,9 +222,9 @@ export function ShareBar({ parts }: { parts: Array<{ name: string; value: number
 }
 
 /** Rampe séquentielle bleue (clair → foncé) pour la carte de chaleur de la rétention. */
-const RAMP = ["#f0efec", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"];
+const RAMP = ["var(--chart-grid)", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95"];
 
 export function heatColor(share: number): { background: string; color: string } {
   const index = share <= 0 ? 0 : Math.min(RAMP.length - 1, 1 + Math.floor(share * (RAMP.length - 1)));
-  return { background: RAMP[index] as string, color: index >= 4 ? SURFACE : "#0b0b0b" };
+  return { background: RAMP[index] as string, color: index === 0 ? "var(--ink)" : index >= 4 ? "#ffffff" : "#0b0b0b" };
 }

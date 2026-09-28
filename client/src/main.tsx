@@ -11,6 +11,9 @@ import "@fontsource/ibm-plex-mono/latin-600.css";
 import "./styles.css";
 import App from "./App";
 import { LanguageProvider } from "./i18n";
+import { initTheme } from "./theme";
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

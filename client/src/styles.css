@@ -12,11 +12,72 @@
   --ink-soft: #535353;
   --line: #111111;
   --line-soft: #9a9a9a;
-  /* Icône communiste (4,7:1 sur fond clair). */
+  /* Icône communiste : sur le fond (4,8:1) et sur les boutons inversés (4,4:1). */
   --communist: #d03b3b;
+  --communist-inverse: #d03b3b;
+  /* Voiles (calques, menu) et ombre légère. */
+  --scrim: rgba(255, 255, 255, 0.8);
+  --shadow: var(--shadow);
+  --chart-muted: var(--chart-muted);
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --series-blue: #2a78d6;
+  --series-orange: #eb6834;
+  --series-gray: #c3c2b7;
+  color-scheme: light;
+}
+
+/* Thème sombre : choisi dans le menu, ou suivi du système (réglage « Automatique »). */
+:root[data-theme="dark"] {
+  --bg: #121212;
+  --ink: #f0f0f0;
+  --ink-soft: #b0b0b0;
+  --line: #e0e0e0;
+  --line-soft: #6e6e6e;
+  --communist: #ff6b6b;
+  --communist-inverse: #b3261e;
+  --scrim: rgba(18, 18, 18, 0.82);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --chart-muted: #a5a39c;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #4a4a47;
+  --series-blue: #3987e5;
+  --series-orange: #d95926;
+  --series-gray: #5c5b56;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #121212;
+    --ink: #f0f0f0;
+    --ink-soft: #b0b0b0;
+    --line: #e0e0e0;
+    --line-soft: #6e6e6e;
+    --communist: #ff6b6b;
+    --communist-inverse: #b3261e;
+    --scrim: rgba(18, 18, 18, 0.82);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --chart-muted: #a5a39c;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #4a4a47;
+    --series-blue: #3987e5;
+    --series-orange: #d95926;
+    --series-gray: #5c5b56;
+    color-scheme: dark;
+  }
 }
 
 .faction-icon--communist {
+  color: var(--communist);
+}
+
+/* Bouton de vote plein (fond encre) : le rouge adapté à ce fond ; bouton choisi : fond clair. */
+.vote-btn .faction-icon--communist {
+  color: var(--communist-inverse);
+}
+
+.vote-btn--active .faction-icon--communist {
   color: var(--communist);
 }
 
@@ -59,13 +120,56 @@ select {
   min-height: 3rem;
   border: 1px solid var(--line);
   border-radius: 0;
-  background: #fff;
+  background: var(--bg);
   color: var(--ink);
   padding: 0.8rem;
 }
 
 button:active {
   transform: scale(0.99);
+}
+
+/* Focus clavier toujours visible, dans les deux thèmes. */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Texte réservé aux lecteurs d'écran ; la variante « focusable » apparaît au clavier. */
+.sr-only,
+.sr-only-focusable:not(:focus-visible) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.card-keyboard-reveal:focus-visible {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  width: auto;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+/* Mouvements réduits : pas d'animation ni de retournement de carte animé. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 main.screen,
@@ -135,8 +239,8 @@ p {
 }
 
 .error-text {
-  color: #000;
-  border: 1px solid #000;
+  color: var(--ink);
+  border: 1px solid var(--ink);
   padding: 0.45rem;
 }
 
@@ -480,7 +584,7 @@ p {
 .card-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: grid;
@@ -524,9 +628,9 @@ p {
 }
 
 .vote-btn {
-  background: #000;
-  color: #fff;
-  border: 2px solid #000;
+  background: var(--ink);
+  color: var(--bg);
+  border: 2px solid var(--ink);
   min-height: 4.3rem;
   font-size: 1.6rem;
 }
@@ -547,9 +651,9 @@ p {
 }
 
 .vote-btn--active {
-  background: #fff;
-  color: #000;
-  border: 2px solid #000;
+  background: var(--bg);
+  color: var(--ink);
+  border: 2px solid var(--ink);
 }
 
 .vote-btn .faction-icon {
@@ -607,8 +711,8 @@ p {
 }
 
 .chip--active {
-  background: #000;
-  color: #fff;
+  background: var(--ink);
+  color: var(--bg);
 }
 
 /* Bandeaux d'état (erreur, connexion) : visibles sur tous les écrans, par-dessus la carte. */
@@ -696,7 +800,7 @@ main.game-screen {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--scrim);
 }
 
 .menu-drawer {
@@ -1428,7 +1532,7 @@ textarea {
   display: grid;
   place-items: center;
   padding: var(--screen-gap);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--scrim);
 }
 
 .tip-card {
@@ -1723,7 +1827,7 @@ textarea {
   min-height: 0;
   border: 2px solid var(--line);
   overflow: hidden;
-  background: #000;
+  background: var(--ink);
 }
 
 .qr-scanner__frame video {
@@ -2030,7 +2134,7 @@ textarea {
 
 .chart__tick {
   font-size: 11px;
-  fill: #6f6d67;
+  fill: var(--chart-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2045,7 +2149,7 @@ textarea {
   border: 1px solid var(--line-soft);
   font-size: 0.8rem;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .chart-legend {
@@ -2075,7 +2179,7 @@ textarea {
   display: inline-block;
   width: 1rem;
   height: 0;
-  border-top: 1px solid #6f6d67;
+  border-top: 1px solid var(--chart-muted);
   vertical-align: middle;
 }
 

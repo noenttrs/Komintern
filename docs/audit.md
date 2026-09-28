@@ -301,3 +301,27 @@ l'API, plus les événements Socket.IO déjà validés un par un dans `validatio
 | XSS dans le site | React échappe tout ; aucun `dangerouslySetInnerHTML`. |
 | **HTML dans les emails** | **Corrigé.** Le format d'email accepté laissait passer `<`, `>`, `"` (ex. `x@<a href=…>.fr`), et l'avis « ton adresse a changé » insérait la nouvelle adresse sans échappement : quelqu'un ayant pris le contrôle d'un compte pouvait glisser un lien piégé dans l'email envoyé au vrai propriétaire. Adresse désormais limitée aux caractères usuels (domaines accentués en punycode), modèle d'email échappé, tests ajoutés. Les 3 comptes existants sont conformes. |
 | En-têtes d'email | Les retours à la ligne sont refusés dans l'adresse ; le sujet du formulaire de contact est ramené sur une ligne ; envoi via l'API JSON de Resend. |
+
+# Accessibilité (2026-09-28)
+
+Audit automatique **axe-core** (règles WCAG 2.0 à 2.2, niveaux A et AA) à chaque passage de la suite
+e2e (`client/e2e/a11y.spec.ts`), en **thème clair et sombre** : accueil et choix du pseudo, menu,
+toutes les pages, création de room, salle d'attente, tour de table, révélation du rôle, proposition
+du chef, vote de confiance.
+
+| Constat | Correction |
+|---|---|
+| Points de progression étiquetés sans rôle (`aria-prohibited-attr`) | `role="img"` et étiquette avec le compte (« 3/5 ») |
+| Listes déroulantes sans nom (`select-name`) | Étiquettes reliées |
+| Règles personnalisées : champs sans étiquette (seulement `player_count`…) | Étiquettes visibles en français |
+| **Clavier : impossible de voir son rôle** (appui long au doigt uniquement) | Bouton « Voir mon rôle (maintenir) », visible au focus : maintenir Espace ou Entrée |
+| **Clavier : impossible de prendre sa place** au tour de table | Bouton « Prendre ma place », visible au focus |
+| Aucune annonce des étapes pour les lecteurs d'écran | Zone `aria-live` : chaque nouvelle étape est annoncée ; le rôle affiché est lu (`role="status"`) |
+| Focus clavier peu visible | Contour de 3 px dans les deux thèmes |
+| Animations imposées | Respect de « réduire les animations » du système |
+
+Contrastes vérifiés par calcul (WCAG) : textes secondaires 7,7:1 (clair) et 8,6:1 (sombre) ; icône
+communiste rouge ≥ 4,4:1 sur tous ses fonds. Les graphiques admin utilisent une palette validée
+(contraste et daltonisme) sur les deux fonds, avec légende, info-bulles et tableau des valeurs.
+Limite connue : le jeu reste visuel (lecture des réactions autour de la table) ; il est jouable au
+clavier et au lecteur d'écran, mais son intérêt tient au face-à-face.

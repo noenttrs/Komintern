@@ -87,6 +87,18 @@ function renderScreen(phase: UIPhase): JSX.Element {
   }
 }
 
+
+const PHASE_ANNOUNCEMENTS = {
+  table_order: "announce.table_order",
+  role_reveal: "announce.role_reveal",
+  mission_proposal: "announce.mission_proposal",
+  confidence_vote: "announce.confidence_vote",
+  confidence_result: "announce.confidence_result",
+  mission_execution: "announce.mission_execution",
+  mission_result: "announce.mission_result",
+  end_game: "announce.end_game",
+  duel_vote: "announce.duel_vote",
+} as const;
 export default function App(): JSX.Element {
   const { t } = useI18n();
   const game = useGameSocket();
@@ -274,7 +286,7 @@ export default function App(): JSX.Element {
       ? players.map((entry, index) => ({ key: entry.id, full: index < tableOrder.order.length }))
       : orderReference.map((id) => ({ key: id, full: orderValidatedIds.includes(id) }));
   const orderLegend = (
-    <span className="progress-dots progress-dots--compact" aria-label={t("app.tableProgress")}>
+    <span className="progress-dots progress-dots--compact" role="img" aria-label={`${t("app.tableProgress")} : ${orderDots.filter((dot) => dot.full).length}/${orderDots.length}`}>
       {orderDots.map((dot) => (
         <span key={dot.key} className={dot.full ? "dot dot--full" : "dot"} />
       ))}
@@ -747,6 +759,10 @@ export default function App(): JSX.Element {
         inRoom={roomCode !== ""}
       />
       <ScreenProvider value={screenContext}>{renderScreen(phase)}</ScreenProvider>
+      {/* Lecteurs d'écran : chaque nouvelle étape de la partie est annoncée. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {phase in PHASE_ANNOUNCEMENTS ? t(PHASE_ANNOUNCEMENTS[phase as keyof typeof PHASE_ANNOUNCEMENTS]) : ""}
+      </p>
       {roomCode !== "" && myId !== null && chatEnabled && route.page === "game" ? (
         <ChatPanel
           messages={chat}

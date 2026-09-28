@@ -165,7 +165,36 @@ export function CardSurface({
         </div>
       </div>
 
-      {showOverlay && overlay ? <div className="card-overlay">{overlay}</div> : null}
+      {/* Clavier : maintenir Espace ou Entrée sur ce bouton revient à maintenir la carte. */}
+      {overlay !== undefined ? (
+        <button
+          type="button"
+          className="sr-only-focusable card-keyboard-reveal"
+          onClick={(event) => event.preventDefault()}
+          onKeyDown={(event) => {
+            if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+              event.preventDefault();
+              setShowOverlay(true);
+              onOverlayShown?.();
+            }
+          }}
+          onKeyUp={(event) => {
+            if (event.key === " " || event.key === "Enter") {
+              event.preventDefault();
+              if (showOverlay) onOverlayHidden?.();
+              setShowOverlay(false);
+            }
+          }}
+          onBlur={() => {
+            if (showOverlay) onOverlayHidden?.();
+            setShowOverlay(false);
+          }}
+        >
+          {t("announce.seeRole")}
+        </button>
+      ) : null}
+
+      {showOverlay && overlay ? <div className="card-overlay" role="status">{overlay}</div> : null}
     </section>
   );
 }

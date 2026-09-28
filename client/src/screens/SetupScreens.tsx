@@ -33,6 +33,7 @@ export function TableOrderScreen(): JSX.Element {
     resetTableOrder,
     setTableOrder,
     pauseTableOrder,
+    tableOrderTap,
     tableOrder,
     nameById,
     autoAdvanceAt,
@@ -123,6 +124,11 @@ export function TableOrderScreen(): JSX.Element {
                 {t("common.cancel")}
               </button>
             </div>
+          ) : myOrderIndex === -1 ? (
+            // Clavier et lecteurs d'écran : prendre sa place sans toucher la carte.
+            <button type="button" className="sr-only-focusable" onClick={() => tableOrderTap()}>
+              {t("announce.takeSeat")}
+            </button>
           ) : myOrderIndex !== -1 ? (
             <div className="vote-stack">
               {kept ? (

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AlertSettings } from "../hooks/useTurnAlerts";
 import { useI18n } from "../i18n";
 import { navigate } from "../router";
+import { useTheme } from "../theme";
 import { PushToggle } from "./PushToggle";
 
 type MenuProps = {
@@ -20,6 +21,7 @@ type MenuProps = {
 /** Menu refermable : tiroir latéral, fermé par défaut, par-dessus le jeu sans l'interrompre. */
 export function Menu({ signedIn, displayName, isAdmin = false, isModerator = false, pendingRequests, alerts, install, pushPublicKey }: MenuProps): JSX.Element {
   const { t, lang, setLang } = useI18n();
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -135,6 +137,20 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
             {pushPublicKey ? <PushToggle publicKey={pushPublicKey} tabIndex={open ? 0 : -1} /> : null}
           </div>
         ) : null}
+        <div className="segmented menu-lang" role="group" aria-label={t("menu.theme")}>
+          {(["auto", "light", "dark"] as const).map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              className={theme === entry ? "" : "secondary"}
+              aria-pressed={theme === entry}
+              tabIndex={open ? 0 : -1}
+              onClick={() => setTheme(entry)}
+            >
+              {t(entry === "auto" ? "menu.themeAuto" : entry === "light" ? "menu.themeLight" : "menu.themeDark")}
+            </button>
+          ))}
+        </div>
         <div className="segmented menu-lang" role="group" aria-label={t("menu.language")}>
           {(["fr", "en"] as const).map((entry) => (
             <button
