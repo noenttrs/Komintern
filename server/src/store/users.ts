@@ -81,6 +81,8 @@ export interface UserStore {
   recordGameResult(id: string, result: { won: boolean; faction: Faction }): Promise<void>;
   delete(id: string): Promise<void>;
   countAll(): Promise<{ total: number; verified: number }>;
+  /** Statistiques : date d'inscription de chaque compte (rien d'autre). */
+  signups(): Promise<AccountSignup[]>;
   /** Administration : recherche par début d'email ou de pseudo (insensible à la casse). */
   search(query: string, limit: number): Promise<User[]>;
   /** Administration : comptes bannis en ce moment ou ayant reçu des avertissements. */
@@ -92,6 +94,8 @@ export interface UserStore {
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+export type AccountSignup = { id: string; createdAt: Date; verified: boolean };
 
 const EMPTY_STATS: UserStats = { wins: 0, losses: 0, gamesNazi: 0, gamesCommunist: 0, winsNazi: 0, winsCommunist: 0 };
 
@@ -238,6 +242,11 @@ export class MongoUserStore implements UserStore {
     return { total, verified };
   }
 
+  public async signups(): Promise<AccountSignup[]> {
+    const docs = await this.users.find({}, { projection: { _id: 1, createdAt: 1, emailVerified: 1 } }).toArray();
+    return docs.map((doc) => ({ id: doc._id, createdAt: doc.createdAt, verified: doc.emailVerified }));
+  }
+
   public async search(query: string, limit: number): Promise<User[]> {
     const prefix = new RegExp(`^${escapeRegex(query.toLowerCase())}`);
     return (await this.users.find({ $or: [{ email: prefix }, { displayNameLower: prefix }] }).limit(limit).toArray()).map(fromDoc);
@@ -331,6 +340,9 @@ export class MemoryUserStore implements UserStore {
   public async countAll(): Promise<{ total: number; verified: number }> {
     const all = [...this.users.values()];
     return { total: all.length, verified: all.filter((user) => user.emailVerified).length };
+  }
+  public async signups(): Promise<AccountSignup[]> {
+    return [...this.users.values()].map((user) => ({ id: user.id, createdAt: user.createdAt, verified: user.emailVerified }));
   }
   public async search(query: string, limit: number): Promise<User[]> {
     const prefix = query.toLowerCase();

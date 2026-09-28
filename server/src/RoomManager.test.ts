@@ -547,3 +547,21 @@ test("a fixed format of 6 or more players can also be played in quick pace", asy
   const started = events.filter((entry) => entry.event === "game_started").at(-1)?.payload as { missionCount: number };
   assert.equal(started.missionCount, 5, "8 players, quick: 5 missions instead of 9");
 });
+
+test("end-of-game choices are reported once per player for the statistics", async () => {
+  const choices: string[] = [];
+  const { manager } = setup({ hooks: { onReplayChoice: (_code, gameId, choice) => void choices.push(`${gameId.startsWith("g_") ? "game" : gameId}:${choice}`) } });
+  const code = manager.createRoom();
+  const players = fill(manager, code, 5);
+  const session = await manager.startGame(code, players[0] as string);
+  await revealRoles(session, players);
+  manager.leaveRoom(code, players[4] as string); // abandon : partie décidée
+  await tick(20);
+  for (const id of players.slice(0, 4)) await session.confirmEndGame(id);
+  assert.equal(manager.getStatus(code), "finished");
+  assert.deepEqual(choices, [], "leaving during the game is not an end-of-game choice");
+  await manager.requestReplay(code, players[0] as string);
+  await manager.requestReplay(code, players[0] as string);
+  manager.leaveRoom(code, players[1] as string);
+  assert.deepEqual(choices, ["game:replay", "game:quit"]);
+});

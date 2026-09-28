@@ -126,6 +126,10 @@ export function createKominternApp(options: AppOptions): KominternApp {
       // Parties des tests automatiques (room au préfixe secret) : ni journal ni stats.
       onGameRecorded: (game) => (isTestRoom(config, game.roomCode) ? Promise.resolve() : services.recordGame(game)),
       onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
+      onReplayChoice: (code, gameId, choice) => {
+        if (isTestRoom(config, code)) return;
+        services.gameLogs.recordReplayChoice(gameId, choice).catch((error: unknown) => log.warn("replay choice not recorded", { error }));
+      },
       onNotify: (code, playerId, notification) => {
         const subscription = roomManager.getPushSubscription(code, playerId);
         if (subscription === undefined) return;

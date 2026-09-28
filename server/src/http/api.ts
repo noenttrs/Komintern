@@ -368,6 +368,10 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     await requireElevated(request, true);
     response.json(await admin.stats());
   }));
+  router.get("/admin/insights", route(async (request, response) => {
+    await requireElevated(request, true);
+    response.json(await admin.insights());
+  }));
   router.get("/admin/audience", route(async (request, response) => {
     await requireElevated(request, true);
     response.json(await services.audience.summary(30));

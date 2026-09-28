@@ -27,6 +27,8 @@ export type GameLog = {
   duel?: { winners: string[]; reason: string } | null;
   chat: LoggedChatMessage[];
   anonymizedAt: Date | null;
+  /** Choix de fin de partie (bouton « Rejouer ») : nombre de joueurs pour chaque réponse. */
+  replayChoices?: { replay: number; quit: number };
 };
 
 export type ModerationMessage = { pseudonym: string; text: string; at: Date; flagged: boolean };
@@ -165,6 +167,36 @@ export function toAdminGameRow(log: GameLog, moderatedGameIds: Set<string>): Adm
   };
 }
 
+/** Une partie vue par les statistiques : aucun pseudo ni message, seulement des comptes et des durées. */
+export type InsightGame = {
+  roomCode: string;
+  startedAt: Date;
+  endedAt: Date;
+  outcome: GameLog["outcome"];
+  playerCount: number;
+  userIds: string[];
+  winner: Faction | null;
+  mode: "duel" | "classic" | "quick" | "custom";
+  replayChoices: { replay: number; quit: number };
+};
+
+export function toInsightGame(log: Pick<GameLog, "roomCode" | "startedAt" | "endedAt" | "outcome" | "players" | "winner" | "ruleset" | "replayChoices">): InsightGame {
+  const ruleset = (log.ruleset ?? {}) as { mode?: unknown; ruleset_preset?: unknown };
+  const preset = typeof ruleset.ruleset_preset === "string" ? ruleset.ruleset_preset : null;
+  const mode = ruleset.mode === "duel" ? "duel" : preset === null ? "custom" : preset.endsWith("_RAPIDE") ? "quick" : "classic";
+  return {
+    roomCode: log.roomCode,
+    startedAt: log.startedAt,
+    endedAt: log.endedAt,
+    outcome: log.outcome,
+    playerCount: log.players.length,
+    userIds: log.players.map((player) => player.userId).filter((id): id is string => id !== null),
+    winner: log.winner,
+    mode,
+    replayChoices: { replay: log.replayChoices?.replay ?? 0, quit: log.replayChoices?.quit ?? 0 },
+  };
+}
+
 export interface GameLogStore {
   /** Administration : dernières parties terminées (les annulées ne comptent pas), anonymes, les plus récentes d'abord. */
   recentGames(limit: number, before?: Date): Promise<AdminGameRow[]>;
@@ -188,6 +220,10 @@ export interface GameLogStore {
   decideBanRequest(id: string, status: "accepted" | "rejected", decidedBy: string): Promise<boolean>;
   auditTrail(caseId: string): Promise<AuditEntry[]>;
   stats(now?: Date): Promise<GameLogStats>;
+  /** Un joueur a répondu au bouton « Rejouer » de cette partie. */
+  recordReplayChoice(gameId: string, choice: "replay" | "quit"): Promise<void>;
+  /** Statistiques : parties terminées ou annulées depuis `since`, réduites à ce qu'il faut compter. */
+  gamesSince(since: Date): Promise<InsightGame[]>;
   /** Parties terminées d'un compte, les plus récentes d'abord. */
   gamesForUser(userId: string, limit: number): Promise<PlayedGame[]>;
 }
@@ -349,6 +385,17 @@ export class MongoGameLogStore implements GameLogStore {
     return logs.map((log) => toAdminGameRow(log, moderated));
   }
 
+  public async recordReplayChoice(gameId: string, choice: "replay" | "quit"): Promise<void> {
+    await this.games.updateOne({ _id: gameId }, { $inc: { [`replayChoices.${choice}`]: 1 } });
+  }
+
+  public async gamesSince(since: Date): Promise<InsightGame[]> {
+    const docs = await this.games
+      .find({ endedAt: { $gte: since } }, { projection: { roomCode: 1, startedAt: 1, endedAt: 1, outcome: 1, "players.userId": 1, winner: 1, ruleset: 1, replayChoices: 1 } })
+      .toArray();
+    return docs.map((doc) => toInsightGame(doc as unknown as GameLog));
+  }
+
   public async stats(now = new Date()): Promise<GameLogStats> {
     const day = new Date(now.getTime() - 24 * 3600 * 1000);
     const week = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
@@ -482,6 +529,18 @@ export class MemoryGameLogStore implements GameLogStore {
       .map((log) => toPlayedGame(log, userId))
       .filter((game): game is PlayedGame => game !== null)
       .slice(0, limit);
+  }
+
+  public async recordReplayChoice(gameId: string, choice: "replay" | "quit"): Promise<void> {
+    const log = this.games.get(gameId);
+    if (log === undefined) return;
+    const choices = log.replayChoices ?? { replay: 0, quit: 0 };
+    choices[choice] += 1;
+    log.replayChoices = choices;
+  }
+
+  public async gamesSince(since: Date): Promise<InsightGame[]> {
+    return [...this.games.values()].filter((log) => log.endedAt >= since).map(toInsightGame);
   }
 
   public async stats(now = new Date()): Promise<GameLogStats> {

@@ -1955,3 +1955,150 @@ textarea {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* Tableau de bord admin (onglet Graphiques). */
+.insights {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-tile {
+  border: 1px solid var(--line-soft);
+  padding: 0.75rem;
+}
+
+.stat-tile dt {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.stat-tile__value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat-tile__detail {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: 1.25rem;
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.chart h3 {
+  font-size: 1rem;
+}
+
+.chart__subtitle {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.chart__plot {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.chart__plot svg {
+  display: block;
+}
+
+.chart__tick {
+  font-size: 11px;
+  fill: #6f6d67;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__tooltip {
+  position: absolute;
+  top: 0;
+  width: 160px;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  font-size: 0.8rem;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.chart-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.chart-legend__swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  border-radius: 2px;
+  vertical-align: -0.05rem;
+}
+
+.chart-reference {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.chart-reference__line {
+  display: inline-block;
+  width: 1rem;
+  height: 0;
+  border-top: 1px solid #6f6d67;
+  vertical-align: middle;
+}
+
+.chart__table summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.share-bar {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+  margin-bottom: 0.5rem;
+}
+
+.share-bar__part {
+  min-width: 2px;
+}
+
+.share-bar__part:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.share-bar__part:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.retention__cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

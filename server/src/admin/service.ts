@@ -8,6 +8,7 @@ import type { Kv } from "../store/kv";
 import crypto from "crypto";
 
 import { newSanctionId } from "../moderation/panel";
+import { computeInsights, INSIGHT_WEEKS, type Insights } from "./insights";
 import type { AccountWarning, Sanction, StaffRole, User, UserStore } from "../store/users";
 
 /** Membre de l'équipe qui agit : tracé dans le journal de modération. */
@@ -139,6 +140,13 @@ export class AdminService {
   public async stats(): Promise<Record<string, unknown>> {
     const [users, games, unreadContact] = await Promise.all([this.users.countAll(), this.gameLogs.stats(), this.contact.countUnread()]);
     return { users, games, live: this.liveStats(), unreadContact };
+  }
+
+  /** Tableau de bord : parties, comptes, rétention et bouton « Rejouer », en agrégats seulement. */
+  public async insights(now = new Date()): Promise<Insights> {
+    const since = new Date(now.getTime() - (INSIGHT_WEEKS + 1) * 7 * 24 * 3600 * 1000);
+    const [games, accounts] = await Promise.all([this.gameLogs.gamesSince(since), this.users.signups()]);
+    return computeInsights(games, accounts, now);
   }
 
   public listReports(status: unknown) {

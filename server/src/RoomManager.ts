@@ -40,6 +40,8 @@ export type RecordedGame = {
 
 export type RoomHooks = {
   onGameRecorded?: (game: RecordedGame) => Promise<void> | void;
+  /** Choix de fin de partie d'un joueur (statistiques du bouton « Rejouer »), une fois par joueur. */
+  onReplayChoice?: (code: string, gameId: string, choice: "replay" | "quit") => void;
   /** Des comptes entrent en partie ou en sortent (présence « en partie »). */
   onUsersInGame?: (userIds: string[], inGame: boolean) => void;
   /** Notification à un joueur (écran éteint ou déconnecté) ; la room fournit son abonnement. */
@@ -100,6 +102,8 @@ type RoomRecord = {
   revealRoles: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
+  /** Dernière partie enregistrée : les choix « rejouer / quitter » s'y rapportent. */
+  lastGameId?: string;
   pseudoByPlayer: Map<string, string>;
   afkTimers: Map<string, NodeJS.Timeout>;
   afkPlayers: Set<string>;
@@ -335,6 +339,10 @@ export class RoomManager {
       return;
     }
 
+    // Quitter depuis l'écran de fin : un « non » au bouton « Rejouer ».
+    if (room.status === "finished" && room.lastGameId !== undefined && !room.replayRequests.has(playerId)) {
+      this.options.hooks?.onReplayChoice?.(room.code, room.lastGameId, "quit");
+    }
     this.removePlayer(room, playerId);
   }
 
@@ -612,6 +620,9 @@ export class RoomManager {
     if (!room.playerIds.includes(playerId)) {
       throw new Error("unknown player for this room");
     }
+    if (!room.replayRequests.has(playerId) && room.lastGameId !== undefined) {
+      this.options.hooks?.onReplayChoice?.(room.code, room.lastGameId, "replay");
+    }
     room.replayRequests.add(playerId);
     this.emitRoomUpdated(room);
     await this.maybeStartReplay(room);
@@ -825,6 +836,8 @@ export class RoomManager {
   private recordGame(room: RoomRecord, outcome: RecordedGame["outcome"], summary: GameSummary): void {
     const game = room.currentGame;
     room.currentGame = undefined;
+    // Appelé une seconde fois en fin de partie (déjà enregistrée) : on garde l'identifiant.
+    if (game !== undefined) room.lastGameId = game.id;
     this.notifyUsersInGame(room, false);
     if (game === undefined || this.options.hooks?.onGameRecorded === undefined) {
       return;

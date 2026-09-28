@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiRequestError } from "../api";
 import { translate, useI18n } from "../i18n";
 import { StaffGate } from "../components/StaffGate";
+import { InsightsTab } from "./AdminInsights";
 import { BanRequestsTab, GamesTab, ModeratorsTab, UsersTab } from "./AdminModeration";
 
 type Stats = {
@@ -37,11 +38,12 @@ type Identity = { pseudonym: string; playerId: string; userId: string | null; ps
 
 type ContactMessage = { id: string; createdAt: string; email: string; subject: string; message: string; userId: string | null; read: boolean };
 
-type Tab = "stats" | "audience" | "games" | "reports" | "banRequests" | "users" | "moderators" | "contact";
+type Tab = "stats" | "insights" | "audience" | "games" | "reports" | "banRequests" | "users" | "moderators" | "contact";
 
-const TABS: Tab[] = ["stats", "audience", "games", "reports", "banRequests", "users", "moderators", "contact"];
+const TABS: Tab[] = ["stats", "insights", "audience", "games", "reports", "banRequests", "users", "moderators", "contact"];
 const TAB_LABELS = {
   stats: "admin.tabStats",
+  insights: "insights.tab",
   audience: "admin.tabAudience",
   games: "admin.tabGames",
   reports: "admin.tabReports",
@@ -84,7 +86,7 @@ export function AdminPage({ isAdmin }: { isAdmin: boolean }): JSX.Element {
               </button>
             ))}
           </div>
-          {tab === "stats" ? <StatsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab isAdmin /> : tab === "banRequests" ? <BanRequestsTab /> : tab === "users" ? <UsersTab isAdmin /> : tab === "moderators" ? <ModeratorsTab /> : <ContactTab />}
+          {tab === "stats" ? <StatsTab /> : tab === "insights" ? <InsightsTab /> : tab === "audience" ? <AudienceTab /> : tab === "games" ? <GamesTab /> : tab === "reports" ? <ReportsTab isAdmin /> : tab === "banRequests" ? <BanRequestsTab /> : tab === "users" ? <UsersTab isAdmin /> : tab === "moderators" ? <ModeratorsTab /> : <ContactTab />}
         </>
       )}
     </StaffGate>
