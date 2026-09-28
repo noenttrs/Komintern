@@ -24,6 +24,8 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
   const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  // Ordinateur : réglages dépliés d'office (le menu y a la place).
+  const [wide] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(min-width: 768px)").matches === true);
   const drawerRef = useRef<HTMLElement | null>(null);
   const toggleRef = useRef<HTMLButtonElement | null>(null);
 
@@ -40,7 +42,7 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
       }
       if (event.key === "Tab" && drawerRef.current !== null) {
         // Focus piégé dans le tiroir tant qu'il est ouvert.
-        const focusable = [...drawerRef.current.querySelectorAll<HTMLElement>("button, a")];
+        const focusable = [...drawerRef.current.querySelectorAll<HTMLElement>("button, a, summary, input")];
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {
@@ -88,84 +90,94 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
         onClick={(event) => event.stopPropagation()}
       >
         <p className="mono">{signedIn ? displayName ?? t("menu.account") : t("menu.guest")}</p>
-        <button type="button" onClick={() => go("/")} tabIndex={open ? 0 : -1}>{t("menu.play")}</button>
-        <button type="button" onClick={() => go("/regles")} tabIndex={open ? 0 : -1}>{t("menu.rules")}</button>
-        {signedIn ? (
-          <>
-            <button type="button" onClick={() => go("/profil")} tabIndex={open ? 0 : -1}>{t("menu.profile")}</button>
-            <button type="button" onClick={() => go("/amis")} tabIndex={open ? 0 : -1}>
-              {t("menu.friends")}{pendingRequests > 0 ? ` (${pendingRequests})` : ""}
+        <div className="menu-nav">
+          <button type="button" onClick={() => go("/")} tabIndex={open ? 0 : -1}>{t("menu.play")}</button>
+          <button type="button" onClick={() => go("/regles")} tabIndex={open ? 0 : -1}>{t("menu.rules")}</button>
+          {signedIn ? (
+            <>
+              <button type="button" onClick={() => go("/profil")} tabIndex={open ? 0 : -1}>{t("menu.profile")}</button>
+              <button type="button" onClick={() => go("/amis")} tabIndex={open ? 0 : -1}>
+                {t("menu.friends")}{pendingRequests > 0 ? ` (${pendingRequests})` : ""}
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>{t("menu.login")}</button>
+          )}
+          {isAdmin || isModerator ? <button type="button" onClick={() => go("/moderation")} tabIndex={open ? 0 : -1}>{t("menu.moderation")}</button> : null}
+          {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{t("menu.admin")}</button> : null}
+        </div>
+        <div className="menu-actions">
+          <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>{t("menu.support")}</button>
+          {!install.installed && (install.canPrompt || install.isIos) ? (
+            <button
+              type="button"
+              className="secondary"
+              tabIndex={open ? 0 : -1}
+              onClick={() => (install.canPrompt ? void install.install() : setShowIosHelp((current) => !current))}
+            >
+              {t("menu.install")}
             </button>
-          </>
-        ) : (
-          <button type="button" onClick={() => go("/connexion")} tabIndex={open ? 0 : -1}>{t("menu.login")}</button>
-        )}
-        {isAdmin || isModerator ? <button type="button" onClick={() => go("/moderation")} tabIndex={open ? 0 : -1}>{t("menu.moderation")}</button> : null}
-        {isAdmin ? <button type="button" onClick={() => go("/admin")} tabIndex={open ? 0 : -1}>{t("menu.admin")}</button> : null}
-        <button type="button" className="menu-support" onClick={() => go("/soutenir")} tabIndex={open ? 0 : -1}>{t("menu.support")}</button>
-        {!install.installed && (install.canPrompt || install.isIos) ? (
-          <button
-            type="button"
-            className="secondary"
-            tabIndex={open ? 0 : -1}
-            onClick={() => (install.canPrompt ? void install.install() : setShowIosHelp((current) => !current))}
-          >
-            {t("menu.install")}
-          </button>
-        ) : null}
+          ) : null}
+        </div>
         {showIosHelp ? <p className="menu-help">{t("menu.iosHelp")}</p> : null}
-        {alerts !== undefined ? (
-          <div className="menu-toggles">
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                tabIndex={open ? 0 : -1}
-                checked={alerts.settings.vibration}
-                onChange={(event) => alerts.update({ ...alerts.settings, vibration: event.target.checked })}
-              />
-              {t("menu.vibration")}
-            </label>
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                tabIndex={open ? 0 : -1}
-                checked={alerts.settings.sound}
-                onChange={(event) => alerts.update({ ...alerts.settings, sound: event.target.checked })}
-              />
-              {t("menu.sound")}
-            </label>
-            {pushPublicKey ? <PushToggle publicKey={pushPublicKey} tabIndex={open ? 0 : -1} /> : null}
+        {/* Réglages repliés sur téléphone (le tiroir déborderait) ; toujours ouverts sur ordinateur. */}
+        <details className="menu-settings" open={wide}>
+          <summary tabIndex={open ? 0 : -1}>{t("menu.settings")}</summary>
+          {alerts !== undefined ? (
+            <div className="menu-toggles">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  tabIndex={open ? 0 : -1}
+                  checked={alerts.settings.vibration}
+                  onChange={(event) => alerts.update({ ...alerts.settings, vibration: event.target.checked })}
+                />
+                {t("menu.vibration")}
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  tabIndex={open ? 0 : -1}
+                  checked={alerts.settings.sound}
+                  onChange={(event) => alerts.update({ ...alerts.settings, sound: event.target.checked })}
+                />
+                {t("menu.sound")}
+              </label>
+              {pushPublicKey ? <PushToggle publicKey={pushPublicKey} tabIndex={open ? 0 : -1} /> : null}
+            </div>
+          ) : null}
+          <div className="menu-prefs">
+            <div className="segmented menu-lang menu-theme" role="group" aria-label={t("menu.theme")}>
+              {(["auto", "light", "dark"] as const).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  className={theme === entry ? "" : "secondary"}
+                  aria-pressed={theme === entry}
+                  tabIndex={open ? 0 : -1}
+                  onClick={() => setTheme(entry)}
+                >
+                  {t(entry === "auto" ? "menu.themeAuto" : entry === "light" ? "menu.themeLight" : "menu.themeDark")}
+                </button>
+              ))}
+            </div>
+            <div className="segmented menu-lang" role="group" aria-label={t("menu.language")}>
+              {(["fr", "en"] as const).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  lang={entry}
+                  className={lang === entry ? "" : "secondary"}
+                  aria-pressed={lang === entry}
+                  tabIndex={open ? 0 : -1}
+                  onClick={() => setLang(entry)}
+                >
+                  {entry.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : null}
-        <div className="segmented menu-lang" role="group" aria-label={t("menu.theme")}>
-          {(["auto", "light", "dark"] as const).map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              className={theme === entry ? "" : "secondary"}
-              aria-pressed={theme === entry}
-              tabIndex={open ? 0 : -1}
-              onClick={() => setTheme(entry)}
-            >
-              {t(entry === "auto" ? "menu.themeAuto" : entry === "light" ? "menu.themeLight" : "menu.themeDark")}
-            </button>
-          ))}
-        </div>
-        <div className="segmented menu-lang" role="group" aria-label={t("menu.language")}>
-          {(["fr", "en"] as const).map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              lang={entry}
-              className={lang === entry ? "" : "secondary"}
-              aria-pressed={lang === entry}
-              tabIndex={open ? 0 : -1}
-              onClick={() => setLang(entry)}
-            >
-              {entry.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        </details>
         <div className="menu-footer">
           <button type="button" className="secondary" onClick={() => go("/a-propos")} tabIndex={open ? 0 : -1}>{t("menu.about")}</button>
           <button type="button" className="secondary" onClick={() => go("/contact")} tabIndex={open ? 0 : -1}>{t("menu.contact")}</button>

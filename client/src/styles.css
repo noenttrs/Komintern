@@ -2267,3 +2267,110 @@ textarea {
   min-height: 2.75rem;
   padding: 0;
 }
+
+/* ------------------------------------------------------------------ menu : groupes */
+
+.menu-nav,
+.menu-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.menu-settings {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.menu-settings summary {
+  cursor: pointer;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.menu-settings[open] > * + * {
+  margin-top: 0.6rem;
+}
+
+.menu-prefs {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.menu-theme {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Téléphone : liste compacte, réglages repliés, liens de pied en petit (l'ordinateur ne change pas). */
+@media (max-width: 767px) {
+  .menu-drawer {
+    gap: 0.4rem;
+    padding-top: calc(3.6rem + env(safe-area-inset-top, 0px));
+    overscroll-behavior: contain;
+  }
+
+  .menu-nav {
+    gap: 0;
+  }
+
+  .menu-nav button {
+    min-height: 2.75rem;
+    padding: 0.55rem 0.2rem;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    background: transparent;
+  }
+
+  .menu-actions {
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .menu-actions button {
+    min-height: 2.75rem;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .menu-prefs {
+    grid-template-columns: 3fr 2fr;
+    gap: 0.4rem;
+  }
+
+  .menu-prefs .segmented {
+    gap: 0.25rem;
+  }
+
+  .menu-prefs button {
+    min-height: 2.75rem;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.85rem;
+  }
+
+  .menu-toggles {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .menu-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.1rem 0.9rem;
+  }
+
+  .menu-footer button {
+    width: auto;
+    min-height: 2.75rem;
+    padding: 0.3rem 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.85rem;
+    text-decoration: underline;
+  }
+}

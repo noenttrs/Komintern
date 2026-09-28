@@ -53,6 +53,7 @@ export const fr = {
     legal: "Mentions légales",
     terms: "Conditions d'utilisation",
     language: "Langue",
+    settings: "Réglages",
     theme: "Thème",
     themeAuto: "Auto",
     themeLight: "Clair",

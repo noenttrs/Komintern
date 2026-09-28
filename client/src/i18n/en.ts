@@ -54,6 +54,7 @@ export const en: Dictionary = {
     legal: "Legal notice",
     terms: "Terms of use",
     language: "Language",
+    settings: "Settings",
     theme: "Theme",
     themeAuto: "Auto",
     themeLight: "Light",
