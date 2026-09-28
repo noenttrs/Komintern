@@ -83,10 +83,10 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
 
   // Ordre de table
   await host.getByRole("button", { name: "Démarrer" }).click();
-  await expect(host.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
+  await expect(host.getByText("Touchez l'écran quand c'est votre tour")).toBeVisible();
   await shot(host, "05-ordre-table-debut");
   for (const [index, page] of pages.entries()) {
-    await expect(page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
+    await expect(page.getByText("Touchez l'écran quand c'est votre tour")).toBeVisible();
     await tapCard(page);
     if (index === 6) await shot(host, "06-ordre-table-en-cours");
   }

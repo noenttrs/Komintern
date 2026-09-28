@@ -350,3 +350,40 @@ test("auto advance: a change in the table order restarts the countdown, and ever
   assert.ok(events.some((entry) => entry.event === "role_assigned"), "all confirmations skip the countdown");
   session.dispose();
 });
+
+test("replay: the previous table order is kept, confirmed by the timer, and anyone can redo it", async () => {
+  const { session, events } = setup({ initialTableOrder: ["p3", "p1", "p5", "p2", "p4", "gone"], autoAdvance: { ...FAST, keptTableOrderMs: 40 } });
+  await session.start();
+  const update = [...events].reverse().find((entry) => entry.event === "table_order_updated")?.payload as { order: string[]; kept: boolean; completed: boolean };
+  assert.deepEqual(update.order, ["p3", "p1", "p5", "p2", "p4"], "players who left are dropped");
+  assert.equal(update.kept, true);
+  assert.equal(update.completed, true);
+  await session.resetTableOrder("p2");
+  const reset = [...events].reverse().find((entry) => entry.event === "table_order_updated")?.payload as { order: string[]; kept: boolean };
+  assert.deepEqual([reset.order, reset.kept], [[], false], "any player can start the table order again while it is the kept one");
+  await assert.rejects(session.resetTableOrder("p2"), /only host/, "afterwards, only the host can");
+  session.dispose();
+});
+
+test("replay: without any action the kept order starts the game", async () => {
+  const { session, events } = setup({ initialTableOrder: ["p2", "p3", "p4", "p5", "p1"], autoAdvance: { ...FAST, keptTableOrderMs: 30 } });
+  await session.start();
+  await wait(60);
+  assert.ok(events.some((entry) => entry.event === "role_assigned"));
+  assert.deepEqual(session.summary().turnOrder, ["p2", "p3", "p4", "p5", "p1"]);
+  session.dispose();
+});
+
+test("the host can reorder the whole table at once, with every present player exactly once", async () => {
+  const { session, events } = setup({ autoAdvance: { ...FAST, tableOrderMs: 1_000 } });
+  await session.start();
+  await assert.rejects(session.setTableOrder("p2", ["p1", "p2", "p3", "p4", "p5"]), /only host/);
+  await assert.rejects(session.setTableOrder("p1", ["p1", "p2", "p3", "p4"]), /every present player/);
+  await assert.rejects(session.setTableOrder("p1", ["p1", "p1", "p3", "p4", "p5"]), /every present player/);
+  await session.setTableOrder("p1", ["p5", "p4", "p3", "p2", "p1"]);
+  const update = [...events].reverse().find((entry) => entry.event === "table_order_updated")?.payload as { order: string[]; completed: boolean; autoConfirmMs: number | null };
+  assert.deepEqual(update.order, ["p5", "p4", "p3", "p2", "p1"]);
+  assert.equal(update.completed, true);
+  assert.ok(update.autoConfirmMs !== null, "the countdown starts on the new order");
+  session.dispose();
+});

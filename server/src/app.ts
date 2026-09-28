@@ -528,6 +528,16 @@ export function createKominternApp(options: AppOptions): KominternApp {
       await requireMissions(context.roomId).resetTableOrder(context.playerId);
     });
 
+    on(socket, CLIENT_EVENTS.TABLE_ORDER_PAUSE, "invalid_table_order_set", async () => {
+      const context = requireContext(socket);
+      await requireMissions(context.roomId).pauseTableOrder(context.playerId);
+    });
+
+    on(socket, CLIENT_EVENTS.TABLE_ORDER_SET, "invalid_table_order_set", async (payload) => {
+      const context = requireContext(socket);
+      await requireMissions(context.roomId).setTableOrder(context.playerId, parseTeam(payload.order));
+    });
+
     on(socket, CLIENT_EVENTS.ROLE_CONFIRMED, "invalid_role_confirmation", async () => {
       const context = requireContext(socket);
       await requireSession(context.roomId).confirmRoleReveal(context.playerId);

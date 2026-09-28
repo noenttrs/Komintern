@@ -7,6 +7,8 @@ export const CLIENT_EVENTS = {
   TABLE_ORDER_ADJUST: "table_order_adjust",
   TABLE_ORDER_CONFIRMED: "table_order_confirmed",
   TABLE_ORDER_BACK: "table_order_back",
+  TABLE_ORDER_SET: "table_order_set",
+  TABLE_ORDER_PAUSE: "table_order_pause",
   ROLE_CONFIRMED: "role_confirmed",
   PROPOSE_TEAM: "propose_team",
   CONFIDENCE_VOTE: "confidence_vote",

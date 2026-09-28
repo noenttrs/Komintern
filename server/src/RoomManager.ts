@@ -102,6 +102,8 @@ type RoomRecord = {
   revealRoles: boolean;
   chat: StoredChatMessage[];
   currentGame?: CurrentGame;
+  /** Ordre de table de la dernière partie : repris à la suivante (le chef continue de tourner). */
+  lastTurnOrder?: string[];
   /** Dernière partie enregistrée : les choix « rejouer / quitter » s'y rapportent. */
   lastGameId?: string;
   pseudoByPlayer: Map<string, string>;
@@ -497,6 +499,7 @@ export class RoomManager {
     const previousStatus = room.status;
     const session = new GameSession(code, room.playerIds, room.socketByPlayer, this.io, {
       ruleset: resolved,
+      initialTableOrder: room.lastTurnOrder,
       getActivePlayerIds: () => room.playerIds.filter((id) => !room.afkPlayers.has(id)),
       getRoomPayload: () => this.getRoomPayload(code),
       getHostPlayerId: () => room.hostPlayerId,
@@ -783,6 +786,7 @@ export class RoomManager {
     room.session = undefined;
     room.status = "finished";
     room.nextChefId = nextChefId;
+    if (summary.turnOrder.length > 0) room.lastTurnOrder = [...summary.turnOrder];
     room.replayRequests.clear();
     // Les joueurs AFK ont abandonné : ils libèrent leur siège.
     for (const playerId of [...room.afkPlayers]) {

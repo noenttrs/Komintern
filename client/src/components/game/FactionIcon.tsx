@@ -1,7 +1,8 @@
 export function FactionIcon({ faction }: { faction: "nazi" | "communist" | null }): JSX.Element {
   if (faction === "communist") {
     return (
-      <svg className="faction-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+      // Rouge : repérable d'un coup d'œil sur les boutons de vote, sans grossir le bouton.
+      <svg className="faction-icon faction-icon--communist" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="currentColor" d="M21 12c-2 0-3-3-6-3s-3 2-3 2s0-2-3-2s-4 3-6 3c-1 0-2-1-2-1s1 5 5 5c5 0 6-3 6-3s1 3 6 3c4 0 5-5 5-5s-1 1-2 1" />
       </svg>
     );

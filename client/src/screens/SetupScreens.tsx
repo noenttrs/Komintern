@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { AutoAdvance } from "../components/game/AutoAdvance";
 import { CardSurface } from "../components/game/CardSurface";
 import { scoreChip } from "../components/game/FactionIcon";
@@ -29,9 +31,24 @@ export function TableOrderScreen(): JSX.Element {
     setTableOrderAdjustPosition,
     adjustTableOrder,
     resetTableOrder,
+    setTableOrder,
+    pauseTableOrder,
+    tableOrder,
+    nameById,
     autoAdvanceAt,
   } = useScreen();
   const { t } = useI18n();
+  const [editing, setEditing] = useState<string[] | null>(null);
+  const kept = tableOrder.kept === true && allOrderChosen;
+  const move = (index: number, delta: number) =>
+    setEditing((current) => {
+      if (current === null) return current;
+      const next = [...current];
+      const target = index + delta;
+      if (target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target] as string, next[index] as string];
+      return next;
+    });
   return (
     <main className="game-screen">
       <CardSurface
@@ -47,27 +64,79 @@ export function TableOrderScreen(): JSX.Element {
               <AutoAdvance deadline={autoAdvanceAt} />
             </>
           ) : (
-            <>
-              <h2>
-                {myOrderIndex === -1
-                  ? t("tableOrder.tap")
-                  : t("tableOrder.yourNumber", { number: myOrderIndex + 1 })}
-              </h2>
-              <p>{t("tableOrder.progress")} {orderReference.length > 0 ? orderLegend : "..."}</p>
-              {allOrderChosen && autoAdvanceAt !== null ? (
+            <div className="table-order">
+              <h2>{myOrderIndex === -1 ? t("tableOrder.title") : t("tableOrder.yourNumber", { number: myOrderIndex + 1 })}</h2>
+              <p className="table-order__intro">{kept ? t("tableOrder.keptIntro") : t("tableOrder.intro")}</p>
+              {editing !== null ? (
+                <ol className="order-editor" aria-label={t("tableOrder.listLabel")}>
+                  {editing.map((id, index) => (
+                    <li key={id}>
+                      <span>{index + 1}. {nameById(id)}</span>
+                      <button type="button" className="secondary" disabled={index === 0} aria-label={t("tableOrder.moveUp", { name: nameById(id) })} onClick={() => move(index, -1)}>↑</button>
+                      <button type="button" className="secondary" disabled={index === editing.length - 1} aria-label={t("tableOrder.moveDown", { name: nameById(id) })} onClick={() => move(index, 1)}>↓</button>
+                    </li>
+                  ))}
+                </ol>
+              ) : tableOrder.order.length > 0 ? (
+                <ol className="table-order__list" aria-label={t("tableOrder.listLabel")}>
+                  {tableOrder.order.map((id) => (
+                    <li key={id} className={myOrderIndex !== -1 && tableOrder.order[myOrderIndex] === id ? "table-order__me" : undefined}>{nameById(id)}</li>
+                  ))}
+                </ol>
+              ) : null}
+              {myOrderIndex === -1 ? <p className="table-order__call">{t("tableOrder.tap")}</p> : null}
+              {!allOrderChosen ? (
+                <p className="table-order__missing">{t("tableOrder.missing", { count: players.length - tableOrder.order.length })}</p>
+              ) : editing === null && autoAdvanceAt !== null ? (
                 <AutoAdvance deadline={autoAdvanceAt} hint={t("tableOrder.autoHint")} />
-              ) : (
-                <p>{allOrderChosen ? t("tableOrder.allChosen") : t("tableOrder.waitingOrder")}</p>
-              )}
-            </>
+              ) : editing === null ? (
+                <p>{t("tableOrder.allChosen")}</p>
+              ) : null}
+            </div>
           )
         }
         back={showFullHistory ? expandedBackContent : defaultBackContent}
         overlay={roleOverlay}
         actions={
-          myOrderIndex !== -1 ? (
+          editing !== null ? (
             <div className="vote-stack">
-              {allOrderChosen ? (
+              <button
+                type="button"
+                className="inline-action"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setTableOrder(editing);
+                  setEditing(null);
+                }}
+              >
+                {t("tableOrder.saveOrder")}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  // Annuler relance le compte à rebours sur l'ordre inchangé.
+                  setTableOrder(tableOrder.order);
+                  setEditing(null);
+                }}
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          ) : myOrderIndex !== -1 ? (
+            <div className="vote-stack">
+              {kept ? (
+                <button
+                  type="button"
+                  className="inline-action"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    resetTableOrder();
+                  }}
+                >
+                  {t("tableOrder.change")}
+                </button>
+              ) : allOrderChosen ? (
                 <button
                   type="button"
                   className="inline-action"
@@ -79,13 +148,14 @@ export function TableOrderScreen(): JSX.Element {
                   {t("tableOrder.missed")}
                 </button>
               ) : null}
-              {allOrderChosen && showOrderAdjustInput ? (
+              {allOrderChosen && showOrderAdjustInput && !kept ? (
                 <>
                   <input
                     type="number"
                     min={1}
                     max={Math.max(1, players.length)}
                     value={tableOrderAdjustPosition}
+                    aria-label={t("tableOrder.missed")}
                     onChange={(event) => setTableOrderAdjustPosition(Number(event.target.value))}
                   />
                   <button
@@ -101,7 +171,19 @@ export function TableOrderScreen(): JSX.Element {
                   </button>
                 </>
               ) : null}
-              {isHost ? (
+              {isHost && allOrderChosen ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    pauseTableOrder();
+                    setEditing([...tableOrder.order]);
+                  }}
+                >
+                  {t("tableOrder.reorder")}
+                </button>
+              ) : null}
+              {isHost && !kept ? (
                 <button
                   type="button"
                   className="secondary"

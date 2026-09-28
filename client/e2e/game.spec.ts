@@ -134,7 +134,7 @@ for (const device of DEVICES) {
     // Ordre de table
     await host.page.getByRole("button", { name: "Démarrer" }).click();
     for (const player of players) {
-      await expect(player.page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
+      await expect(player.page.getByText("Touchez l'écran quand c'est votre tour")).toBeVisible();
     }
     await check(host.page, tag("02-ordre-table"));
     for (const player of players) {
@@ -232,12 +232,19 @@ for (const device of DEVICES) {
     for (const player of players) {
       await player.page.getByRole("button", { name: "Rejouer" }).first().click();
     }
-    await expect(host.page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible({ timeout: 15_000 });
+    // Rejouer : l'ordre de table de la partie précédente est repris d'office.
+    await expect(host.page.getByText(/Même ordre qu'à la partie précédente/)).toBeVisible({ timeout: 15_000 });
+    await expect(host.page.getByRole("button", { name: "Changer l'ordre" }).first()).toBeVisible();
+    await check(host.page, tag("11-ordre-repris"));
 
     // Rechargement en pleine partie : on retrouve sa place
     await guests[1]!.page.reload();
-    await expect(guests[1]!.page.getByText(/Touchez pour prendre votre numéro d'ordre|Votre numéro d'ordre/)).toBeVisible();
-    await check(guests[1]!.page, tag("11-apres-rechargement"));
+    await expect(guests[1]!.page.getByText(/Votre numéro d'ordre/)).toBeVisible();
+    await check(guests[1]!.page, tag("12-apres-rechargement"));
+
+    // N'importe qui peut refaire le tour de table.
+    await guests[1]!.page.getByRole("button", { name: "Changer l'ordre" }).first().click();
+    await expect(host.page.getByText("Touchez l'écran quand c'est votre tour")).toBeVisible();
 
     for (const player of players) await player.page.context().close();
   });

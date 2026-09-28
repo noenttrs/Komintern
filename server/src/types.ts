@@ -94,6 +94,8 @@ export interface ResyncPayload {
   scores: Scores;
   tableOrder: string[];
   tableOrderConfirmed: string[];
+  /** Ordre repris de la partie précédente, pas encore retouché. */
+  tableOrderKept?: boolean;
   turnOrder: string[];
   role: { role: Faction; roleMap?: RoleMap } | null;
   proposal: { chef: string; missionSize: number; missionIndex: number; team: string[] } | null;

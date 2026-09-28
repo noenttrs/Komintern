@@ -343,7 +343,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
       return {
         ...state,
         tableOrderCount: numberValue(payload.taps) ?? stringArray(payload.order).length,
-        tableOrder: { order: stringArray(payload.order), confirmed: stringArray(payload.confirmed) },
+        tableOrder: { order: stringArray(payload.order), confirmed: stringArray(payload.confirmed), kept: payload.kept === true },
         autoAdvanceAt: deadline(payload.autoConfirmMs),
       };
 
@@ -548,7 +548,7 @@ function applyResync(state: GameState, payload: Record<string, unknown>): GameSt
     tableOrderCount: stringArray(payload.tableOrder).length,
     tableOrder: turnOrder.length > 0 && phase !== "table_order"
       ? { order: turnOrder, confirmed: turnOrder }
-      : { order: stringArray(payload.tableOrder), confirmed: stringArray(payload.tableOrderConfirmed) },
+      : { order: stringArray(payload.tableOrder), confirmed: stringArray(payload.tableOrderConfirmed), kept: payload.tableOrderKept === true },
     turnOrder,
     role: roleFaction === null ? { faction: null, roleMap: {} } : { faction: roleFaction, roleMap: factionMap(roleRaw.roleMap) },
     proposal:

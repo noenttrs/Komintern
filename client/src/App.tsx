@@ -551,7 +551,7 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const handleGlobalTap = (event: MouseEvent): void => {
       const target = event.target as HTMLElement | null;
-      if (target !== null && target.closest("button, input, select, textarea, label, .absence-stack")) {
+      if (target !== null && target.closest("button, input, select, textarea, label, .absence-stack, .order-editor")) {
         return;
       }
 

@@ -60,7 +60,7 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
 
   await host.getByRole("button", { name: "Démarrer" }).click();
   for (const page of pages) {
-    await expect(page.getByText("Touchez pour prendre votre numéro d'ordre")).toBeVisible();
+    await expect(page.getByText("Touchez l'écran quand c'est votre tour")).toBeVisible();
     await tapCard(page);
   }
   // Ordre complet : validé seul après le compte à rebours ; toucher l'écran accélère.

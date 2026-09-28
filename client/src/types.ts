@@ -178,6 +178,8 @@ export interface GameOverState {
 export interface TableOrderState {
   order: string[];
   confirmed: string[];
+  /** Ordre repris de la partie précédente, pas encore retouché. */
+  kept?: boolean;
 }
 
 export interface ChatMessage {

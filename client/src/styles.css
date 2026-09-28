@@ -12,6 +12,12 @@
   --ink-soft: #535353;
   --line: #111111;
   --line-soft: #9a9a9a;
+  /* Icône communiste (4,7:1 sur fond clair). */
+  --communist: #d03b3b;
+}
+
+.faction-icon--communist {
+  color: var(--communist);
 }
 
 @supports (height: 100svh) {
@@ -2101,4 +2107,59 @@ textarea {
 .retention__cell {
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+/* Tour de table : explication, noms dans l'ordre, outil de réorganisation de l'hôte. */
+.table-order {
+  display: grid;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.table-order__intro {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.table-order__list {
+  list-style-position: inside;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.9rem;
+  font-size: 0.95rem;
+}
+
+.table-order__me {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.table-order__call {
+  font-weight: 600;
+}
+
+.table-order__missing {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.order-editor {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.order-editor li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.order-editor button {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
 }

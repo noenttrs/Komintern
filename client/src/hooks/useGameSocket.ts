@@ -96,6 +96,10 @@ export interface GameActions {
   adjustTableOrder: (position: number) => void;
   confirmTableOrder: () => void;
   resetTableOrder: () => void;
+  /** Hôte : réorganise tout l'ordre de table d'un coup. */
+  setTableOrder: (order: string[]) => void;
+  /** Hôte : suspend la validation automatique pendant qu'il réorganise. */
+  pauseTableOrder: () => void;
   confirmRole: () => void;
   proposeTeam: (team: string[]) => void;
   sendConfidenceVote: (vote: ConfidenceVote) => void;
@@ -408,6 +412,8 @@ export function useGameSocket(): UseGameSocketResult {
       adjustTableOrder: (position) => emitAction(CLIENT_EVENTS.TABLE_ORDER_ADJUST, { position }),
       confirmTableOrder: () => emitAction(CLIENT_EVENTS.TABLE_ORDER_CONFIRMED),
       resetTableOrder: () => emitAction(CLIENT_EVENTS.TABLE_ORDER_BACK),
+      setTableOrder: (order) => emitAction(CLIENT_EVENTS.TABLE_ORDER_SET, { order }),
+      pauseTableOrder: () => emitAction(CLIENT_EVENTS.TABLE_ORDER_PAUSE),
       confirmRole: () => emitAction(CLIENT_EVENTS.ROLE_CONFIRMED),
       proposeTeam: (team) => emitAction(CLIENT_EVENTS.PROPOSE_TEAM, { team }),
       sendConfidenceVote: (vote) => emitAction(CLIENT_EVENTS.CONFIDENCE_VOTE, { vote }),

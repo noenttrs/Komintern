@@ -29,11 +29,13 @@ export type BridgeLike = {
  * l'écran accélère si tout le monde l'a fait), l'ordre de table se valide seul une fois complet,
  * et la partie démarre quand tout le monde a vu son rôle, ou au plus tard après `revealMs`.
  */
-export type AutoAdvanceDelays = { tableOrderMs: number; revealMs: number; confidenceResultMs: number; missionResultMs: number };
+export type AutoAdvanceDelays = { tableOrderMs: number; keptTableOrderMs: number; revealMs: number; confidenceResultMs: number; missionResultMs: number };
 
-export const DEFAULT_AUTO_ADVANCE: AutoAdvanceDelays = { tableOrderMs: 5_000, revealMs: 60_000, confidenceResultMs: 6_000, missionResultMs: 8_000 };
+export const DEFAULT_AUTO_ADVANCE: AutoAdvanceDelays = { tableOrderMs: 5_000, keptTableOrderMs: 10_000, revealMs: 60_000, confidenceResultMs: 6_000, missionResultMs: 8_000 };
 
 export type SessionConfig = {
+  /** Ordre de table de la partie précédente : repris d'office, chacun peut le refaire. */
+  initialTableOrder?: string[];
   ruleset: ResolvedRuleset;
   /** Joueurs non AFK de la room (ils peuvent être momentanément déconnectés). */
   getActivePlayerIds: () => string[];
@@ -144,6 +146,8 @@ export class GameSession {
   private gameOver: GameOverInfo | null = null;
   private readonly autoAdvance: AutoAdvanceDelays;
   private autoTimer: NodeJS.Timeout | null = null;
+  /** L'ordre affiché est celui de la partie précédente (ni refait ni retouché). */
+  private orderKept = false;
   private autoDeadline: number | null = null;
 
   public constructor(
@@ -202,6 +206,14 @@ export class GameSession {
         missionCount: this.config.ruleset.missionCount,
         missionSizes: [...this.config.ruleset.missionSizes],
       });
+      // Rejouer : l'ordre de table précédent est repris (les nouveaux venus prennent leur place ensuite).
+      const active = new Set(this.activeIds());
+      const kept = (this.config.initialTableOrder ?? []).filter((id) => active.has(id));
+      if (kept.length >= 2) {
+        this.tableOrder = kept;
+        this.orderKept = true;
+        this.refreshTableOrderTimer();
+      }
       this.emitTableOrderUpdate();
     });
   }
@@ -222,6 +234,40 @@ export class GameSession {
       }
       this.tableOrder.push(playerId);
       this.tableOrderConfirmed.clear();
+      this.orderKept = false;
+      this.refreshTableOrderTimer();
+      this.emitTableOrderUpdate();
+    });
+  }
+
+  /** L'hôte ouvre l'outil de réorganisation : la validation automatique attend son choix. */
+  public pauseTableOrder(playerId: string): Promise<void> {
+    return this.serial(async () => {
+      this.ensureKnownPlayer(playerId);
+      this.ensurePhase("table_order");
+      if (playerId !== this.config.getHostPlayerId()) {
+        throw new Error("only host can reorder the table");
+      }
+      this.clearAuto();
+      this.emitTableOrderUpdate();
+    });
+  }
+
+  /** L'hôte réorganise tout l'ordre d'un coup (liste complète des joueurs présents). */
+  public setTableOrder(playerId: string, order: string[]): Promise<void> {
+    return this.serial(async () => {
+      this.ensureKnownPlayer(playerId);
+      this.ensurePhase("table_order");
+      if (playerId !== this.config.getHostPlayerId()) {
+        throw new Error("only host can reorder the table");
+      }
+      const active = this.activeIds();
+      if (order.length !== active.length || new Set(order).size !== order.length || order.some((id) => !active.includes(id))) {
+        throw new Error("the order must list every present player exactly once");
+      }
+      this.tableOrder = [...order];
+      this.tableOrderConfirmed.clear();
+      this.orderKept = false;
       this.refreshTableOrderTimer();
       this.emitTableOrderUpdate();
     });
@@ -239,18 +285,21 @@ export class GameSession {
       const insertionIndex = Math.min(this.tableOrder.length, Math.max(1, Math.floor(position)) - 1);
       this.tableOrder.splice(insertionIndex, 0, playerId);
       this.tableOrderConfirmed.clear();
+      this.orderKept = false;
       this.refreshTableOrderTimer();
       this.emitTableOrderUpdate();
     });
   }
 
+  /** Tout recommencer : l'hôte, ou n'importe quel joueur tant que l'ordre repris n'a pas bougé. */
   public resetTableOrder(playerId: string): Promise<void> {
     return this.serial(async () => {
       this.ensureKnownPlayer(playerId);
       this.ensurePhase("table_order");
-      if (playerId !== this.config.getHostPlayerId()) {
+      if (playerId !== this.config.getHostPlayerId() && !this.orderKept) {
         throw new Error("only host can reset table order");
       }
+      this.orderKept = false;
       this.tableOrder = [];
       this.tableOrderConfirmed.clear();
       this.refreshTableOrderTimer();
@@ -715,6 +764,7 @@ export class GameSession {
       completed: this.tableOrderComplete(),
       order: [...this.tableOrder],
       confirmed: [...this.tableOrderConfirmed],
+      kept: this.orderKept,
       autoConfirmMs: this.autoRemainingMs(),
     });
   }
@@ -725,7 +775,9 @@ export class GameSession {
   private refreshTableOrderTimer(): void {
     if (this.phase !== "table_order") return;
     if (this.tableOrderComplete()) {
-      this.scheduleAuto("table_order", this.autoAdvance.tableOrderMs, () => this.tryCompleteTableOrder(true));
+      // Ordre repris de la partie précédente : un peu plus de temps pour le relire.
+      const delay = this.orderKept ? this.autoAdvance.keptTableOrderMs : this.autoAdvance.tableOrderMs;
+      this.scheduleAuto("table_order", delay, () => this.tryCompleteTableOrder(true));
     } else {
       this.clearAuto();
     }
@@ -812,6 +864,7 @@ export class GameSession {
       scores: { ...this.scores },
       tableOrder: [...this.tableOrder],
       tableOrderConfirmed: [...this.tableOrderConfirmed],
+      tableOrderKept: this.orderKept,
       turnOrder: [...this.turnOrder],
       role: this.rolePayload(playerId),
       proposal: this.round === null ? null : this.proposalPayload(),

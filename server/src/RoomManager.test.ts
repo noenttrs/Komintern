@@ -565,3 +565,22 @@ test("end-of-game choices are reported once per player for the statistics", asyn
   manager.leaveRoom(code, players[1] as string);
   assert.deepEqual(choices, ["game:replay", "game:quit"]);
 });
+
+test("playing again keeps the previous table order", async () => {
+  const { manager } = setup();
+  const code = manager.createRoom();
+  const players = fill(manager, code, 5);
+  const session = await manager.startGame(code, players[0] as string);
+  const order = [players[2], players[0], players[4], players[1], players[3]] as string[];
+  for (const id of order) await session.handleTableOrderTap(id);
+  for (const id of players) await session.confirmTableOrder(id);
+  for (const id of players) await session.confirmRoleReveal(id);
+  manager.leaveRoom(code, players[4] as string);
+  await tick(20);
+  for (const id of players.slice(0, 4)) await session.confirmEndGame(id);
+  assert.equal(manager.getStatus(code), "finished");
+  for (const id of players.slice(0, 4)) await manager.requestReplay(code, id);
+  const next = manager.getSession(code);
+  assert.ok(next !== session);
+  assert.deepEqual((next as unknown as { tableOrder: string[] }).tableOrder, order.filter((id) => id !== players[4]));
+});
