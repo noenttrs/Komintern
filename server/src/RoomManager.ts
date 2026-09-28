@@ -40,6 +40,8 @@ export type RecordedGame = {
 
 export type RoomHooks = {
   onGameRecorded?: (game: RecordedGame) => Promise<void> | void;
+  /** Demandes acceptées d'office (passage en admission ouverte) : l'app fait entrer ces sockets. */
+  onAdmitted?: (code: string, request: JoinRequest) => void;
   /** Choix de fin de partie d'un joueur (statistiques du bouton « Rejouer »), une fois par joueur. */
   onReplayChoice?: (code: string, gameId: string, choice: "replay" | "quit") => void;
   /** Des comptes entrent en partie ou en sortent (présence « en partie »). */
@@ -65,6 +67,18 @@ type Absence = {
   votes: Set<string>;
   timers: NodeJS.Timeout[];
 };
+export type Admission = "open" | "request";
+export type JoinRequest = { id: string; socketId: string; playerUid?: string; userId?: string; pseudo: string; at: number };
+const MAX_JOIN_REQUESTS = 20;
+
+/** Admission sur demande : le nouveau venu doit attendre l'accord de l'hôte. */
+export class AdmissionRequired extends Error {
+  public constructor() {
+    super("the host must accept you first");
+    this.name = "AdmissionRequired";
+  }
+}
+
 /** Comparaison en temps constant d'un jeton secret. */
 function sameSecret(expected: string, received: string): boolean {
   const a = Buffer.from(expected);
@@ -126,6 +140,11 @@ type RoomRecord = {
   /** Secrets de reconnexion des joueurs exclus : ils ne peuvent pas revenir dans cette room. */
   kickedUids: Set<string>;
   kickedUserIds: Set<string>;
+  /** « request » : un nouveau venu attend que l'hôte l'accepte (contre l'afflux après une fuite). */
+  admission: Admission;
+  joinRequests: Map<string, JoinRequest>;
+  /** Demandes acceptées, pas encore entrées (uid, compte ou socket). */
+  admitted: Set<string>;
   configuredPreset?: RulesetPreset;
   configuredRuleset?: unknown;
   nextChefId: string | null;
@@ -256,6 +275,9 @@ export class RoomManager {
       replayRequests: new Set(),
       kickedUids: new Set(),
       kickedUserIds: new Set(),
+      admission: "open",
+      joinRequests: new Map(),
+      admitted: new Set(),
       configuredPreset,
       configuredRuleset,
       nextChefId: null,
@@ -313,6 +335,12 @@ export class RoomManager {
     }
     if (room.playerIds.length >= room.maxPlayers) {
       throw new Error("room is full");
+    }
+    // Admission sur demande : le créateur entre d'office, les autres attendent l'accord de l'hôte.
+    const admissionKeys = [playerUid, userId === undefined ? undefined : `user:${userId}`, `socket:${socketId}`].filter((key): key is string => key !== undefined);
+    if (room.admission === "request" && room.playerIds.length > 0) {
+      if (!admissionKeys.some((key) => room.admitted.has(key))) throw new AdmissionRequired();
+      admissionKeys.forEach((key) => room.admitted.delete(key));
     }
 
     const playerId = `p_${crypto.randomBytes(6).toString("hex")}`;
@@ -434,6 +462,120 @@ export class RoomManager {
     this.requireHostInLobby(room, hostId);
     room.pace = parsePace(pace);
     this.emitRoomUpdated(room);
+  }
+
+  /** Admission ouverte ou sur demande (au salon ou entre deux parties). */
+  public setAdmission(code: string, hostId: string, admission: Admission): void {
+    const room = this.requireRoom(code);
+    this.requireHostBetweenGames(room, hostId);
+    room.admission = admission;
+    if (admission === "open") {
+      // Plus de filtre : les demandes en attente sont acceptées d'office.
+      for (const request of room.joinRequests.values()) this.admitKeys(room, request);
+      const pending = [...room.joinRequests.values()];
+      room.joinRequests.clear();
+      this.emitJoinRequests(room);
+      this.emitRoomUpdated(room);
+      for (const request of pending) this.options.hooks?.onAdmitted?.(room.code, request);
+      return;
+    }
+    this.emitRoomUpdated(room);
+  }
+
+  /** Un nouveau venu demande à entrer ; l'hôte est prévenu. Renvoie la demande enregistrée. */
+  public requestJoin(code: string, request: Omit<JoinRequest, "id" | "at">): JoinRequest {
+    const room = this.requireRoom(code);
+    const existing = [...room.joinRequests.values()].find((entry) => entry.socketId === request.socketId || (request.playerUid !== undefined && entry.playerUid === request.playerUid));
+    if (existing !== undefined) return existing;
+    if (room.joinRequests.size >= MAX_JOIN_REQUESTS) throw new Error("too many people are already waiting to join this room");
+    const entry: JoinRequest = { ...request, id: `jr_${crypto.randomBytes(6).toString("hex")}`, at: Date.now() };
+    room.joinRequests.set(entry.id, entry);
+    this.emitJoinRequests(room);
+    return entry;
+  }
+
+  /** L'hôte accepte une demande : renvoie qui faire entrer (l'app rattache son socket). */
+  public admit(code: string, hostId: string, requestId: string): JoinRequest {
+    const room = this.requireRoom(code);
+    this.requireHostBetweenGames(room, hostId);
+    const request = room.joinRequests.get(requestId);
+    if (request === undefined) throw new Error("this request is no longer pending");
+    room.joinRequests.delete(requestId);
+    this.admitKeys(room, request);
+    this.emitJoinRequests(room);
+    return request;
+  }
+
+  /** L'hôte refuse une demande (ou toutes) : ce code reste fermé à ces personnes. */
+  public reject(code: string, hostId: string, requestId: string | "all"): JoinRequest[] {
+    const room = this.requireRoom(code);
+    if (room.hostPlayerId !== hostId) throw new Error("only the host can do that");
+    const rejected = requestId === "all" ? [...room.joinRequests.values()] : [room.joinRequests.get(requestId)].filter((entry): entry is JoinRequest => entry !== undefined);
+    for (const request of rejected) {
+      room.joinRequests.delete(request.id);
+      if (request.playerUid !== undefined) room.kickedUids.add(request.playerUid);
+      if (request.userId !== undefined) room.kickedUserIds.add(request.userId);
+    }
+    this.emitJoinRequests(room);
+    return rejected;
+  }
+
+  /** Un demandeur s'en va (socket fermé) : sa demande disparaît. */
+  public dropJoinRequests(socketId: string): void {
+    for (const room of this.rooms.values()) {
+      for (const request of room.joinRequests.values()) {
+        if (request.socketId === socketId) {
+          room.joinRequests.delete(request.id);
+          this.emitJoinRequests(room);
+        }
+      }
+    }
+  }
+
+  public getJoinRequests(code: string): Array<{ id: string; pseudo: string }> {
+    return [...(this.rooms.get(code)?.joinRequests.values() ?? [])].map((request) => ({ id: request.id, pseudo: request.pseudo }));
+  }
+
+  /**
+   * Nouveau code (l'hôte, au salon ou entre deux parties) : l'ancien code, son lien et son QR ne
+   * marchent plus, les demandes en attente et le lien de vue publique sont annulés ; les joueurs
+   * déjà là suivent la room sous son nouveau code. Renvoie le nouveau code.
+   */
+  public regenerateCode(code: string, hostId: string): { newCode: string; dropped: JoinRequest[] } {
+    const room = this.requireRoom(code);
+    this.requireHostBetweenGames(room, hostId);
+    const newCode = this.generateCode();
+    this.endSpectators(room);
+    room.spectatorToken = undefined;
+    const dropped = [...room.joinRequests.values()];
+    room.joinRequests.clear();
+    room.admitted.clear();
+    this.rooms.delete(code);
+    room.code = newCode;
+    this.rooms.set(newCode, room);
+    this.io.in(code).socketsJoin(newCode);
+    this.io.in(code).socketsLeave(code);
+    this.emitJoinRequests(room);
+    this.emitRoomUpdated(room);
+    log.info("room code changed", { from: code, to: newCode });
+    return { newCode, dropped };
+  }
+
+  private admitKeys(room: RoomRecord, request: JoinRequest): void {
+    for (const key of [request.playerUid, request.userId === undefined ? undefined : `user:${request.userId}`, `socket:${request.socketId}`]) {
+      if (key !== undefined) room.admitted.add(key);
+    }
+  }
+
+  /** Liste des demandes, envoyée au seul hôte (les autres joueurs et les écrans publics ne la voient pas). */
+  private emitJoinRequests(room: RoomRecord): void {
+    const hostSocket = room.hostPlayerId === null ? undefined : room.socketByPlayer.get(room.hostPlayerId);
+    if (hostSocket !== undefined) this.io.to(hostSocket).emit(SERVER_EVENTS.JOIN_REQUESTS, { requests: this.getJoinRequests(room.code) });
+  }
+
+  private requireHostBetweenGames(room: RoomRecord, hostId: string): void {
+    if (room.hostPlayerId !== hostId) throw new Error("only the host can do that");
+    if ((room.status !== "waiting" && room.status !== "finished") || room.starting) throw new Error("only possible between games");
   }
 
   public setPublic(code: string, hostId: string, isPublic: boolean): void {
@@ -669,6 +811,7 @@ export class RoomManager {
       isPublic: room.isPublic,
       pace: room.pace,
       revealRoles: room.revealRoles,
+      admission: room.admission,
     };
   }
 

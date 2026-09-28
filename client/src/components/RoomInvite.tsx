@@ -4,7 +4,8 @@ import QRCode from "qrcode";
 import { useI18n } from "../i18n";
 
 /** Lien d'invitation /r/CODE : QR code à scanner autour de la table, partage ou copie. */
-export function RoomInvite({ code }: { code: string }): JSX.Element {
+/** `masked` (mode streamer) : ni code ni QR à l'écran, le lien se copie sans s'afficher. */
+export function RoomInvite({ code, masked = false }: { code: string; masked?: boolean }): JSX.Element {
   const { t } = useI18n();
   const link = `${window.location.origin}/r/${encodeURIComponent(code)}`;
   const [qr, setQr] = useState<string | null>(null);
@@ -32,6 +33,27 @@ export function RoomInvite({ code }: { code: string }): JSX.Element {
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
   };
+
+  if (masked) {
+    return (
+      <div className="room-invite">
+        <p className="mono room-code room-code--masked">{t("streamer.codeHidden")}</p>
+        <div className="room-invite__actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              void navigator.clipboard?.writeText(link).catch(() => undefined);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? t("streamer.copied") : t("streamer.copyLink")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="room-invite">

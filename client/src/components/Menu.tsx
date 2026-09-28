@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AlertSettings } from "../hooks/useTurnAlerts";
 import { useI18n } from "../i18n";
 import { navigate } from "../router";
+import { openPrivateWindow, streamerCapable, useStreamerMode } from "../streamer/streamer";
 import { useTheme } from "../theme";
 import { PushToggle } from "./PushToggle";
 
@@ -22,6 +23,9 @@ type MenuProps = {
 export function Menu({ signedIn, displayName, isAdmin = false, isModerator = false, pendingRequests, alerts, install, pushPublicKey }: MenuProps): JSX.Element {
   const { t, lang, setLang } = useI18n();
   const [theme, setTheme] = useTheme();
+  const [streamer, setStreamer] = useStreamerMode();
+  const [showStreamerGuide, setShowStreamerGuide] = useState(false);
+  const canStream = streamerCapable();
   const [open, setOpen] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   // Ordinateur : réglages dépliés d'office (le menu y a la place).
@@ -146,6 +150,23 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
               {pushPublicKey ? <PushToggle publicKey={pushPublicKey} tabIndex={open ? 0 : -1} /> : null}
             </div>
           ) : null}
+          {canStream ? (
+            <div className="menu-toggles">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  tabIndex={open ? 0 : -1}
+                  checked={streamer}
+                  onChange={(event) => {
+                    setStreamer(event.target.checked);
+                    if (event.target.checked) setShowStreamerGuide(true);
+                  }}
+                />
+                {t("streamer.toggle")}
+              </label>
+              <p className="field-hint">{t("streamer.hint")}</p>
+            </div>
+          ) : null}
           <div className="menu-prefs">
             <div className="segmented menu-lang menu-theme" role="group" aria-label={t("menu.theme")}>
               {(["auto", "light", "dark"] as const).map((entry) => (
@@ -185,6 +206,20 @@ export function Menu({ signedIn, displayName, isAdmin = false, isModerator = fal
           <button type="button" className="secondary" onClick={() => go("/mentions-legales")} tabIndex={open ? 0 : -1}>{t("menu.legal")}</button>
         </div>
       </nav>
+      {showStreamerGuide ? (
+        <div className="tip-overlay" onClick={() => setShowStreamerGuide(false)}>
+          <div className="tip-card" role="dialog" aria-modal="true" aria-labelledby="streamer-guide-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="streamer-guide-title">{t("streamer.guideTitle")}</h2>
+            <ol className="streamer-guide">
+              <li>{t("streamer.guide1")}</li>
+              <li>{t("streamer.guide2")}</li>
+              <li>{t("streamer.guide3")}</li>
+            </ol>
+            <button type="button" onClick={openPrivateWindow}>{t("streamer.openPrivate")}</button>
+            <button type="button" className="secondary" onClick={() => setShowStreamerGuide(false)}>{t("streamer.guideOk")}</button>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

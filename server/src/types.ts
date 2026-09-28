@@ -59,6 +59,8 @@ export interface RoomUpdatedPayload {
   pace: "classic" | "quick";
   /** Les nazis sont annoncés à la fin de la partie (sinon les rôles restent secrets). */
   revealRoles: boolean;
+  /** Admission des nouveaux venus : ouverte, ou sur demande (l'hôte accepte). */
+  admission?: "open" | "request";
 }
 
 export interface Scores {

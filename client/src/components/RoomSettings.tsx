@@ -3,13 +3,14 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 
 /** Résumé des réglages de la room, lisible par tous (« Sur place · Privée · Classique · Nazis révélés »). */
-export function RoomSummary({ chatEnabled, isPublic, pace, showPace, revealRoles }: { chatEnabled: boolean; isPublic: boolean; pace: "classic" | "quick"; showPace: boolean; revealRoles: boolean }): JSX.Element {
+export function RoomSummary({ chatEnabled, isPublic, pace, showPace, revealRoles, admission = "open" }: { chatEnabled: boolean; isPublic: boolean; pace: "classic" | "quick"; showPace: boolean; revealRoles: boolean; admission?: "open" | "request" }): JSX.Element {
   const { t } = useI18n();
   const parts = [
     chatEnabled ? t("roomSettings.remote") : t("roomSettings.local"),
     isPublic ? t("roomSettings.public") : t("roomSettings.private"),
     ...(showPace ? [pace === "quick" ? t("roomSettings.quick") : t("roomSettings.classic")] : []),
     revealRoles ? t("roomSettings.reveal") : t("roomSettings.secret"),
+    ...(admission === "request" ? [t("admission.summary")] : []),
   ];
   return <p className="mono room-summary">{parts.join(" · ")}</p>;
 }

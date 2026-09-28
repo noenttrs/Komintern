@@ -27,6 +27,9 @@ export const CLIENT_EVENTS = {
   ABSENCE_VOTE: "absence_vote",
   SPECTATE: "spectate",
   SPECTATE_LINK: "spectate_link",
+  ADMIT_PLAYER: "admit_player",
+  REJECT_PLAYER: "reject_player",
+  REGENERATE_CODE: "regenerate_code",
   VISIBILITY: "visibility",
   PUSH_SUBSCRIBE: "push_subscribe",
   DUEL_VOTE: "duel_vote",
@@ -69,6 +72,10 @@ export const SERVER_EVENTS = {
   /** Avertissement de modération : le client recharge le compte pour l'afficher. */
   ACCOUNT_WARNING: "account_warning",
   SPECTATE_LINK_READY: "spectate_link_ready",
+  JOIN_REQUESTS: "join_requests",
+  JOIN_PENDING: "join_pending",
+  JOIN_REJECTED: "join_rejected",
+  ROOM_CODE_CHANGED: "room_code_changed",
   SPECTATE_ENDED: "spectate_ended",
   ERROR: "error",
 } as const;

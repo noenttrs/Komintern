@@ -85,6 +85,8 @@ export type ScreenContextValue = UseGameSocketResult & {
   missionProgressLabel: string;
   /** Heure locale de l'enchaînement automatique de l'écran en cours, ou null. */
   autoAdvanceAt: number | null;
+  /** Mode streamer actif : aucun secret (code, rôle) dans cette fenêtre. */
+  streamerMode: boolean;
 };
 
 const ScreenContext = createContext<ScreenContextValue | null>(null);

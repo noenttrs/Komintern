@@ -125,6 +125,10 @@ export interface GameActions {
   voteAbsence: (playerId: string, skip: boolean) => void;
   /** Hôte : demande (ou renouvelle) le lien de la vue publique. */
   requestSpectateLink: (reset?: boolean) => void;
+  setAdmission: (admission: "open" | "request") => void;
+  admitPlayer: (requestId: string) => void;
+  rejectPlayer: (requestId: string | "all") => void;
+  regenerateCode: () => void;
 }
 
 export type UseGameSocketResult = GameState & GameActions & { winner: Faction | null };
@@ -259,6 +263,14 @@ export function useGameSocket(): UseGameSocketResult {
       dispatch({ type: "notice", message: translate("notices.kicked") });
     };
     socket.on(SERVER_EVENTS.KICKED, onKicked);
+    // Nouveau code de room : la reconnexion automatique doit viser le nouveau code.
+    const onCodeChanged = (payload: unknown): void => {
+      const code = stringValue(toRecord(payload).code);
+      if (code === null) return;
+      writeStorage("session", ROOM_STORAGE_KEY, code);
+      writeStorage("local", LAST_SEAT_KEY, JSON.stringify({ code, uid: uidRef.current, at: Date.now() }));
+    };
+    socket.on(SERVER_EVENTS.ROOM_CODE_CHANGED, onCodeChanged);
     document.addEventListener("visibilitychange", syncVisibility);
     window.addEventListener(PUSH_CHANGED_EVENT, syncPush);
 
@@ -282,6 +294,7 @@ export function useGameSocket(): UseGameSocketResult {
       socket.off(SERVER_EVENTS.ROOM_JOINED, onRoomJoined);
       socket.off(SERVER_EVENTS.ERROR, onError);
       socket.off(SERVER_EVENTS.KICKED, onKicked);
+      socket.off(SERVER_EVENTS.ROOM_CODE_CHANGED, onCodeChanged);
       document.removeEventListener("visibilitychange", syncVisibility);
       window.removeEventListener(PUSH_CHANGED_EVENT, syncPush);
     };
@@ -370,6 +383,10 @@ export function useGameSocket(): UseGameSocketResult {
       },
       voteAbsence: (playerId, skip) => emitAction(CLIENT_EVENTS.ABSENCE_VOTE, { playerId, skip }),
       requestSpectateLink: (reset = false) => emitAction(CLIENT_EVENTS.SPECTATE_LINK, { reset }),
+      setAdmission: (admission) => emitAction(CLIENT_EVENTS.SET_ROOM_OPTIONS, { admission }),
+      admitPlayer: (requestId) => emitAction(CLIENT_EVENTS.ADMIT_PLAYER, { requestId }),
+      rejectPlayer: (requestId) => emitAction(CLIENT_EVENTS.REJECT_PLAYER, { requestId }),
+      regenerateCode: () => emitAction(CLIENT_EVENTS.REGENERATE_CODE),
       report: (target, reason) => emitAction(CLIENT_EVENTS.REPORT, { ...target, reason: reason.slice(0, 200) }),
       inviteFriend: (userId) => {
         emitAction(CLIENT_EVENTS.INVITE_FRIEND, { userId });

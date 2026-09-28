@@ -12,6 +12,7 @@ import "./styles.css";
 import App from "./App";
 import { LanguageProvider } from "./i18n";
 import { PublicBoard } from "./pages/PublicBoard";
+import { PrivateWindow } from "./streamer/PrivateWindow";
 import { initTheme } from "./theme";
 
 initTheme();
@@ -24,7 +25,9 @@ const params = new URLSearchParams(window.location.search);
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <LanguageProvider>
-      {board !== null ? (
+      {window.location.pathname === "/prive" ? (
+        <PrivateWindow />
+      ) : board !== null ? (
         <PublicBoard
           code={(board[1] as string).toUpperCase()}
           token={params.get("t") ?? ""}

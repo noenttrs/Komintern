@@ -334,3 +334,81 @@ test("the public screen follows a whole game without ever receiving a role or a 
   stale.emit("spectate", { code, token });
   assert.match((await staleError).message, /no longer valid/);
 });
+
+test("admission on request: the host accepts or refuses newcomers, seated players never queue", { timeout: 20_000 }, async () => {
+  const host = await join("create_room", { code: "door-room", pseudo: "Rosa" }, "uid-door-host-00000000");
+  const code = "DOOR-ROOM";
+  const first = await join("join_room", { code, pseudo: "Karl" }, "uid-door-karl-00000000");
+  host.socket.emit("set_room_options", { admission: "request" });
+  await next(host.socket, "room_updated", (payload: { admission?: string }) => payload.admission === "request");
+
+  // Un nouveau venu attend ; l'hôte seul voit sa demande (pseudo).
+  const clara = open();
+  const claraInbox = record(clara);
+  const pending = next(clara, "join_pending");
+  const hostSees = next<{ requests: Array<{ id: string; pseudo: string }> }>(host.socket, "join_requests", (payload) => payload.requests.length === 1);
+  clara.emit("join_room", { code, pseudo: "Clara", playerUid: "uid-door-clara-0000000" });
+  await pending;
+  const { requests } = await hostSees;
+  assert.equal(requests[0]?.pseudo, "Clara");
+  assert.ok(!first.inbox.some((entry) => entry.event === "join_requests"), "other players do not see requests");
+  assert.ok(!claraInbox.some((entry) => entry.event === "room_joined"));
+
+  // Seul l'hôte accepte ; accepté, le demandeur entre normalement.
+  const refused = next<{ code: string }>(first.socket, "error");
+  first.socket.emit("admit_player", { requestId: requests[0]!.id });
+  assert.equal((await refused).code, "invalid_admission");
+  const claraJoined = next<{ playerId: string }>(clara, "room_joined");
+  host.socket.emit("admit_player", { requestId: requests[0]!.id });
+  await claraJoined;
+
+  // Refus : ce code lui reste fermé.
+  const intruder = open();
+  const intruderPending = next(intruder, "join_pending");
+  const second = next<{ requests: Array<{ id: string }> }>(host.socket, "join_requests", (payload) => payload.requests.length === 1);
+  intruder.emit("join_room", { code, pseudo: "Troll", playerUid: "uid-door-troll-0000000" });
+  await intruderPending;
+  const rejected = next<{ reason: string }>(intruder, "join_rejected");
+  host.socket.emit("reject_player", { requestId: (await second).requests[0]!.id });
+  assert.equal((await rejected).reason, "rejected");
+  const again = next<{ message: string }>(intruder, "error");
+  intruder.emit("join_room", { code, pseudo: "Troll", playerUid: "uid-door-troll-0000000" });
+  assert.match((await again).message, /removed from this room/);
+
+  // Un joueur déjà assis qui se reconnecte ne repasse pas par la file.
+  first.socket.disconnect();
+  const back = open();
+  const backJoined = next(back, "room_joined");
+  back.emit("join_room", { code, playerUid: first.uid });
+  await backJoined;
+});
+
+test("a new room code: the old code stops working, players stay and follow the new code", { timeout: 20_000 }, async () => {
+  const host = await join("create_room", { code: "old-code", pseudo: "Rosa" }, "uid-code-host-00000000");
+  const guest = await join("join_room", { code: "OLD-CODE", pseudo: "Karl" }, "uid-code-karl-00000000");
+  const refused = next<{ code: string }>(guest.socket, "error");
+  guest.socket.emit("regenerate_code", {});
+  assert.equal((await refused).code, "invalid_regenerate_code");
+
+  const changed = next<{ code: string }>(guest.socket, "room_code_changed");
+  host.socket.emit("regenerate_code", {});
+  const { code: newCode } = await changed;
+  assert.match(newCode, /^[A-Z0-9]{8}$/);
+  assert.notEqual(newCode, "OLD-CODE");
+
+  const late = open();
+  const lateError = next<{ message: string }>(late, "error");
+  late.emit("join_room", { code: "OLD-CODE", pseudo: "Late", playerUid: "uid-code-late-00000000" });
+  assert.match((await lateError).message, /room not found/);
+
+  // Les joueurs suivent : un message et une mise à jour de salon arrivent sous le nouveau code.
+  const update = next<{ code: string; players: unknown[] }>(host.socket, "room_updated", (payload) => payload.players.length === 3);
+  const newcomer = open();
+  const newcomerJoined = next(newcomer, "room_joined");
+  newcomer.emit("join_room", { code: newCode, pseudo: "Clara", playerUid: "uid-code-clara-0000000" });
+  await newcomerJoined;
+  assert.equal((await update).code, newCode);
+  const chat = next<{ text: string }>(guest.socket, "chat_message");
+  host.socket.emit("chat_send", { text: "toujours là ?" });
+  assert.equal((await chat).text, "toujours là ?");
+});

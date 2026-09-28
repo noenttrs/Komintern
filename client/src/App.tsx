@@ -38,6 +38,8 @@ import { ConfidenceResultScreen, ConfidenceVoteScreen, ProposalScreen } from "./
 import { SERVER_EVENTS } from "./events";
 import { seoFor } from "./seo";
 import { socket } from "./socket";
+import { openChannel, type PrivateMessage, type PrivateState } from "./streamer/channel";
+import { openPrivateWindow, streamerCapable, useStreamerMode } from "./streamer/streamer";
 import { availableStorage, recordFinishedGame } from "./supportBanner";
 
 import type { ConfidenceVote, MissionVote, RulesetPreset, UIPhase } from "./types";
@@ -88,6 +90,46 @@ function renderScreen(phase: UIPhase): JSX.Element {
 }
 
 
+
+/** Nouveau venu dans une room à admission sur demande : il attend l'accord de l'hôte. */
+function JoinPendingScreen({ code }: { code: string }): JSX.Element {
+  const { t } = useI18n();
+  return (
+    <main className="screen">
+      <section className="panel" role="status">
+        <h1>{t("admission.pendingTitle")}</h1>
+        <p>{t("admission.pendingText", { code })}</p>
+        <button type="button" className="secondary" onClick={() => window.location.assign("/")}>
+          {t("admission.cancel")}
+        </button>
+      </section>
+    </main>
+  );
+}
+
+/** Hôte : demandes d'entrée (pseudo seulement), à accepter ou refuser une par une. */
+function JoinRequestsPanel({ requests, onAccept, onRefuse }: { requests: Array<{ id: string; pseudo: string }>; onAccept: (id: string) => void; onRefuse: (id: string | "all") => void }): JSX.Element {
+  const { t } = useI18n();
+  return (
+    <aside className="absence-stack join-requests" aria-label={t("admission.requestsTitle")}>
+      <div className="absence-card">
+        <p><strong>{t("admission.requestsTitle")}</strong></p>
+        <ul className="join-requests__list">
+          {requests.map((request) => (
+            <li key={request.id}>
+              <span>{request.pseudo}</span>
+              <button type="button" onClick={() => onAccept(request.id)}>{t("admission.accept")}</button>
+              <button type="button" className="secondary" onClick={() => onRefuse(request.id)}>{t("admission.refuse")}</button>
+            </li>
+          ))}
+        </ul>
+        {requests.length > 1 ? (
+          <button type="button" className="link-button" onClick={() => onRefuse("all")}>{t("admission.refuseAll")}</button>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
 const PHASE_ANNOUNCEMENTS = {
   table_order: "announce.table_order",
   role_reveal: "announce.role_reveal",
@@ -338,7 +380,20 @@ export default function App(): JSX.Element {
     };
   }, []);
   const roleLabel = role.faction === "nazi" ? t("role.nazi") : role.faction === "communist" ? t("role.communist") : t("role.unknown");
-  const roleOverlay = (
+  const [streamerEnabled] = useStreamerMode();
+  const streamerMode = streamerEnabled && streamerCapable();
+  const roleDetails =
+    gameMeta.mode === "duel"
+      ? role.faction === "nazi" ? t("duel.roleNazi") : t("duel.roleCommunist")
+      : role.faction === "nazi"
+        ? t("role.allies", { names: naziAllies.length > 0 ? naziAllies.join(", ") : t("common.none") })
+        : t("role.onlyYou");
+  // Mode streamer : la fenêtre capturée ne montre jamais le rôle (il passe dans la fenêtre privée).
+  const roleOverlay = streamerMode ? (
+    <div>
+      <p>{t("streamer.roleHidden")}</p>
+    </div>
+  ) : (
     <div>
       <h2><FactionIcon faction={role.faction} /> {roleLabel}</h2>
       {gameMeta.mode === "duel" ? (
@@ -350,6 +405,35 @@ export default function App(): JSX.Element {
       )}
     </div>
   );
+
+  // Mode streamer : la fenêtre privée reçoit rôle, alliés et code (même navigateur, sans serveur).
+  useEffect(() => {
+    if (!streamerMode) return undefined;
+    const channel = openChannel();
+    if (channel === null) return undefined;
+    const state: PrivateState = {
+      code: roomCode,
+      link: roomCode === "" ? "" : `${window.location.origin}/r/${roomCode}`,
+      faction: role.faction,
+      roleLabel,
+      details: role.faction === null ? "" : roleDetails,
+    };
+    const send = () => channel.postMessage({ type: "state", state } satisfies PrivateMessage);
+    send();
+    channel.onmessage = (event: MessageEvent<PrivateMessage>) => {
+      if (event.data?.type === "hello") send();
+    };
+    return () => channel.close();
+  }, [streamerMode, roomCode, role.faction, roleLabel, roleDetails]);
+
+  // Hôte en mode streamer : admission sur demande d'office (une fois par room), contre l'afflux.
+  const streamerAdmissionRoom = useRef<string | null>(null);
+  useEffect(() => {
+    if (!streamerMode || !isHost || roomCode === "" || streamerAdmissionRoom.current === roomCode) return;
+    if (game.roomStatus !== "waiting" && game.roomStatus !== "finished") return;
+    streamerAdmissionRoom.current = roomCode;
+    if (game.admission === "open") game.setAdmission("request");
+  }, [streamerMode, isHost, roomCode, game]);
 
   useEffect(() => {
     setWaitingValidationStep(null);
@@ -709,6 +793,7 @@ export default function App(): JSX.Element {
     frontFooter,
     missionProgressLabel,
     autoAdvanceAt,
+    streamerMode,
   };
 
   const page =
@@ -769,7 +854,16 @@ export default function App(): JSX.Element {
         connection={connection}
         inRoom={roomCode !== ""}
       />
-      <ScreenProvider value={screenContext}>{renderScreen(phase)}</ScreenProvider>
+      <ScreenProvider value={screenContext}>{game.joinPending !== null ? <JoinPendingScreen code={game.joinPending} /> : renderScreen(phase)}</ScreenProvider>
+      {isHost && game.joinRequests.length > 0 && (game.roomStatus === "waiting" || game.roomStatus === "finished") ? (
+        <JoinRequestsPanel requests={game.joinRequests} onAccept={game.admitPlayer} onRefuse={game.rejectPlayer} />
+      ) : null}
+      {streamerMode ? (
+        <aside className="streamer-bar" aria-label={t("streamer.toggle")}>
+          <span>{t("streamer.bar")}</span>
+          <button type="button" className="secondary" onClick={openPrivateWindow}>{t("streamer.openPrivate")}</button>
+        </aside>
+      ) : null}
       {/* Lecteurs d'écran : chaque nouvelle étape de la partie est annoncée. */}
       <p className="sr-only" role="status" aria-live="polite">
         {phase in PHASE_ANNOUNCEMENTS ? t(PHASE_ANNOUNCEMENTS[phase as keyof typeof PHASE_ANNOUNCEMENTS]) : ""}

@@ -83,6 +83,12 @@ export interface GameState {
   autoAdvanceAt: number | null;
   /** Hôte : jeton du lien de la vue publique (grand écran, stream), une fois demandé. */
   spectateToken: string | null;
+  /** Admission des nouveaux venus : ouverte, ou sur demande (l'hôte accepte). */
+  admission: "open" | "request";
+  /** Hôte : demandes d'entrée en attente. */
+  joinRequests: Array<{ id: string; pseudo: string }>;
+  /** Code de la room dont on attend l'accord de l'hôte, ou null. */
+  joinPending: string | null;
 }
 
 export type GameAction =
@@ -175,6 +181,9 @@ export function initialGameState(pseudo: string, roomCode: string): GameState {
     invite: null,
     notice: null,
     spectateToken: null,
+    admission: "open",
+    joinRequests: [],
+    joinPending: null,
     gameMeta: { missionCount: 0 },
     ...gameReset(),
   };
@@ -213,6 +222,7 @@ function applyRoom(state: GameState, payload: unknown): GameState {
     isPublic: room.isPublic ?? state.isPublic,
     pace: room.pace ?? state.pace,
     revealRoles: room.revealRoles ?? state.revealRoles,
+    admission: room.admission ?? state.admission,
   };
 }
 
@@ -242,6 +252,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         myId: null,
         hostId: null,
         spectateToken: null,
+        joinRequests: [],
+        joinPending: null,
         players: [],
         chat: [],
         roomStatus: null,
@@ -263,7 +275,7 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
 
   switch (event) {
     case SERVER_EVENTS.ROOM_JOINED: {
-      const next = { ...applyRoom(state, raw), myId: stringValue(payload.playerId) ?? state.myId, error: null };
+      const next = { ...applyRoom(state, raw), myId: stringValue(payload.playerId) ?? state.myId, error: null, joinPending: null };
       if (next.roomStatus === "waiting") {
         return withPhase({ ...next, ...gameReset() }, "waiting_room");
       }
@@ -466,6 +478,32 @@ function applyServerEvent(state: GameState, event: string, raw: unknown): GameSt
 
     case SERVER_EVENTS.SPECTATE_LINK_READY:
       return { ...state, spectateToken: stringValue(payload.token) };
+
+    case SERVER_EVENTS.JOIN_REQUESTS:
+      return {
+        ...state,
+        joinRequests: Array.isArray(payload.requests)
+          ? payload.requests.map(toRecord).flatMap((entry) => {
+              const id = stringValue(entry.id);
+              return id === null ? [] : [{ id, pseudo: stringValue(entry.pseudo) ?? "?" }];
+            })
+          : [],
+      };
+
+    case SERVER_EVENTS.JOIN_PENDING:
+      return { ...state, joinPending: stringValue(payload.code) };
+
+    case SERVER_EVENTS.JOIN_REJECTED:
+      return {
+        ...state,
+        joinPending: null,
+        notice: { message: translate(payload.reason === "code_changed" ? "admission.codeChanged" : "admission.rejected"), id: ++errorCounter },
+      };
+
+    case SERVER_EVENTS.ROOM_CODE_CHANGED: {
+      const code = stringValue(payload.code);
+      return code === null ? state : { ...state, roomCode: code, spectateToken: null, notice: { message: translate("admission.newCodeNotice", { code }), id: ++errorCounter } };
+    }
 
     case SERVER_EVENTS.CHAT_HISTORY:
       return {

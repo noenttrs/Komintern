@@ -18,8 +18,8 @@ import { log } from "./logger";
 import { scanMessage } from "./moderation/filter";
 import { ModerationPanel } from "./moderation/panel";
 import { EngineError } from "./PythonBridge";
-import { RoomManager } from "./RoomManager";
-import type { AnySession, RoomManagerOptions } from "./RoomManager";
+import { AdmissionRequired, RoomManager } from "./RoomManager";
+import type { AnySession, JoinRequest, RoomManagerOptions } from "./RoomManager";
 import { parsePushSubscription } from "./push/push";
 import { createServices, createStores } from "./services";
 import type { Services, Stores } from "./services";
@@ -130,6 +130,8 @@ export function createKominternApp(options: AppOptions): KominternApp {
       // Parties des tests automatiques (room au préfixe secret) : ni journal ni stats.
       onGameRecorded: (game) => (isTestRoom(config, game.roomCode) ? Promise.resolve() : services.recordGame(game)),
       onUsersInGame: (userIds, inGame) => services.presence.setInGame(userIds, inGame),
+      // Passage en admission ouverte : les demandes en attente entrent d'office.
+      onAdmitted: (code, request) => void enterAdmitted(code, request),
       onReplayChoice: (code, gameId, choice) => {
         if (isTestRoom(config, code)) return;
         services.gameLogs.recordReplayChoice(gameId, choice).catch((error: unknown) => log.warn("replay choice not recorded", { error }));
@@ -252,7 +254,21 @@ export function createKominternApp(options: AppOptions): KominternApp {
     }
 
     const user = userBySocket.get(socket.id);
-    const { playerId, replacedSocketId } = roomManager.joinRoom(roomId, socket.id, playerUid, user?.userId);
+    let joined: ReturnType<typeof roomManager.joinRoom>;
+    try {
+      joined = roomManager.joinRoom(roomId, socket.id, playerUid, user?.userId);
+    } catch (error) {
+      if (!(error instanceof AdmissionRequired)) throw error;
+      // Admission sur demande : le nouveau venu attend, l'hôte reçoit sa demande (pseudo seulement).
+      if (!(await allow(services.kv, "join-request", clientIp(socket.request), 10, 600))) {
+        throw new Error("too many attempts, try again later");
+      }
+      const requestPseudo = user?.displayName ?? pseudo ?? pendingPseudoBySocket.get(socket.id) ?? "?";
+      roomManager.requestJoin(roomId, { socketId: socket.id, playerUid, userId: user?.userId, pseudo: requestPseudo });
+      socket.emit(SERVER_EVENTS.JOIN_PENDING, { code: roomId });
+      return;
+    }
+    const { playerId, replacedSocketId } = joined;
     if (replacedSocketId !== undefined) {
       // Le siège passe au nouveau socket : l'ancien ne peut plus agir en son nom.
       socketContext.delete(replacedSocketId);
@@ -273,10 +289,25 @@ export function createKominternApp(options: AppOptions): KominternApp {
       roomManager.setPseudo(roomId, playerId, effectivePseudo);
     }
     socket.emit(SERVER_EVENTS.CHAT_HISTORY, { messages: roomManager.getChat(roomId) });
+    // L'hôte qui (re)vient retrouve les demandes en attente.
+    if (roomManager.getRoomPayload(roomId).hostPlayerId === playerId) {
+      socket.emit(SERVER_EVENTS.JOIN_REQUESTS, { requests: roomManager.getJoinRequests(roomId) });
+    }
 
     const session = roomManager.getSession(roomId);
     if (session !== undefined && session.hasPlayer(playerId)) {
       await session.syncPlayer(playerId);
+    }
+  }
+
+  /** Fait entrer un demandeur accepté (son socket attend, hors de la room). */
+  async function enterAdmitted(roomId: string, request: JoinRequest): Promise<void> {
+    const requester = io.sockets.sockets.get(request.socketId);
+    if (requester === undefined) return;
+    try {
+      await attach(requester, roomId, request.playerUid, request.pseudo);
+    } catch (error) {
+      emitError(requester, "invalid_join_room", error);
     }
   }
 
@@ -474,6 +505,34 @@ export function createKominternApp(options: AppOptions): KominternApp {
       if (payload.pace === "classic" || payload.pace === "quick") {
         roomManager.setPace(context.roomId, context.playerId, payload.pace);
       }
+      if (payload.admission === "open" || payload.admission === "request") {
+        roomManager.setAdmission(context.roomId, context.playerId, payload.admission);
+      }
+    });
+
+    on(socket, CLIENT_EVENTS.ADMIT_PLAYER, "invalid_admission", async (payload) => {
+      const context = requireContext(socket);
+      const request = roomManager.admit(context.roomId, context.playerId, typeof payload.requestId === "string" ? payload.requestId : "");
+      await enterAdmitted(context.roomId, request);
+    });
+
+    on(socket, CLIENT_EVENTS.REJECT_PLAYER, "invalid_admission", (payload) => {
+      const context = requireContext(socket);
+      const requestId = payload.requestId === "all" ? "all" : typeof payload.requestId === "string" ? payload.requestId : "";
+      for (const request of roomManager.reject(context.roomId, context.playerId, requestId)) {
+        io.to(request.socketId).emit(SERVER_EVENTS.JOIN_REJECTED, { reason: "rejected" });
+      }
+    });
+
+    on(socket, CLIENT_EVENTS.REGENERATE_CODE, "invalid_regenerate_code", () => {
+      const context = requireContext(socket);
+      const oldCode = context.roomId;
+      const { newCode, dropped } = roomManager.regenerateCode(oldCode, context.playerId);
+      for (const [socketId, entry] of socketContext) {
+        if (entry.roomId === oldCode) socketContext.set(socketId, { ...entry, roomId: newCode });
+      }
+      io.to(newCode).emit(SERVER_EVENTS.ROOM_CODE_CHANGED, { code: newCode });
+      for (const request of dropped) io.to(request.socketId).emit(SERVER_EVENTS.JOIN_REJECTED, { reason: "code_changed" });
     });
 
     on(socket, CLIENT_EVENTS.SET_PSEUDO, "invalid_pseudo", (payload) => {
@@ -624,6 +683,7 @@ export function createKominternApp(options: AppOptions): KominternApp {
 
     socket.on("disconnect", () => {
       log.debug("socket disconnected", { socketId: socket.id });
+      roomManager.dropJoinRequests(socket.id);
       const user = userBySocket.get(socket.id);
       userBySocket.delete(socket.id);
       if (user !== undefined) {

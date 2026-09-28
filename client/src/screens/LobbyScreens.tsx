@@ -289,6 +289,10 @@ export function WaitingRoomScreen(): JSX.Element {
     leaveRoom,
     spectateToken,
     requestSpectateLink,
+    streamerMode,
+    admission,
+    setAdmission,
+    regenerateCode,
   } = useScreen();
   const { t } = useI18n();
   const quickPaceAvailable = (flexibleRoom ? players.length : targetPlayerCount) >= QUICK_PACE_MIN_PLAYERS;
@@ -298,9 +302,9 @@ export function WaitingRoomScreen(): JSX.Element {
     <main className="screen">
       <section className="panel panel--scroll">
         <SupportBanner phase="waiting_room" />
-        <RoomInvite code={roomCode} />
+        <RoomInvite code={roomCode} masked={streamerMode} />
         <h1>{t("waiting.title")}</h1>
-        <RoomSummary chatEnabled={chatEnabled} isPublic={isPublic} pace={pace} showPace={quickPaceAvailable} revealRoles={revealRoles} />
+        <RoomSummary chatEnabled={chatEnabled} isPublic={isPublic} pace={pace} showPace={quickPaceAvailable} revealRoles={revealRoles} admission={admission} />
         <p className="mono">
           {flexibleRoom
             ? t("waiting.playersFlexible", { count: players.length, min: minPlayers, max: targetPlayerCount })
@@ -352,6 +356,25 @@ export function WaitingRoomScreen(): JSX.Element {
               ) : (
                 <p className="field-hint">{t("createRoom.publicLoginHint")}</p>
               )}
+              <span className="field-label" id="admission-label">{t("admission.label")}</span>
+              <div className="segmented" role="radiogroup" aria-labelledby="admission-label">
+                <button type="button" role="radio" aria-checked={admission === "open"} className={admission === "open" ? "" : "secondary"} onClick={() => setAdmission("open")}>
+                  {t("admission.open")}
+                </button>
+                <button type="button" role="radio" aria-checked={admission === "request"} className={admission === "request" ? "" : "secondary"} onClick={() => setAdmission("request")}>
+                  {t("admission.request")}
+                </button>
+              </div>
+              <p className="field-hint">{admission === "request" ? t("admission.requestHint") : t("admission.openHint")}</p>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  if (window.confirm(t("admission.newCodeConfirm"))) regenerateCode();
+                }}
+              >
+                {t("admission.newCode")}
+              </button>
             </SettingsSection>
             <SettingsSection title={t("board.section")}>
               <p className="field-hint">{t("board.hint")}</p>
