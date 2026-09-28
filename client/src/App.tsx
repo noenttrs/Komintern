@@ -91,6 +91,46 @@ function renderScreen(phase: UIPhase): JSX.Element {
 
 
 
+
+
+/** Vrai tant que la requête média correspond (suit le redimensionnement de la fenêtre). */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia?.(query).matches === true);
+  useEffect(() => {
+    const list = window.matchMedia?.(query);
+    if (list === undefined) return undefined;
+    const update = () => setMatches(list.matches);
+    list.addEventListener?.("change", update);
+    return () => list.removeEventListener?.("change", update);
+  }, [query]);
+  return matches;
+}
+function ShortcutsHelp({ onClose }: { onClose: () => void }): JSX.Element {
+  const { t } = useI18n();
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="tip-overlay" onClick={onClose}>
+      <div className="tip-card" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" onClick={(event) => event.stopPropagation()}>
+        <h2 id="shortcuts-title">{t("desk.shortcutsTitle")}</h2>
+        <ul className="shortcuts-list">
+          <li>{t("desk.keyRole")}</li>
+          <li>{t("desk.keyYesNo")}</li>
+          <li>{t("desk.keyMission")}</li>
+          <li>{t("desk.keyEnter")}</li>
+          <li>{t("desk.keyHistory")}</li>
+          <li>{t("desk.keyHelp")}</li>
+        </ul>
+        <button type="button" onClick={onClose}>{t("common.close")}</button>
+      </div>
+    </div>
+  );
+}
 /** Nouveau venu dans une room à admission sur demande : il attend l'accord de l'hôte. */
 function JoinPendingScreen({ code }: { code: string }): JSX.Element {
   const { t } = useI18n();
@@ -406,6 +446,36 @@ export default function App(): JSX.Element {
     </div>
   );
 
+  // Raccourcis clavier (ordinateur) : votes, valider / passer, aide. Rôle (R) et historique (H)
+  // sont gérés par la carte elle-même. Rien pendant la saisie (chat, champs).
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const wideScreen = useMediaQuery("(min-width: 1100px)");
+  useEffect(() => {
+    if (route.page !== "game") return undefined;
+    const onKey = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      if (event.ctrlKey || event.metaKey || event.altKey || target?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = event.key.toLowerCase();
+      if (key === "?") {
+        setShowShortcuts((current) => !current);
+        return;
+      }
+      if (["o", "n", "c", "s"].includes(key)) {
+        document.querySelector<HTMLButtonElement>(`.card__face--front [data-shortcut="${key}"]:not(:disabled)`)?.click();
+        return;
+      }
+      // Entrée sur un bouton ou un lien : c'est lui qui réagit (comportement natif).
+      if (key === "enter" && target?.closest("button, a, summary") == null) {
+        // Même effet qu'un appui sur la carte : prendre sa place, passer un résultat, valider l'ordre.
+        const primary = document.querySelector<HTMLButtonElement>(".card__face--front .card__actions .inline-action:not(:disabled)");
+        if (phase === "mission_proposal" && primary !== null) primary.click();
+        else document.querySelector(".card-zone")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [route.page, phase]);
+
   // Mode streamer : la fenêtre privée reçoit rôle, alliés et code (même navigateur, sans serveur).
   useEffect(() => {
     if (!streamerMode) return undefined;
@@ -575,6 +645,64 @@ export default function App(): JSX.Element {
         </button>
       </div>
     </div>
+  );
+
+  // Ordinateur (grand écran) : joueurs et historique toujours visibles à côté de la carte.
+  const desktopSide = (
+    <aside className="desk-side" aria-label={t("desk.label")}>
+      <section className="desk-block">
+        <h2 className="field-label">{t("desk.players")}</h2>
+        <ol className="desk-players">
+          {orderReference.map((id) => {
+            const entry = players.find((player) => player.id === id);
+            const tags = [
+              proposal.chefId === id ? t("desk.chef") : null,
+              proposal.proposedTeam.includes(id) ? t("desk.team") : null,
+              phase === "mission_execution" && mission.submittedPlayerIds.includes(id) ? t("desk.voted") : null,
+              entry?.isAfk === true || entry?.absence ? t("desk.away") : null,
+            ].filter((tag): tag is string => tag !== null);
+            return (
+              <li key={id} className={id === myId ? "desk-players__me" : undefined}>
+                <span>{nameById(id)}{id === myId ? ` ${t("desk.you")}` : ""}</span>
+                {tags.length > 0 ? <span className="desk-players__tags">{tags.join(" · ")}</span> : null}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+      <section className="desk-block">
+        <h2 className="field-label">{t("history.missions")}</h2>
+        {missionSummaryEntries.length > 0 ? (
+          <ul className="back-list">
+            {missionSummaryEntries.map((entry) => (
+              <li key={`desk-mission-${entry.missionIndex}`}>
+                <strong className="back-index">{entry.missionIndex}</strong> <strong>{entry.winner}</strong> · <span>{entry.votesLabel}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="back-empty">{t("history.noMissions")}</p>
+        )}
+      </section>
+      <section className="desk-block">
+        <h2 className="field-label">{t("history.votes")}</h2>
+        {confidenceHistory.length > 0 ? (
+          <ul className="back-list">
+            {[...confidenceHistory].reverse().map((entry, index) => (
+              <li key={`desk-vote-${index}`}>
+                <span>
+                  <strong className="back-index">{entry.missionIndex}</strong> {renderNamesWithPipes(entry.team.map(nameById))}
+                </span>
+                <VoteSplit votes={entry.votes} nameById={nameById} compact />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="back-empty">{t("history.noLastVote")}</p>
+        )}
+      </section>
+      <p className="desk-shortcuts mono">{t("desk.shortcutsHint")}</p>
+    </aside>
   );
 
   const expandedBackContent = (
@@ -855,6 +983,8 @@ export default function App(): JSX.Element {
         inRoom={roomCode !== ""}
       />
       <ScreenProvider value={screenContext}>{game.joinPending !== null ? <JoinPendingScreen code={game.joinPending} /> : renderScreen(phase)}</ScreenProvider>
+      {wideScreen && route.page === "game" && isGamePhaseUi(phase) ? desktopSide : null}
+      {showShortcuts ? <ShortcutsHelp onClose={() => setShowShortcuts(false)} /> : null}
       {isHost && game.joinRequests.length > 0 && (game.roomStatus === "waiting" || game.roomStatus === "finished") ? (
         <JoinRequestsPanel requests={game.joinRequests} onAccept={game.admitPlayer} onRefuse={game.rejectPlayer} />
       ) : null}

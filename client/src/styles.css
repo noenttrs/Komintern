@@ -319,6 +319,8 @@ p {
   font-size: 0.73rem;
   z-index: 5;
   column-gap: 0.55rem;
+  /* Écart avec le bord arrondi de la carte : le score de droite n'est jamais rogné. */
+  padding: 0 0.9rem;
 }
 
 .score-line > span:nth-child(1) {
@@ -2632,4 +2634,87 @@ html:has(.board--transparent) #root {
 
 .private-window__secret strong {
   font-size: 1.4rem;
+}
+
+/* ------------------------------------------------------------------ ordinateur : panneau et chat ancrés */
+
+.desk-side {
+  display: none;
+}
+
+.shortcuts-list {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.1rem;
+  text-align: left;
+}
+
+@media (min-width: 1100px) {
+  .desk-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: 20rem;
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    padding: 1.25rem 1rem;
+    overflow-y: auto;
+    border-right: 1px solid var(--line-soft);
+    background: var(--bg);
+  }
+
+  .desk-block {
+    display: grid;
+    gap: 0.5rem;
+    text-align: left;
+  }
+
+  .desk-block h2 {
+    text-align: left;
+  }
+
+  .desk-block .back-list li {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .desk-players {
+    display: grid;
+    gap: 0.35rem;
+    padding-left: 1.3rem;
+  }
+
+  .desk-players li {
+    display: grid;
+  }
+
+  .desk-players__me {
+    font-weight: 600;
+  }
+
+  .desk-players__tags {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+
+  .desk-shortcuts {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+  }
+
+  /* Chat ancré sur toute la hauteur à droite. */
+  .chat-panel {
+    top: 4rem;
+    bottom: var(--screen-gap);
+    height: auto;
+  }
+
+  /* Le bandeau du mode streamer passe au-dessus du panneau de gauche. */
+  .streamer-bar {
+    z-index: 45;
+  }
 }

@@ -185,7 +185,7 @@ for (const device of DEVICES) {
         await expect(player.page.getByRole("heading", { name: "Vote de confiance" }).first()).toBeVisible();
         if (round === 1 && index === 0) await check(player.page, tag("06-vote-confiance"));
         await dismissTip(player.page);
-        await player.page.getByRole("button", { name: "✓" }).first().click();
+        await player.page.getByRole("button", { name: "Pour" }).first().click();
       }
       // Résultat du vote : passe seul après le compte à rebours ; toucher l'écran accélère.
       await expect(players[0]!.page.getByText("Majorité POUR")).toBeVisible();

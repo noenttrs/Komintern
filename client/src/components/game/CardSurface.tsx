@@ -96,6 +96,37 @@ export function CardSurface({
   // Écran quitté en plein appui long : on ne laisse pas la garde active.
   useEffect(() => () => endHold(), []);
 
+  // Clavier (ordinateur) : maintenir R = voir son rôle, H = retourner la carte (historique).
+  const latest = useRef({ overlay, back, onOverlayShown, onOverlayHidden });
+  latest.current = { overlay, back, onOverlayShown, onOverlayHidden };
+  useEffect(() => {
+    const typing = (event: KeyboardEvent) =>
+      event.ctrlKey || event.metaKey || event.altKey || (event.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]") != null;
+    const onDown = (event: KeyboardEvent) => {
+      if (typing(event) || event.repeat) return;
+      const key = event.key.toLowerCase();
+      if (key === "r" && latest.current.overlay !== undefined) {
+        setShowOverlay(true);
+        latest.current.onOverlayShown?.();
+      } else if (key === "h" && latest.current.back !== undefined) {
+        setHistory((current) => !current);
+      }
+    };
+    const onUp = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "r") return;
+      setShowOverlay((shown) => {
+        if (shown) latest.current.onOverlayHidden?.();
+        return false;
+      });
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+    };
+  }, []);
+
   const showBack = history && back !== undefined;
 
   return (
