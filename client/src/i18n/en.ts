@@ -828,6 +828,12 @@ export const en: Dictionary = {
     seeRole: "See my role (hold)",
     takeSeat: "Take my seat",
   },
+  installBanner: {
+    label: "Install the app",
+    text: "Install Nazi Communiste on your home screen: it opens like an app and tells you when it's your turn, even with the screen locked.",
+    install: "Install",
+    later: "Later",
+  },
   insights: {
     tab: "Charts",
     hint: "Aggregated figures, no nickname or identifiable account. Games from the last 30 days, accounts and retention over 12 weeks; automated test games are not counted.",

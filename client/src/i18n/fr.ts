@@ -827,6 +827,12 @@ export const fr = {
     seeRole: "Voir mon rôle (maintenir)",
     takeSeat: "Prendre ma place",
   },
+  installBanner: {
+    label: "Installer l'application",
+    text: "Installez Nazi Communiste sur votre écran d'accueil : il s'ouvre comme une appli et vous prévient de votre tour, même écran verrouillé.",
+    install: "Installer",
+    later: "Plus tard",
+  },
   insights: {
     tab: "Graphiques",
     hint: "Chiffres agrégés, sans pseudo ni compte identifiable. Parties des 30 derniers jours, comptes et rétention sur 12 semaines ; les parties des tests automatiques ne sont pas comptées.",

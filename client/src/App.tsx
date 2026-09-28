@@ -219,6 +219,16 @@ export default function App(): JSX.Element {
     }
   }, [inviteCode, phase, roomCode, joinRoom]);
 
+  // Raccourcis de l'app installée (?action=creer|rejoindre) : écran correspondant dès l'accueil.
+  const [shortcut, setShortcut] = useState(() => new URLSearchParams(window.location.search).get("action"));
+  useEffect(() => {
+    if (shortcut === null || phase !== "landing") return;
+    window.history.replaceState({}, "", window.location.pathname);
+    setShortcut(null);
+    if (shortcut === "creer") navigate("create_room");
+    else if (shortcut === "rejoindre") navigate("join_room");
+  }, [shortcut, phase, navigate]);
+
   // Retour de la connexion Google (?auth=ok|error|banned).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -637,6 +647,7 @@ export default function App(): JSX.Element {
   const screenContext: ScreenContextValue = {
     ...game,
     account,
+    install,
     inviteCode,
     joinCodeDraft,
     setJoinCodeDraft,

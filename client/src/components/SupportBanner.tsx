@@ -10,6 +10,11 @@ import type { UIPhase } from "../types";
 let shownThisVisit = false;
 let dismissedThisVisit = false;
 
+/** Le bandeau de soutien est affiché pendant cette visite (un seul bandeau à la fois). */
+export function supportBannerShownThisVisit(): boolean {
+  return shownThisVisit && !dismissedThisVisit;
+}
+
 /** Réservé aux tests. */
 export function resetSupportBannerVisit(): void {
   shownThisVisit = false;

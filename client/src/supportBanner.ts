@@ -60,6 +60,11 @@ function write(storage: KeyValueStorage, state: BannerState): void {
   }
 }
 
+/** Nombre de parties terminées dans ce navigateur (bandeaux de soutien et d'installation). */
+export function finishedGamesCount(storage: KeyValueStorage | null): number {
+  return storage === null ? 0 : read(storage).finishedGames;
+}
+
 /** Une partie vient de se terminer dans ce navigateur. */
 export function recordFinishedGame(storage: KeyValueStorage | null): void {
   if (storage === null) return;

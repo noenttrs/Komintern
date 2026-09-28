@@ -1,6 +1,7 @@
 import { createContext, type Dispatch, type SetStateAction, useContext } from "react";
 
 import type { useAccount } from "../hooks/useAccount";
+import type { useInstallPrompt } from "../hooks/useInstallPrompt";
 import type { UseGameSocketResult } from "../hooks/useGameSocket";
 import type { ConfidenceVote, MissionVote, RulesetPreset } from "../types";
 
@@ -15,6 +16,7 @@ export type InfoMode = "full" | "partial" | "blind";
  */
 export type ScreenContextValue = UseGameSocketResult & {
   account: ReturnType<typeof useAccount>;
+  install: ReturnType<typeof useInstallPrompt>;
   inviteCode: string | null;
 
   // Brouillons des écrans de création / d'entrée dans une room (conservés dans App pour survivre aux allers-retours).

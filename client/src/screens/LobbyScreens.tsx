@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 
+import { InstallBanner } from "../components/InstallBanner";
 import { PublicRooms } from "../components/PublicRooms";
 import { QrScanner } from "../components/QrScanner";
 import { RoomInvite } from "../components/RoomInvite";
@@ -27,12 +28,13 @@ export function PseudoEntryScreen(): JSX.Element {
 }
 
 export function LandingScreen(): JSX.Element {
-  const { pseudo, navigate } = useScreen();
+  const { pseudo, navigate, install } = useScreen();
   const { t } = useI18n();
   return (
     <main className="screen">
       <section className="panel">
         <SupportBanner phase="landing" />
+        <InstallBanner install={install} />
         <p className="mono">{pseudo || t("landing.noPseudo")}</p>
         <h1>Nazi Communiste</h1>
         <button type="button" onClick={() => navigate("create_room")}>

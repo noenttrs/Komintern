@@ -51,3 +51,22 @@ test("page prérendue : l'application prend le relais", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(page).toHaveTitle(/Jeu de bluff en ligne/);
 });
+
+test("manifest : installation enrichie (captures, raccourcis, identifiant)", async ({ request }) => {
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  expect(manifest.id).toBe("/");
+  expect(manifest.categories).toContain("games");
+  expect(manifest.screenshots.some((shot: { form_factor: string }) => shot.form_factor === "wide")).toBe(true);
+  expect(manifest.screenshots.some((shot: { form_factor: string }) => shot.form_factor === "narrow")).toBe(true);
+  for (const shot of manifest.screenshots as Array<{ src: string }>) expect((await request.get(shot.src)).status(), shot.src).toBe(200);
+  expect(manifest.shortcuts.map((entry: { url: string }) => entry.url)).toEqual(["/?action=creer", "/?action=rejoindre", "/regles"]);
+  expect(manifest.icons.some((icon: { purpose?: string }) => icon.purpose === "maskable")).toBe(true);
+});
+
+test("raccourci de l'app : « Créer une room » ouvre directement la création", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.setItem("komintern.pseudo", "Raccourci"));
+  await page.goto("/?action=creer");
+  await expect(page.getByPlaceholder("Nom de room (optionnel)")).toBeVisible();
+  expect(new URL(page.url()).search).toBe("");
+});
