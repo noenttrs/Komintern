@@ -172,7 +172,8 @@ for (const device of DEVICES) {
           }
         }
         return false;
-      }).toBe(true);
+        // Le résultat de mission précédent peut rester affiché 8 s (enchaînement automatique).
+      }, { timeout: 15_000 }).toBe(true);
       await dismissTip(chef!.page);
       const teamSize = Number((await chef!.page.getByText(/Choisir l'équipe/).innerText()).match(/\d+/)?.[0]);
       if (round === 1) await check(chef!.page, tag("05-proposition-chef"));

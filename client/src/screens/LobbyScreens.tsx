@@ -4,6 +4,7 @@ import { InstallBanner } from "../components/InstallBanner";
 import { PublicRooms } from "../components/PublicRooms";
 import { QrScanner } from "../components/QrScanner";
 import { RoomInvite } from "../components/RoomInvite";
+import { RoomSettingsSheet, RoomSummary, SettingsSection } from "../components/RoomSettings";
 import { SupportBanner } from "../components/SupportBanner";
 import { useI18n } from "../i18n";
 import { PLAYABLE_PRESETS, QUICK_PACE_MIN_PLAYERS, type RulesetPreset } from "../types";
@@ -85,14 +86,6 @@ export function CreateRoomScreen(): JSX.Element {
     <main className="screen">
       <section className="panel panel--scroll">
         <h1>{t("createRoom.title")}</h1>
-        <input
-          value={roomNameDraft}
-          onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
-          maxLength={24}
-          aria-label={t("createRoom.namePlaceholder")}
-          placeholder={t("createRoom.namePlaceholder")}
-        />
-
         <span className="field-label" id="play-mode-label">{t("createRoom.playModeLabel")}</span>
         <div className="segmented" role="radiogroup" aria-labelledby="play-mode-label">
           <button type="button" role="radio" aria-checked={!remotePlay} className={remotePlay ? "secondary" : ""} onClick={() => setRemotePlay(false)}>
@@ -104,6 +97,16 @@ export function CreateRoomScreen(): JSX.Element {
         </div>
         <p className="field-hint">{remotePlay || publicDraft ? t("createRoom.chatHint") : t("createRoom.noChatHint")}</p>
 
+        {/* Options secondaires repliées : l'essentiel (où l'on joue) reste visible. */}
+        <details className="create-more">
+          <summary>{t("createRoom.moreOptions")}</summary>
+          <input
+            value={roomNameDraft}
+            onChange={(event) => setRoomNameDraft(event.target.value.toUpperCase())}
+            maxLength={24}
+            aria-label={t("createRoom.namePlaceholder")}
+            placeholder={t("createRoom.namePlaceholder")}
+          />
         <span className="field-label" id="visibility-label">{t("createRoom.visibilityLabel")}</span>
         <div className="segmented" role="radiogroup" aria-labelledby="visibility-label">
           <button type="button" role="radio" aria-checked={!publicDraft} className={publicDraft ? "secondary" : ""} onClick={() => setPublicDraft(false)}>
@@ -190,6 +193,8 @@ export function CreateRoomScreen(): JSX.Element {
             </label>
           </>
         ) : null}
+
+        </details>
 
         <button
           type="button"
@@ -285,59 +290,68 @@ export function WaitingRoomScreen(): JSX.Element {
   } = useScreen();
   const { t } = useI18n();
   const quickPaceAvailable = (flexibleRoom ? players.length : targetPlayerCount) >= QUICK_PACE_MIN_PLAYERS;
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
   return (
     <main className="screen">
       <section className="panel panel--scroll">
         <SupportBanner phase="waiting_room" />
         <RoomInvite code={roomCode} />
         <h1>{t("waiting.title")}</h1>
-        <p className="mono">
-          {isPublic ? t("waiting.publicPrefix") : ""}
-          {chatEnabled ? t("waiting.remoteChat") : t("waiting.localNoChat")}
-        </p>
-        {isHost && account.status === "user" ? (
-          <label className="checkbox-row">
-            <input type="checkbox" checked={isPublic} onChange={(event) => setPublicRoom(event.target.checked)} />
-            {t("waiting.publicToggle")}
-          </label>
-        ) : null}
+        <RoomSummary chatEnabled={chatEnabled} isPublic={isPublic} pace={pace} showPace={quickPaceAvailable} revealRoles={revealRoles} />
         <p className="mono">
           {flexibleRoom
             ? t("waiting.playersFlexible", { count: players.length, min: minPlayers, max: targetPlayerCount })
             : t("waiting.playersFixed", { count: players.length, max: targetPlayerCount })}
         </p>
-        {/* Partie rapide : proposée seulement quand la règle classique dépasse 5 missions (6 joueurs et plus). */}
-        {quickPaceAvailable && isHost ? (
-          <>
-            <div className="segmented" role="radiogroup" aria-label={t("createRoom.paceLabel")}>
-              <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
-                {t("createRoom.paceClassic")}
-              </button>
-              <button type="button" role="radio" aria-checked={pace === "quick"} className={pace === "quick" ? "" : "secondary"} onClick={() => setPace("quick")}>
-                {t("createRoom.paceQuick")}
-              </button>
-            </div>
-            <p className="field-hint">{pace === "quick" ? t("createRoom.paceQuickHint") : t("createRoom.paceClassicHint")}</p>
-          </>
+        {isHost ? (
+          <button type="button" className="secondary" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
+            {t("roomSettings.open")}
+          </button>
         ) : null}
-        {quickPaceAvailable && !isHost ? <p className="mono">{pace === "quick" ? t("createRoom.paceQuick") : t("createRoom.paceClassic")}</p> : null}
-        {isHost ? (
-          <label className="checkbox-row">
-            <input type="checkbox" checked={revealRoles} onChange={(event) => setRevealRoles(event.target.checked)} />
-            {t("createRoom.revealRoles")}
-          </label>
-        ) : (
-          <p className="mono">{revealRoles ? t("waiting.revealOn") : t("waiting.revealOff")}</p>
-        )}
-        {isHost ? (
-          <div className="segmented" role="radiogroup" aria-label={t("waiting.modeLabel")}>
-            <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>
-              {t("createRoom.local")}
-            </button>
-            <button type="button" role="radio" aria-checked={chatEnabled} className={chatEnabled ? "" : "secondary"} onClick={() => setChatMode(true)}>
-              {t("createRoom.remote")}
-            </button>
-          </div>
+        {isHost && settingsOpen ? (
+          <RoomSettingsSheet onClose={closeSettings}>
+            <SettingsSection title={t("roomSettings.sectionGame")}>
+              {/* Partie rapide : proposée seulement quand la règle classique dépasse 5 missions (6 joueurs et plus). */}
+              {quickPaceAvailable ? (
+                <>
+                  <div className="segmented" role="radiogroup" aria-label={t("createRoom.paceLabel")}>
+                    <button type="button" role="radio" aria-checked={pace === "classic"} className={pace === "classic" ? "" : "secondary"} onClick={() => setPace("classic")}>
+                      {t("createRoom.paceClassic")}
+                    </button>
+                    <button type="button" role="radio" aria-checked={pace === "quick"} className={pace === "quick" ? "" : "secondary"} onClick={() => setPace("quick")}>
+                      {t("createRoom.paceQuick")}
+                    </button>
+                  </div>
+                  <p className="field-hint">{pace === "quick" ? t("createRoom.paceQuickHint") : t("createRoom.paceClassicHint")}</p>
+                </>
+              ) : (
+                <p className="field-hint">{t("roomSettings.quickFrom", { count: QUICK_PACE_MIN_PLAYERS })}</p>
+              )}
+              <label className="checkbox-row">
+                <input type="checkbox" checked={revealRoles} onChange={(event) => setRevealRoles(event.target.checked)} />
+                {t("createRoom.revealRoles")}
+              </label>
+            </SettingsSection>
+            <SettingsSection title={t("roomSettings.sectionRoom")}>
+              <div className="segmented" role="radiogroup" aria-label={t("waiting.modeLabel")}>
+                <button type="button" role="radio" aria-checked={!chatEnabled} className={chatEnabled ? "secondary" : ""} onClick={() => setChatMode(false)}>
+                  {t("createRoom.local")}
+                </button>
+                <button type="button" role="radio" aria-checked={chatEnabled} className={chatEnabled ? "" : "secondary"} onClick={() => setChatMode(true)}>
+                  {t("createRoom.remote")}
+                </button>
+              </div>
+              {account.status === "user" ? (
+                <label className="checkbox-row">
+                  <input type="checkbox" checked={isPublic} onChange={(event) => setPublicRoom(event.target.checked)} />
+                  {t("waiting.publicToggle")}
+                </label>
+              ) : (
+                <p className="field-hint">{t("createRoom.publicLoginHint")}</p>
+              )}
+            </SettingsSection>
+          </RoomSettingsSheet>
         ) : null}
         <ul className="plain-list lobby-players">
           {players.map((player) => (

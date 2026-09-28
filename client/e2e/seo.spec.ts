@@ -67,6 +67,6 @@ test("raccourci de l'app : « Créer une room » ouvre directement la création"
   await page.goto("/");
   await page.evaluate(() => window.localStorage.setItem("komintern.pseudo", "Raccourci"));
   await page.goto("/?action=creer");
-  await expect(page.getByPlaceholder("Nom de room (optionnel)")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Création de room" })).toBeVisible();
   expect(new URL(page.url()).search).toBe("");
 });

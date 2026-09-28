@@ -74,7 +74,9 @@ test("visite guidée : partie rapide à 14 joueurs", async ({ browser }) => {
   }
   await expect(host.getByText("14 joueurs · de 2 à 14")).toBeVisible();
   // Partie rapide : proposée à l'hôte dans le salon, à partir de 6 joueurs.
+  await host.getByRole("button", { name: "Paramètres de la room" }).click();
   await host.getByRole("radio", { name: "Rapide" }).click();
+  await host.getByRole("button", { name: "OK" }).click();
   await shot(host, "02-salon-14-hote");
   await shot(guest, "03-salon-14-invite");
   await host.getByRole("button", { name: "QR code" }).click();

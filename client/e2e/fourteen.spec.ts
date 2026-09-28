@@ -54,7 +54,10 @@ test("partie rapide à 14 joueurs sur téléphone", async ({ browser }) => {
   }
   await expect(host.getByText("14 joueurs · de 2 à 14")).toBeVisible();
   // Partie rapide : proposée à l'hôte dans le salon, à partir de 6 joueurs.
+  await host.getByRole("button", { name: "Paramètres de la room" }).click();
   await host.getByRole("radio", { name: "Rapide" }).click();
+  await host.screenshot({ path: "e2e/screenshots/fourteen-00-parametres.png" });
+  await host.getByRole("button", { name: "OK" }).click();
   await host.screenshot({ path: "e2e/screenshots/fourteen-01-salon.png" });
   expect(await layoutProblems(host)).toEqual([]);
 

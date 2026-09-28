@@ -2374,3 +2374,36 @@ textarea {
     text-decoration: underline;
   }
 }
+
+/* Paramètres de la room : feuille groupée par section. */
+.settings-sheet {
+  width: min(100%, 26rem);
+  max-height: calc(var(--vh) - 2 * var(--screen-gap));
+  overflow-y: auto;
+}
+
+.settings-section {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.room-summary {
+  line-height: 1.6;
+}
+
+.create-more {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.create-more > summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+  color: var(--ink-soft);
+}
+
+.create-more[open] > * + * {
+  margin-top: 0.6rem;
+}
