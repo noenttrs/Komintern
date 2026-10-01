@@ -324,7 +324,7 @@ export function createApi(services: Services, admin: AdminService, publicRooms: 
     const ip = clientIp(request);
     // Limite par IP : empêche de gonfler les compteurs d'audience.
     void allow(services.kv, "visit", ip, 120, 3600)
-      .then((allowed) => (allowed ? services.audience.record(request.body?.path, ip, String(request.headers["user-agent"] ?? "")) : undefined))
+      .then((allowed) => (allowed ? services.audience.record(request.body?.path, ip, String(request.headers["user-agent"] ?? ""), new Date(), { automated: request.body?.automated === true }) : undefined))
       .catch(() => undefined);
     response.status(204).end();
   });

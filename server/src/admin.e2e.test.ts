@@ -43,10 +43,10 @@ after(async () => {
   await app.close();
 });
 
-async function api(path: string, init: { method?: string; body?: unknown; cookie?: string } = {}) {
+async function api(path: string, init: { method?: string; body?: unknown; cookie?: string; userAgent?: string } = {}) {
   const response = await fetch(`${base}/api${path}`, {
     method: init.method ?? (init.body === undefined ? "GET" : "POST"),
-    headers: { "Content-Type": "application/json", Origin: ORIGIN, ...(init.cookie === undefined ? {} : { Cookie: init.cookie }) },
+    headers: { "Content-Type": "application/json", Origin: ORIGIN, ...(init.cookie === undefined ? {} : { Cookie: init.cookie }), ...(init.userAgent === undefined ? {} : { "User-Agent": init.userAgent }) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const text = await response.text();
@@ -90,14 +90,20 @@ test("contact form, donation link, admin area behind role + TOTP", async () => {
   const second = await api("/auth/login", { body: { email: "admin@example.org", password: "admin password 123" } });
   assert.equal((await api("/admin/session", { body: { code }, cookie: second.cookie })).status, 401);
 
-  // Mesure d'audience : visiteurs uniques et pages vues, chemins normalisés, robots ignorés
+  // Mesure d'audience : visiteurs uniques et pages vues, chemins normalisés ; robots et automates
+  // (y compris le client HTTP de Node, sans user agent de navigateur) écartés et seulement dénombrés.
+  const browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
   for (const path of ["/", "/r/AB12CD", "/regles", "/nimporte-quoi"]) {
-    assert.equal((await api("/visit", { body: { path } })).status, 204);
+    assert.equal((await api("/visit", { body: { path }, userAgent: browser })).status, 204);
   }
+  assert.equal((await api("/visit", { body: { path: "/" }, userAgent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" })).status, 204);
+  assert.equal((await api("/visit", { body: { path: "/regles", automated: true }, userAgent: browser })).status, 204);
+  assert.equal((await api("/visit", { body: { path: "/" } })).status, 204);
   const audience = (await api("/admin/audience", { cookie: login.cookie })).body;
   const today = audience.daily.at(-1);
   assert.equal(today.visitors, 1);
   assert.equal(today.pageviews, 3);
+  assert.equal(today.bots, 3);
   assert.deepEqual(audience.topPages.map((page: { path: string }) => page.path).sort(), ["/", "/r/:code", "/regles"]);
 
   // Contact et bannissement depuis l'admin

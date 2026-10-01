@@ -20,15 +20,40 @@ export function setAudienceOptOut(optOut: boolean): void {
 }
 
 let lastPath: string | null = null;
+// Page vue en attente : la page est préchargée en arrière-plan ou l'onglet est caché.
+let pending: string | null = null;
 
-export function recordPageView(path: string): void {
-  if (path === lastPath || audienceOptedOut()) return;
-  lastPath = path;
+/** Page affichée pour de vrai : ni préchargée (prerender, aperçu de lien), ni dans un onglet caché. */
+function displayed(): boolean {
+  return (document as Document & { prerendering?: boolean }).prerendering !== true && document.visibilityState === "visible";
+}
+
+function sendWhenDisplayed(): void {
+  if (pending === null || !displayed()) return;
+  const path = pending;
+  pending = null;
+  document.removeEventListener("prerenderingchange", sendWhenDisplayed);
+  document.removeEventListener("visibilitychange", sendWhenDisplayed);
+  // Navigateur piloté par un automate (Playwright, Selenium…) : signalé, pour n'être que dénombré.
+  const automated = navigator.webdriver === true;
   void fetch("/api/visit", {
     method: "POST",
     keepalive: true,
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
+    body: JSON.stringify(automated ? { path, automated: true } : { path }),
   }).catch(() => undefined);
+}
+
+/** Compte une page vue, une fois la page réellement affichée (la dernière seulement si plusieurs attendent). */
+export function recordPageView(path: string): void {
+  if (path === lastPath || audienceOptedOut()) return;
+  lastPath = path;
+  pending = path;
+  if (displayed()) {
+    sendWhenDisplayed();
+    return;
+  }
+  document.addEventListener("prerenderingchange", sendWhenDisplayed);
+  document.addEventListener("visibilitychange", sendWhenDisplayed);
 }

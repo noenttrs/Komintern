@@ -140,20 +140,21 @@ function StatsTab(): JSX.Element {
   );
 }
 
-type Audience = { daily: Array<{ day: string; visitors: number; pageviews: number }>; topPages: Array<{ path: string; views: number }> };
+type Audience = { daily: Array<{ day: string; visitors: number; pageviews: number; bots?: number }>; topPages: Array<{ path: string; views: number }> };
 
 function AudienceTab(): JSX.Element {
   const { t } = useI18n();
   const { data, error } = useLoad<Audience>("/admin/audience");
   if (error !== null) return <p className="form-message form-message--error">{error}</p>;
   if (data === null) return <p>{t("common.loading")}</p>;
-  const sum = (days: number, key: "visitors" | "pageviews") => data.daily.slice(-days).reduce((total, entry) => total + entry[key], 0);
+  const sum = (days: number, key: "visitors" | "pageviews" | "bots") => data.daily.slice(-days).reduce((total, entry) => total + (entry[key] ?? 0), 0);
   const max = Math.max(1, ...data.daily.map((entry) => entry.visitors));
   const cells: Array<[string, number]> = [
     [t("admin.visitorsToday"), data.daily.at(-1)?.visitors ?? 0],
     [t("admin.visitors7d"), sum(7, "visitors")],
     [t("admin.visitors30d"), sum(30, "visitors")],
     [t("admin.pageviews30d"), sum(30, "pageviews")],
+    [t("admin.bots30d"), sum(30, "bots")],
   ];
   return (
     <div className="panel page-panel">
